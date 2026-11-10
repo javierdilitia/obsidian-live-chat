@@ -1,0 +1,27 @@
+/* OBSIDIAN · the landing hero — the thesis line, and the agent's globe at rest beside it.
+   It sits in the toolbar above the command bar and folds away when the first tab opens. */
+
+.hero-fold{transition:grid-template-rows .55s var(--ease),opacity .4s var(--ease)}
+body.tabs-on .hero-fold{grid-template-rows:0fr;opacity:0;pointer-events:none}
+
+.hero{
+  display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:40px;align-items:center;
+  padding-bottom:32px;
+}
+.hero h1{
+  font-size:clamp(32px,4vw,50px);font-weight:700;line-height:1.06;letter-spacing:-.025em;
+  text-wrap:balance;
+}
+.hero h1 span{display:block;color:var(--tx-3)}
+
+/* the agent, waiting: drawn to a canvas by js/hero.js */
+.idle{display:block;width:220px;height:220px;justify-self:center}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:minmax(0,1fr) 160px;gap:24px;padding-bottom:28px}
+  .idle{width:160px;height:160px}
+}
+@media (max-width:520px){
+  .hero{grid-template-columns:minmax(0,1fr) 96px;gap:12px;padding-bottom:22px}
+  .idle{width:96px;height:96px}
+}

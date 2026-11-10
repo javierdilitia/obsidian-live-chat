@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halden — shop by asking</title>
+<meta name="description" content="Concept mockup: an electronics store with a shopping assistant by Obsidian. No chat log — ask, and the answer is built as a page in its own tab.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0A0A0B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12.4 1.5 20 9 11.2 10.2Z' fill='%23D6E6F5'/%3E%3Cpath d='M12.4 1.5 11.2 10.2 4 13.4 7.4 4.8Z' fill='%23324357'/%3E%3Cpath d='M20 9 16.8 20.6 12.6 16 11.2 10.2Z' fill='%236E9BD1'/%3E%3Cpath d='M4 13.4 11.2 10.2 12.6 16 9.2 22.6Z' fill='%23161D27'/%3E%3Cpath d='M12.6 16 16.8 20.6 9.2 22.6Z' fill='%23263852'/%3E%3Cpath d='M12.4 1.5 20 9 16.8 20.6 9.2 22.6 4 13.4 7.4 4.8Z' fill='none' stroke='%239CBEE0' stroke-width='.8' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500&display=swap">
+
+<link rel="stylesheet" href="css/fonts.css">  <!-- Supreme, embedded so it works offline -->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/chrome.css">
+<link rel="stylesheet" href="css/hero.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="css/artifacts.css">
+<link rel="stylesheet" href="css/overlays.css">
+
+<!-- plain deferred scripts (not modules) so the file still opens by double-click, offline -->
+<script defer src="js/data/catalog.js"></script>  <!-- synthetic products, specs, orders, home picks -->
+<script defer src="js/data/script.js"></script>   <!-- the scripted questions and follow-ups -->
+<script defer src="js/renders.js"></script>       <!-- the products, drawn as lit objects -->
+<script defer src="js/core.js"></script>          <!-- helpers, toasts, overlays, menus -->
+<script defer src="js/shop.js"></script>          <!-- orders, cart, product modal -->
+<script defer src="js/artifacts.js"></script>     <!-- the pages the agent builds, charts, explainers -->
+<script defer src="js/orb.js"></script>           <!-- the dot globe -->
+<script defer src="js/home.js"></script>          <!-- the home page: offers, picks, sales, recent searches -->
+<script defer src="js/agent.js"></script>         <!-- tabs, and where each answer goes -->
+<script defer src="js/hero.js"></script>          <!-- the landing hero: the agent waiting for a question -->
+<script defer src="js/main.js"></script>          <!-- start-up and presenter hooks -->
+</head>
+<body>
+
+<!-- authored icon set · one stroke grammar · 1.5px -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-shard-lit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EEF5FC"/><stop offset="1" stop-color="#9CBEE0"/>
+    </linearGradient>
+    <linearGradient id="g-shard-side" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7FA8D8"/><stop offset="1" stop-color="#2E4866"/>
+    </linearGradient>
+    <linearGradient id="g-shard-left" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3D5068"/><stop offset="1" stop-color="#1B2430"/>
+    </linearGradient>
+    <!-- the mark: a faceted obsidian shard, one face catching the light -->
+    <symbol id="i-shard" viewBox="0 0 24 24">
+      <path d="M12.4 1.5 20 9 11.2 10.2Z" fill="url(#g-shard-lit)"/>
+      <path d="M12.4 1.5 11.2 10.2 4 13.4 7.4 4.8Z" fill="url(#g-shard-left)"/>
+      <path d="M20 9 16.8 20.6 12.6 16 11.2 10.2Z" fill="url(#g-shard-side)"/>
+      <path d="M4 13.4 11.2 10.2 12.6 16 9.2 22.6Z" fill="#141A23"/>
+      <path d="M12.6 16 16.8 20.6 9.2 22.6Z" fill="#22334A"/>
+      <path d="M12.4 1.5 11.2 10.2 12.6 16" fill="none" stroke="#D6E6F5" stroke-opacity=".35" stroke-width=".5" stroke-linejoin="round"/>
+      <path d="M12.4 1.5 20 9 16.8 20.6 9.2 22.6 4 13.4 7.4 4.8Z" fill="none" stroke="#9CBEE0" stroke-opacity=".7" stroke-width=".8" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4v6M12 14v6M4 12h6M14 12h6"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="12" cy="12" r="8.2"/><path d="M3.8 12h16.4M12 3.8c-4.8 4.9-4.8 11.5 0 16.4 4.8-4.9 4.8-11.5 0-16.4Z"/>
+    </symbol>
+    <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M4 8.2 12 4l8 4.2v7.6L12 20l-8-4.2Z"/><path d="M4 8.2 12 12.4l8-4.2M12 12.4V20"/>
+    </symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 5h2l2.2 10.5h10.6L20.5 8H7"/><circle cx="9.5" cy="19.2" r="1.4"/><circle cx="16.5" cy="19.2" r="1.4"/>
+    </symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"/>
+    </symbol>
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="12" cy="12" r="8.2"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".4" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <path d="M6 6l12 12M18 6 6 18"/>
+    </symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m7 10 5 5 5-5"/>
+    </symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M12 5v14M5 12h14"/>
+    </symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M5 12h14"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12.5 10 17.5 19 7"/>
+    </symbol>
+    <symbol id="i-compare" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M5 20V12M12 20V6M19 20V9"/>
+    </symbol>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21.5Z"/><path d="M5 18.5V5.5"/>
+    </symbol>
+    <symbol id="i-refine" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M19 4.5V8h-3.5"/>
+    </symbol>
+    <symbol id="i-newtab" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9.5V7a2 2 0 0 1 2-2h5l2 2.5h5a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M12 11v5M9.5 13.5h5"/>
+    </symbol>
+    <symbol id="i-switch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12h13M13 7l5 5-5 5"/>
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="8.2"/><path d="M12 7.5V12l3 2"/>
+    </symbol>
+    <symbol id="i-star" viewBox="0 0 24 24">
+      <path d="M12 3.2l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8Z" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 6.5h11v9.5H3ZM14 9.5h3.8l3.2 3.4V16h-7"/><circle cx="7" cy="17.5" r="1.7"/><circle cx="17.5" cy="17.5" r="1.7"/>
+    </symbol>
+    <symbol id="i-return" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 5 5 9l4 4"/><path d="M5 9h9.5a4.5 4.5 0 0 1 0 9H8"/>
+    </symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.5 19 6v5.5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6Z"/><path d="m9 12 2.2 2.2L15.5 10"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- shell -->
+<header class="shell">
+  <!-- the store's name leads; the assistant signs beside it -->
+  <div class="wordmark">
+    <b class="store" id="storeName">Halden</b>
+    <span class="by"><svg width="14" height="14" aria-hidden="true"><use href="#i-shard"/></svg>assistant by Obsidian</span>
+  </div>
+  <!-- the ledger: each control says its live fact (filled by js/shop.js) -->
+  <nav class="ledger" aria-label="Account and shop">
+    <button class="cell" id="langBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Language and currency">
+      <span class="fact"><span id="langLabel">EN</span><span class="wide"> · €</span></span>
+    </button>
+    <button class="cell" id="ordersBtn" aria-label="Orders">
+      <svg class="ico" width="16" height="16" aria-hidden="true"><use href="#i-box"/></svg>
+      <span class="lbl">Orders</span><span class="fact" id="ordersFact"></span>
+    </button>
+    <button class="cell" id="cartBtn" aria-label="Cart">
+      <svg class="ico" width="16" height="16" aria-hidden="true"><use href="#i-cart"/></svg>
+      <span class="lbl">Cart</span><span class="fact roll" id="cartFact"></span>
+    </button>
+    <button class="cell cell-user" id="userBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu: Javier">
+      <span class="initial" aria-hidden="true">J</span><span class="lbl">Javier</span>
+      <svg class="chev" width="12" height="12" aria-hidden="true"><use href="#i-chev"/></svg>
+    </button>
+  </nav>
+  <!-- the agent's line: breathes with the globe while it waits, fills while it builds -->
+  <span class="seam" id="seam" aria-hidden="true"></span>
+</header>
+
+<main class="stage">
+  <!-- browser chrome: tabs the agent opens, over the command bar -->
+  <div class="chrome" id="chrome">
+    <div class="collapse closed" id="tabsCollapse">
+      <div class="collapse-inner">
+        <div class="tabband">
+          <div class="col tabbar">
+            <div class="tabs" id="tabs" role="tablist" aria-label="Pages the assistant built"></div>
+            <button class="tab-new" id="newTab" aria-label="New page"><svg width="16" height="16"><use href="#i-plus"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <!-- the landing hero: what OBSIDIAN is, and the agent's globe waiting — folds away with the first tab -->
+      <div class="collapse hero-fold">
+        <div class="collapse-inner">
+          <div class="col hero">
+            <h1><span>Tell us what it’s for.</span> We’ll build you the shortlist.</h1>
+            <canvas class="idle" id="idle" aria-hidden="true"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="capsule" id="capsule">
+          <svg class="spark" width="18" height="18" aria-hidden="true"><use href="#i-spark"/></svg>
+          <input class="caret" id="cmd" type="text" placeholder="What are you shopping for?" aria-label="What are you shopping for?" autocomplete="off">
+          <span class="cap-state" id="capState" aria-live="polite"></span>
+          <button class="send" id="sendBtn" aria-label="Send"><svg width="17" height="17"><use href="#i-arrow-up"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col followups">
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <section class="workspace col" id="workspace" aria-label="AI workspace">
+    <!-- the home page (landing and every new tab) — filled by js/home.js -->
+    <div class="home" id="home"></div>
+  </section>
+
+  <!-- the one disclaimer, where a store keeps its small print -->
+  <footer class="col demo-note">Concept demo · every product, price, rating and order is fictional</footer>
+</main>
+
+<!-- overlays -->
+<div class="scrim" id="scrim"></div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-panel" id="modalPanel"></div>
+</div>
+
+<aside class="drawer" id="ordersDrawer" role="dialog" aria-modal="true" aria-label="Previous orders">
+  <div class="drawer-head">
+    <h2>Previous orders</h2>
+    <button class="ctl close" data-close aria-label="Close"><svg width="17" height="17"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="drawer-body" id="ordersBody"></div>
+</aside>
+
+<aside class="drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-label="Shopping cart">
+  <div class="drawer-head">
+    <h2>Cart</h2>
+    <button class="ctl close" data-close aria-label="Close"><svg width="17" height="17"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="drawer-body" id="cartBody"></div>
+  <div class="drawer-foot" id="cartFoot" hidden>
+    <div class="sum" id="cartSum"></div>
+    <button class="btn btn-primary checkout" id="checkoutBtn">Check out</button>
+  </div>
+</aside>
+
+<div class="menu" id="langMenu" role="menu" aria-label="Language"></div>
+<div class="menu" id="userMenu" role="menu" aria-label="Account"></div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# local design-tool artifacts (critiques, screenshots, caches)
+.impeccable/
+
+# source downloads; the font is embedded in css/fonts.css
+downloads/
+
+# OS junk
+Thumbs.db
+.DS_Store
+desktop.ini

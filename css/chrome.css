@@ -1,0 +1,233 @@
+/* OBSIDIAN · shell bar, browser chrome (tabs + command bar), suggestion chips */
+
+/* ——— shell: the wordmark, the ledger, and the agent's line under them ——— */
+.shell{
+  position:fixed;inset:0 0 auto 0;height:56px;z-index:60;
+  display:flex;align-items:stretch;justify-content:space-between;
+  padding-left:20px;
+  background:rgba(10,10,11,.82);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+}
+/* the store's name leads; the assistant signs beside it, quietly */
+.wordmark{display:flex;align-items:center;gap:14px;user-select:none;min-width:0}
+.wordmark .store{font-weight:700;font-size:19px;letter-spacing:-.02em;line-height:1}
+.wordmark .by{
+  display:flex;align-items:center;gap:6px;padding-left:14px;border-left:1px solid var(--line);
+  height:20px;font-size:12px;color:var(--tx-3);white-space:nowrap;
+}
+
+/* the ledger: full-height cells divided by hairlines, each with its live fact */
+.ledger{display:flex;align-items:stretch}
+.cell{
+  position:relative;display:flex;align-items:center;gap:9px;
+  padding:0 18px;border-left:1px solid var(--line);
+  font-size:13px;font-weight:500;color:var(--tx);white-space:nowrap;
+  transition:background .18s var(--ease);
+}
+.cell:last-child{padding-right:20px}
+.cell:hover{background:rgba(255,255,255,.03)}
+.cell:active{background:rgba(255,255,255,.05)}
+.cell:focus-visible{outline-offset:-3px;border-radius:2px}
+.cell[aria-expanded="true"]{background:rgba(255,255,255,.04)}
+.cell .ico{display:none;color:var(--tx-2);flex:none}
+.fact{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:12px;font-weight:400;color:var(--tx-3);
+  transition:color .18s var(--ease);
+}
+.cell:hover .fact{color:var(--tx-2)}
+.fact b{font-weight:500;color:var(--tx)}
+.fact .live{ /* an order on its way — the tracking page's "now" step, small */
+  width:5px;height:5px;border-radius:99px;flex:none;
+  background:var(--steel);box-shadow:0 0 0 3px rgba(156,190,224,.14);
+}
+.cell-user{gap:7px}
+.cell-user .chev{color:var(--tx-3);transition:transform .2s var(--ease)}
+.cell-user[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.cell-user .initial{
+  display:none;width:24px;height:24px;border-radius:50%;place-items:center;
+  border:1px solid var(--line-strong);font-size:11.5px;font-weight:700;color:var(--tx);
+}
+
+/* icon controls — the close buttons on the modal and drawers */
+.ctl{
+  position:relative;display:grid;place-items:center;
+  height:38px;min-width:38px;padding:0 10px;border-radius:var(--r-ctl);
+  color:var(--tx-2);transition:background .18s var(--ease),color .18s var(--ease),transform .18s var(--ease);
+}
+.ctl:hover{background:rgba(255,255,255,.06);color:var(--tx)}
+.ctl:active{transform:scale(.96)}
+
+/* the cart count rolls when it changes: the old value lifts away, the new one rises in */
+.roll{position:relative;overflow:hidden}
+.roll>span{display:inline-flex;align-items:center;gap:inherit}
+.roll>.out{position:absolute;inset:0;animation:roll-out .34s var(--ease) both}
+.roll>.in{animation:roll-in .42s var(--spring) both}
+@keyframes roll-out{to{opacity:0;transform:translateY(-70%);filter:blur(2px)}}
+@keyframes roll-in{from{opacity:0;transform:translateY(70%);filter:blur(2px)}}
+
+/* the agent's line — a hairline at rest; on the landing it brightens and dims with the globe's breath
+   (js/hero.js sets --breath), and while a page builds a steel line fills it left to right (js/core.js → Seam) */
+.seam{position:absolute;left:0;right:0;bottom:0;height:1px;overflow:hidden;pointer-events:none;background:var(--line);--breath:0;--p:0;--on:0}
+.seam::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 8%,rgba(156,190,224,.5) 50%,transparent 92%);
+  opacity:calc(var(--breath) * .8);transition:opacity .4s linear;
+}
+.seam::after{
+  content:"";position:absolute;inset:0;transform-origin:left;
+  background:linear-gradient(90deg,var(--deep),var(--steel) 70%,var(--frost));
+  transform:scaleX(var(--p));opacity:var(--on);
+  transition:transform .9s var(--ease),opacity .5s var(--ease);
+}
+
+/* ——— stage ——— */
+.stage{position:relative;display:flex;flex-direction:column;padding-top:56px;min-height:100vh}
+.stage::before{ /* one quiet light source, top-left — the black glass sheen */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(1100px 520px at 18% -8%, rgba(156,190,224,.055), transparent 62%);
+}
+
+/* ——— browser chrome: tabs + command bar ———
+   Before the first question the bar scrolls away with the home page; once tabs exist it sticks,
+   over an opaque toolbar, so nothing ever slides under a see-through bar. */
+.chrome{position:sticky;top:56px;z-index:40}
+body:not(.tabs-on) .chrome{position:relative;top:0}   /* top:0 — the sticky offset must not push the bar onto the chips */
+.collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows .55s var(--ease)}
+.collapse.closed{grid-template-rows:0fr}
+.collapse-inner{overflow:hidden;min-height:0}
+
+/* tab band — the line under it is painted by the band, so the active tab can cover it */
+.tabband{
+  background:linear-gradient(var(--line),var(--line)) bottom / 100% 1px no-repeat, rgba(10,10,11,.92);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+}
+.tabbar{display:flex;align-items:flex-end;gap:6px;height:46px;padding-top:10px}
+.tabs{display:flex;align-items:flex-end;gap:2px;min-width:0;height:100%;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  position:relative;flex:0 1 214px;min-width:104px;height:36px;
+  display:flex;align-items:center;gap:4px;padding:0 6px 0 12px;
+  border:1px solid transparent;border-bottom:none;border-radius:12px 12px 0 0;
+  color:var(--tx-3);
+  transition:background .2s var(--ease),color .2s var(--ease),border-color .2s var(--ease);
+  animation:tab-in .55s var(--spring) both;
+}
+.tab:hover{background:rgba(255,255,255,.035);color:var(--tx-2)}
+.tab.active{
+  background:var(--bg-panel);border-color:var(--line);color:var(--tx);
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset;
+}
+.tab.closing{animation:tab-out .26s var(--ease) both;pointer-events:none}
+@keyframes tab-in{from{min-width:0;max-width:0;opacity:0;transform:translateY(10px)}to{min-width:104px;max-width:214px}}
+@keyframes tab-out{to{min-width:0;max-width:0;opacity:0;padding:0}}
+.tab-main{
+  flex:1;min-width:0;height:100%;display:flex;align-items:center;gap:9px;
+  font-size:13px;font-weight:500;text-align:left;border-radius:8px;
+}
+.tab-main:focus-visible{outline-offset:-2px}
+.tab-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab-ico{width:14px;height:14px;flex:none;display:grid;place-items:center;color:var(--tx-3);transition:color .2s var(--ease)}
+.tab.active .tab-ico{color:var(--steel)}
+.tab-x{
+  flex:none;width:22px;height:22px;border-radius:999px;display:grid;place-items:center;
+  color:var(--tx-3);opacity:0;transition:opacity .15s var(--ease),background .15s var(--ease),color .15s var(--ease);
+}
+.tab:hover .tab-x,.tab.active .tab-x,.tab-x:focus-visible{opacity:1}
+.tab-x:hover{background:rgba(255,255,255,.08);color:var(--tx)}
+.tload{width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(156,190,224,.22);border-top-color:var(--steel);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tab-new{
+  flex:none;width:32px;height:32px;margin-bottom:2px;border-radius:var(--r-ctl);
+  display:grid;place-items:center;color:var(--tx-3);
+  transition:background .18s var(--ease),color .18s var(--ease);
+}
+.tab-new:hover{background:rgba(255,255,255,.06);color:var(--tx)}
+
+/* command bar — the address bar of this browser */
+.toolbar{
+  padding:var(--lift) 0 0;border-bottom:1px solid transparent;
+  transition:padding .55s var(--ease),background .45s var(--ease),border-color .45s var(--ease);
+}
+body.tabs-on .toolbar{padding:10px 0;background:var(--bg-panel);border-bottom-color:var(--line)}
+.capsule{
+  display:flex;align-items:center;gap:12px;
+  height:58px;padding:0 10px 0 20px;border-radius:999px;
+  background:rgba(255,255,255,.035);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -28px rgba(0,0,0,.9);
+  transition:height .55s var(--ease),border-color .25s var(--ease),box-shadow .25s var(--ease),background .25s var(--ease);
+}
+body.tabs-on .capsule{height:48px;padding-left:18px;padding-right:6px;box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+.capsule:focus-within{
+  border-color:rgba(156,190,224,.55);
+  background:rgba(255,255,255,.05);
+  box-shadow:0 0 0 4px rgba(156,190,224,.10), 0 1px 0 rgba(255,255,255,.05) inset, 0 18px 40px -28px rgba(0,0,0,.9);
+}
+.capsule .spark{color:var(--steel);flex:none}
+.capsule input{
+  flex:1;min-width:0;background:none;border:none;outline:none;
+  font-size:16px;color:var(--tx);height:100%;
+  text-overflow:ellipsis;
+}
+body.tabs-on .capsule input{font-size:15px}
+.capsule input::placeholder{color:var(--tx-3)}
+.cap-state{
+  flex:none;font-family:var(--mono);font-size:12px;color:var(--tx-3);white-space:nowrap;
+  opacity:0;transform:translateX(6px);transition:opacity .3s var(--ease),transform .3s var(--ease);
+}
+.cap-state.on{opacity:1;transform:none}
+.cap-state b{font-weight:400;color:var(--steel)}
+.send{
+  flex:none;width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center;color:var(--tx-3);
+  border:1px solid var(--line);
+  transition:all .25s var(--ease);
+}
+body.tabs-on .send{width:36px;height:36px}
+.send.ready{background:var(--steel);border-color:var(--steel);color:var(--ink)}
+.send.ready:hover{background:var(--frost);border-color:var(--frost)}
+.send:not(.ready):hover{border-color:var(--line-strong);color:var(--tx)}
+
+/* ——— suggestions: starters before the first question, follow-ups on a built tab ——— */
+.followups{padding-top:16px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;transition:opacity .3s var(--ease),transform .3s var(--ease)}
+.chips.gone{opacity:0;transform:translateY(-4px);pointer-events:none}
+.chip{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 16px;border-radius:999px;font-size:13.5px;color:var(--tx-2);
+  border:1px solid var(--line);background:rgba(255,255,255,.02);
+  transition:all .2s var(--ease);
+}
+.chip:hover{color:var(--tx);border-color:var(--line-strong);background:rgba(255,255,255,.05);transform:translateY(-1px)}
+.chip:active{transform:translateY(0) scale(.98)}
+.chip .dot{width:5px;height:5px;border-radius:99px;background:var(--steel)}
+.chip svg{color:var(--steel);flex:none}
+.chip-note{align-self:center;font-size:13px;color:var(--tx-3);margin-right:2px}
+.chips.fresh .chip{animation:chip-in .5s var(--ease) both}
+.chips.fresh .chip:nth-child(2){animation-delay:.05s}
+.chips.fresh .chip:nth-child(3){animation-delay:.1s}
+.chips.fresh .chip:nth-child(4){animation-delay:.15s}
+@keyframes chip-in{from{opacity:0;transform:translateY(8px);filter:blur(4px)}}
+
+@media (max-width:860px){
+  :root{--lift:28px}
+  .shell{padding-left:14px}
+  .cell{padding:0 13px;gap:7px}
+  .cell:last-child{padding-right:14px}
+  .cell .lbl,.fact .wide,.cell-user .chev,.wordmark .by{display:none}
+  .cell .ico{display:block}
+  .cell-user .initial{display:grid}
+  .tab{flex:0 0 156px;min-width:0}
+  @keyframes tab-in{from{max-width:0;opacity:0;transform:translateY(10px)}to{max-width:156px}}
+}
+@media (max-width:520px){
+  .cell{padding:0 11px}
+  #ordersFact{display:none}
+  .chips{gap:8px}
+  .chip{font-size:12.5px;padding:8px 13px}
+  .cap-state{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .tload{animation:none;border-color:var(--steel)}
+}

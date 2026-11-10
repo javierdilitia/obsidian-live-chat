@@ -1,0 +1,132 @@
+/* OBSIDIAN · the home page — the landing, and what every new tab opens on.
+   One panel, hairline-divided like a built page: the offer, recent searches, the category shelf, picks, the sale.
+   Every product stands on its own studio plate (.shot, in base.css). */
+
+.home{animation:rise .8s var(--ease) both;transition:opacity .4s var(--ease),transform .4s var(--ease),filter .4s var(--ease)}
+.home.gone{opacity:0;transform:translateY(8px);filter:blur(4px);pointer-events:none}
+.home-panel{
+  background:var(--bg-panel);border:1px solid var(--line);border-radius:var(--r-artifact);
+  box-shadow:var(--shadow-panel);overflow:hidden;
+}
+.home-head{
+  display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;column-gap:20px;row-gap:4px;
+  padding:20px 28px 18px;border-bottom:1px solid var(--line);
+}
+.home-head h2{font-size:17px;font-weight:700;line-height:1.3}
+.home-head .art-meta{margin-top:0}
+.home .sec{font-size:13.5px;font-weight:700;color:var(--tx-2)}
+
+.home-top{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);border-bottom:1px solid var(--line)}
+
+/* the offer — the one place the page leans in: the product, big, with the deal on it */
+.offer{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);align-items:center;gap:8px;padding:28px 12px 28px 28px;overflow:hidden}
+.offer-copy{position:relative;z-index:1}
+.offer h3{font-size:clamp(20px,2.1vw,24px);font-weight:700;letter-spacing:-.01em;line-height:1.2;text-wrap:balance;max-width:20ch}
+.offer p{font-size:14px;line-height:1.55;color:var(--tx-2);margin-top:10px;max-width:44ch;text-wrap:pretty}
+.offer-price{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:baseline;margin-top:16px}
+.offer-price .from{font-size:13px;color:var(--tx-3)}
+.offer-price .save{grid-column:2}
+.offer .art-meta{margin-top:12px;font-size:11.5px}
+.offer .btn{margin-top:20px}
+.offer .btn svg{flex:none}
+.offer-visual{align-self:stretch;margin:-12px 0;border-radius:var(--r-panel);transition:transform .5s var(--ease)}
+.offer-visual .render{max-width:380px;transition:transform .6s var(--ease)}
+.offer-visual:hover .render{transform:translateY(-4px) scale(1.015)}
+.offer-visual:focus-visible{outline-offset:-2px}
+.offer-visual .cut{
+  position:absolute;top:18%;right:8%;
+  font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;
+  padding:4px 11px;border-radius:999px;background:var(--ember);color:var(--ink);
+}
+
+/* recent searches — asking again rebuilds the page */
+.recents{display:flex;flex-direction:column;padding:22px 24px 18px;border-left:1px solid var(--line)}
+.recents ul{list-style:none;margin-top:6px}
+.recents li+li{border-top:1px solid var(--line)}
+.recent{
+  display:flex;align-items:center;gap:12px;width:100%;padding:12px 0;text-align:left;
+  border-radius:var(--r-nest);
+}
+.recent .ico{flex:none;color:var(--tx-3);transition:color .2s var(--ease)}
+.recent .rt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.recent b{font-size:14px;font-weight:500;color:var(--tx-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .2s var(--ease)}
+.recent .rt span{font-family:var(--mono);font-size:11.5px;color:var(--tx-3)}
+.recent .go{flex:none;color:var(--steel);opacity:.35;transform:translateX(-4px);transition:opacity .2s var(--ease),transform .2s var(--ease)}
+.recent:hover b,.recent:focus-visible b{color:var(--tx)}
+.recent:hover .ico,.recent:focus-visible .ico{color:var(--steel)}
+.recent:hover .go,.recent:focus-visible .go{opacity:1;transform:none}
+.recents .note{margin-top:auto;padding-top:12px;font-size:12.5px;color:var(--tx-3)}
+
+/* product sections; hairlines come from a 1px gap over the line colour */
+.home-sec+.home-sec{border-top:1px solid var(--line)}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;column-gap:16px;row-gap:2px;padding:20px 28px 14px}
+.sec-head .art-meta{margin-top:0;font-size:11.5px}
+
+/* the category shelf */
+.cats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
+.cat{display:flex;flex-direction:column;align-items:flex-start;padding:12px 16px 16px;text-align:left;background:var(--bg-panel);transition:background .2s var(--ease)}
+.cat:hover{background:color-mix(in srgb, var(--bg-panel), white 2.5%)}
+.cat:focus-visible{outline-offset:-2px}
+.cat .thumb{width:100%;margin-bottom:6px;border-radius:12px}
+.cat .render{max-width:150px;transition:transform .4s var(--ease)}
+.cat:hover .render{transform:translateY(-2px)}
+.cat b{font-size:14px;font-weight:700}
+.cat>span:last-child{font-size:12px;color:var(--tx-3);margin-top:1px}
+
+.picks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
+.pick{
+  display:flex;flex-direction:column;align-items:flex-start;padding:14px 22px 22px;text-align:left;
+  background:var(--bg-panel);transition:background .2s var(--ease);
+}
+.pick:hover{background:color-mix(in srgb, var(--bg-panel), white 2.5%)}
+.pick:focus-visible{outline-offset:-2px}
+.pick .thumb{width:100%;margin-bottom:10px;border-radius:12px}
+.pick .render{max-width:210px;transition:transform .4s var(--ease)}
+.pick:hover .render{transform:translateY(-3px)}
+.pick .pn{font-size:14.5px;font-weight:700;letter-spacing:-.005em}
+.pick .trust{margin-top:4px}
+.pick .pp{font-size:17px;font-weight:700;letter-spacing:-.01em;margin-top:8px;font-variant-numeric:tabular-nums}
+.pick .why{font-size:12.5px;line-height:1.45;color:var(--tx-3);margin-top:6px}
+
+.sales{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
+.sale{
+  display:flex;align-items:center;gap:14px;padding:12px 28px 12px 20px;text-align:left;
+  background:var(--bg-panel);transition:background .2s var(--ease);
+}
+.sale:hover{background:color-mix(in srgb, var(--bg-panel), white 2.5%)}
+.sale:focus-visible{outline-offset:-2px}
+.sale .tile{width:84px;height:60px;flex:none;border-radius:12px}
+.sale .tile .render{width:84px}
+.sale .si{flex:1;min-width:0}
+.sale .si b{display:block;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sale .si span{font-size:12.5px;color:var(--tx-3)}
+.sale .sp{display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-variant-numeric:tabular-nums}
+.sale .sp b{font-size:15px;font-weight:700;color:var(--tx)}
+.sale .sp s{font-size:12px;color:var(--tx-3)}
+.sale .pill{flex:none;letter-spacing:0}
+
+@media (max-width:1080px){
+  .offer{grid-template-columns:1fr;padding-right:28px}
+  .offer-visual{margin:0;order:-1;height:200px}
+  .offer-visual .render{max-width:270px}
+  .cats{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  .home-top{grid-template-columns:minmax(0,1fr)}
+  .recents{border-left:none;border-top:1px solid var(--line)}
+  .picks{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sales{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .home-head,.sec-head{padding-left:18px;padding-right:18px}
+  .offer{padding:18px}
+  .offer-visual{height:170px}
+  .offer-visual .render{max-width:230px}
+  .recents{padding:18px 18px 14px}
+  .cats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cat{padding:10px 14px 14px}
+  .pick{padding:12px 14px 16px}
+  .sale{padding:10px 18px 10px 12px;gap:12px}
+  .sale .tile{width:64px;height:46px}
+  .sale .tile .render{width:64px}
+}
