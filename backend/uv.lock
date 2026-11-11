@@ -4,6 +4,7 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "halden-data-contract",
+    "halden-data-fake",
 ]
 
 [manifest.dependency-groups]
@@ -224,6 +225,17 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'testing'" },
     { name = "pytest-asyncio", marker = "extra == 'testing'" },
 ]
+
+[[package]]
+name = "halden-data-fake"
+version = "0.1.0"
+source = { editable = "packages/data_fake" }
+dependencies = [
+    { name = "halden-data-contract" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "halden-data-contract", editable = "packages/data_contract" }]
 
 [[package]]
 name = "httpcore"
