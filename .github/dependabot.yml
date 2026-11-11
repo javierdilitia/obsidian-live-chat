@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      uv:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
