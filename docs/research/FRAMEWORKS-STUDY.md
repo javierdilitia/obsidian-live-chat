@@ -74,7 +74,7 @@ So the real decisions are two: **layer 2+3** (json-render vs OpenUI vs A2UI) and
 Catalog (`defineCatalog`, Zod 4) + renderer registry; LLM output is **plain text: JSONL of RFC 6902 JSON-Patch ops** against a flat keyed spec. Standalone mode = "generated UI is the whole response". Patch-native: `newPatches` per streamed chunk is exactly our glow signal; `@json-render/yaml` documents `previousSpec` multi-turn editing. Serialization trivial (`examples/no-ai`). Static prompt string → ideal cache prefix. Risks: pre-1.0 churn; prompt-based constraint (not grammar-enforced); **React ≥19.2**; unchanged-element re-render semantics not documented — verify in PoC.
 
 ### CopilotKit — partial fit
-New "components & surfaces": nested typed components via slots, **`bind` hides bound props from the agent** (exact IDs-not-values), documented in-place surface updates, local functions, headless, factory-mode agents. But that system is **Experimental** (A2UI 1.0 candidate), runtime is thread-shaped, `react-core` heavy. Its fallback mode embeds json-render — i.e., the stable path is CopilotKit-as-transport around someone else's renderer. Full report: `research/copilotkit-research.md`.
+New "components & surfaces": nested typed components via slots, **`bind` hides bound props from the agent** (exact IDs-not-values), documented in-place surface updates, local functions, headless, factory-mode agents. But that system is **Experimental** (A2UI 1.0 candidate), runtime is thread-shaped, `react-core` heavy. Its fallback mode embeds json-render — i.e., the stable path is CopilotKit-as-transport around someone else's renderer. Full report: `copilotkit-research.md`.
 
 ### mdocUI — partial fit, too young
 Markdown + `{% spec-table ids=["a","b"] /%}` tags; char-level streaming parser; Zod registry; unknown tags dropped; web-components adapter (React optional). No patch/edit mode, no stable node IDs; alpha, single maintainer, 46★. A protocol to learn from, not a foundation.
@@ -145,7 +145,7 @@ The quick "make the mockup live" path from the prior study (Claude tool calls + 
 
 **Round 1 (frameworks):**
 - json-render: [GitHub](https://github.com/vercel-labs/json-render) · [docs](https://json-render.dev/docs/streaming) · [yaml pkg](https://github.com/vercel-labs/json-render/blob/main/packages/yaml/README.md) · [no-ai example](https://github.com/vercel-labs/json-render/tree/main/examples/no-ai)
-- CopilotKit: [GitHub](https://github.com/CopilotKit/CopilotKit) · [generative-ui overview](https://docs.copilotkit.ai/concepts/generative-ui-overview) (full report in `research/copilotkit-research.md`)
+- CopilotKit: [GitHub](https://github.com/CopilotKit/CopilotKit) · [generative-ui overview](https://docs.copilotkit.ai/concepts/generative-ui-overview) (full report in `copilotkit-research.md`)
 - mdocUI: [GitHub](https://github.com/mdocui/mdocui) — not related to vhfmag's mdoc; syntax derived from Stripe's Markdoc, own parser
 - tambo: [shutdown announcement](https://tambo.co/blog/posts/tambo-is-shutting-down) · [SELF-HOSTING.md](https://github.com/tambo-ai/tambo/blob/main/SELF-HOSTING.md)
 - llm-ui: [GitHub (richardgill/llm-ui)](https://github.com/richardgill/llm-ui) — mdb/llm-ui is 404; unmaintained
