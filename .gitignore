@@ -23,6 +23,7 @@ htmlcov/
 # Node / builds
 node_modules/
 web/dist/
+*.tsbuildinfo
 dist/
 
 # plan-execution scratch (superpowers workspaces)
