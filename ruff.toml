@@ -1,0 +1,14 @@
+target-version = "py312"
+line-length = 100
+# Markdown is prose; its code samples are illustrations, not source.
+extend-exclude = ["**/*.md"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
+
+[lint.isort]
+known-first-party = ["halden_data_contract", "halden_data_fake", "halden_agent"]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["S101"]
+"scripts/check.py" = ["S603"]
