@@ -45,34 +45,34 @@ repos:
       - id: web-fix
         name: prettier + eslint --fix (web)
         entry: python scripts/check.py web-fix
-        language: system
+        language: python
         pass_filenames: false
         files: ^web/
       - id: backend-types
         name: pyright (backend)
         entry: python scripts/check.py backend-types
-        language: system
+        language: python
         pass_filenames: false
         always_run: true
         stages: [pre-push]
       - id: backend-tests
         name: pytest (backend)
         entry: python scripts/check.py backend-tests
-        language: system
+        language: python
         pass_filenames: false
         always_run: true
         stages: [pre-push]
       - id: web-types
         name: tsc (web)
         entry: python scripts/check.py web-types
-        language: system
+        language: python
         pass_filenames: false
         always_run: true
         stages: [pre-push]
       - id: web-tests
         name: vitest (web)
         entry: python scripts/check.py web-tests
-        language: system
+        language: python
         pass_filenames: false
         always_run: true
         stages: [pre-push]

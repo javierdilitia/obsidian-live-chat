@@ -121,4 +121,5 @@ class CatalogSourceContract:
     async def test_categories_counts_match(self, source: CatalogSource) -> None:
         for c in await source.list_categories():
             found = await source.search_products(ProductQuery(category=c.id, limit=50))
-            assert c.product_count == len(found)
+            # Search caps at 50, so a bigger category returns exactly 50.
+            assert len(found) == min(c.product_count, 50)

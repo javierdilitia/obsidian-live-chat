@@ -12,6 +12,7 @@ dev = [
     "ruff",
     "pre-commit",
     "httpx2",
+    "pyyaml",
 ]
 
 [tool.pytest.ini_options]
