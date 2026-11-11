@@ -1,0 +1,82 @@
+[
+  {
+    "id": "OB-89027",
+    "user_id": "demo-user",
+    "placed_on": "2026-11-07",
+    "status": "shipped",
+    "total_cents": 18900,
+    "item_count": 1,
+    "eta": "2026-11-12",
+    "lines": [
+      {
+        "product_id": "kore-dock-8-in-1",
+        "name": "Kore Dock 8-in-1",
+        "qty": 1,
+        "unit_price_cents": 18900
+      }
+    ],
+    "tracking": {
+      "carrier": "ParcelLine",
+      "tracking_number": "PL 4471 2290 18",
+      "eta": "2026-11-12",
+      "steps": [
+        { "name": "Ordered", "at": "2026-11-07", "state": "done" },
+        { "name": "Packed", "at": "2026-11-08", "state": "done" },
+        { "name": "Shipped", "at": "2026-11-09", "state": "done" },
+        { "name": "Out for delivery", "at": "2026-11-12", "state": "current" },
+        { "name": "Delivered", "at": null, "state": "pending" }
+      ]
+    }
+  },
+  {
+    "id": "OB-88412",
+    "user_id": "demo-user",
+    "placed_on": "2026-03-02",
+    "status": "delivered",
+    "total_cents": 12900,
+    "item_count": 1,
+    "lines": [
+      { "product_id": "kore-buds-pro", "name": "Kore Buds Pro", "qty": 1, "unit_price_cents": 12900 }
+    ],
+    "tracking": {
+      "carrier": "ParcelLine",
+      "tracking_number": null,
+      "eta": null,
+      "steps": [
+        { "name": "Ordered", "at": "2026-03-02", "state": "done" },
+        { "name": "Packed", "at": "2026-03-03", "state": "done" },
+        { "name": "Shipped", "at": "2026-03-03", "state": "done" },
+        { "name": "Out for delivery", "at": "2026-03-05", "state": "done" },
+        { "name": "Delivered", "at": "2026-03-05", "state": "done" }
+      ]
+    }
+  },
+  {
+    "id": "OB-87190",
+    "user_id": "demo-user",
+    "placed_on": "2026-02-11",
+    "status": "delivered",
+    "total_cents": 44900,
+    "item_count": 1,
+    "lines": [
+      {
+        "product_id": "vela-monitor-27",
+        "name": "Vela Monitor 27″",
+        "qty": 1,
+        "unit_price_cents": 44900
+      }
+    ],
+    "tracking": {
+      "carrier": "ParcelLine",
+      "tracking_number": null,
+      "eta": null,
+      "steps": [
+        { "name": "Ordered", "at": "2026-02-11", "state": "done" },
+        { "name": "Packed", "at": "2026-02-12", "state": "done" },
+        { "name": "Shipped", "at": "2026-02-12", "state": "done" },
+        { "name": "Out for delivery", "at": "2026-02-14", "state": "done" },
+        { "name": "Delivered", "at": "2026-02-14", "state": "done" }
+      ]
+    }
+  }
+]

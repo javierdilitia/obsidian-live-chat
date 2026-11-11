@@ -8,3 +8,23 @@ downloads/
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / builds
+node_modules/
+web/dist/
+*.tsbuildinfo
+dist/
+
+# plan-execution scratch (superpowers workspaces)
+.superpowers/

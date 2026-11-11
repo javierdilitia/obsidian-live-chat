@@ -1,0 +1,78 @@
+# Git hooks. Install once from the repo root:
+#   uv run --project backend pre-commit install --install-hooks -t pre-commit -t commit-msg -t pre-push
+# Heavy checks (types, tests) run on pre-push only, so commits stay fast.
+# Every local hook calls scripts/check.py, the same file CI runs.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: ^mockup/ # the concept mockup is kept byte-for-byte
+      - id: end-of-file-fixer
+        exclude: ^mockup/
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+        exclude: ^\.claude/skills/a2ui/references/
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.5.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, chore, refactor, test, ci, build, perf]
+
+  - repo: local
+    hooks:
+      - id: web-fix
+        name: prettier + eslint --fix (web)
+        entry: python scripts/check.py web-fix
+        language: python
+        pass_filenames: false
+        files: ^web/
+      - id: backend-types
+        name: pyright (backend)
+        entry: python scripts/check.py backend-types
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: backend-tests
+        name: pytest (backend)
+        entry: python scripts/check.py backend-tests
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: web-types
+        name: tsc (web)
+        entry: python scripts/check.py web-types
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: web-tests
+        name: vitest (web)
+        entry: python scripts/check.py web-tests
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

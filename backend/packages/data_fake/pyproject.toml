@@ -1,0 +1,17 @@
+[project]
+name = "halden-data-fake"
+version = "0.1.0"
+description = "In-memory CatalogSource built from JSON seed files; stands in for the real data agent."
+requires-python = ">=3.12"
+dependencies = ["halden-data-contract"]
+
+[tool.uv.sources]
+halden-data-contract = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/halden_data_fake"]
+# seed/*.json ship inside the package directory, so the wheel carries them.

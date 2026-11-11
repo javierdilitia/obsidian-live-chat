@@ -1,0 +1,244 @@
+[
+  {
+    "id": "aeris-studio-16",
+    "name": "Aeris Studio 16",
+    "category_id": "laptops",
+    "price_cents": 189900,
+    "was_price_cents": 219900,
+    "rating": 4.8,
+    "review_count": 1326,
+    "stock": 12,
+    "look": { "glyph": "laptop", "finish": "silver", "screen": "dusk" },
+    "specs": {
+      "display": { "value": "16.2″ mini-LED", "display": "16.2″ mini-LED" },
+      "hz": { "value": 165, "unit": "Hz", "display": "165 Hz" },
+      "cpu": { "value": "12-core · 3.9 GHz", "display": "12-core · 3.9 GHz" },
+      "gpu": { "value": "16-core iGPU", "display": "16-core iGPU" },
+      "ram": { "value": "32 GB LPDDR5", "display": "32 GB LPDDR5" },
+      "ssd": { "value": "1 TB NVMe", "display": "1 TB NVMe" },
+      "batt": { "value": 18, "unit": "h", "display": "18 h" },
+      "weight": { "value": "1.74 kg", "display": "1.74 kg" },
+      "ports": { "value": "6 (3× TB5, HDMI, SD)", "display": "6 (3× TB5, HDMI, SD)" },
+      "p3": { "value": 100, "unit": "%", "display": "100% DCI-P3" },
+      "de": { "value": 0.8, "display": "ΔE 0.8" }
+    }
+  },
+  {
+    "id": "kore-zephyr-14",
+    "name": "Kore Zephyr 14",
+    "category_id": "laptops",
+    "price_cents": 174900,
+    "rating": 4.6,
+    "review_count": 2184,
+    "stock": 12,
+    "look": { "glyph": "laptop", "finish": "graphite", "screen": "sea" },
+    "specs": {
+      "display": { "value": "14.5″ OLED", "display": "14.5″ OLED" },
+      "hz": { "value": 120, "unit": "Hz", "display": "120 Hz" },
+      "cpu": { "value": "10-core · 4.2 GHz", "display": "10-core · 4.2 GHz" },
+      "gpu": { "value": "8-core iGPU", "display": "8-core iGPU" },
+      "ram": { "value": "16 GB LPDDR5", "display": "16 GB LPDDR5" },
+      "ssd": { "value": "512 GB NVMe", "display": "512 GB NVMe" },
+      "batt": { "value": 12, "unit": "h", "display": "12 h" },
+      "weight": { "value": "1.24 kg", "display": "1.24 kg" },
+      "ports": { "value": "2 (2× TB5)", "display": "2 (2× TB5)" },
+      "p3": { "value": 100, "unit": "%", "display": "100% DCI-P3" },
+      "de": { "value": 1.1, "display": "ΔE 1.1" }
+    }
+  },
+  {
+    "id": "vela-prism-15",
+    "name": "Vela Prism 15",
+    "category_id": "laptops",
+    "price_cents": 164900,
+    "rating": 4.4,
+    "review_count": 897,
+    "stock": 12,
+    "look": { "glyph": "laptop", "finish": "midnight", "screen": "night" },
+    "specs": {
+      "display": { "value": "15.3″ IPS", "display": "15.3″ IPS" },
+      "hz": { "value": 144, "unit": "Hz", "display": "144 Hz" },
+      "cpu": { "value": "8-core · 4.0 GHz", "display": "8-core · 4.0 GHz" },
+      "gpu": { "value": "8 GB dGPU", "display": "8 GB dGPU" },
+      "ram": { "value": "16 GB DDR5", "display": "16 GB DDR5" },
+      "ssd": { "value": "1 TB NVMe", "display": "1 TB NVMe" },
+      "batt": { "value": 9, "unit": "h", "display": "9 h" },
+      "weight": { "value": "1.90 kg", "display": "1.90 kg" },
+      "ports": { "value": "5 (USB-A×2, HDMI, SD)", "display": "5 (USB-A×2, HDMI, SD)" },
+      "p3": { "value": 78, "unit": "%", "display": "78% DCI-P3" },
+      "de": { "value": 2.6, "display": "ΔE 2.6" }
+    }
+  },
+  {
+    "id": "aeris-studio-14-oled",
+    "name": "Aeris Studio 14 OLED",
+    "category_id": "laptops",
+    "price_cents": 194900,
+    "rating": 4.7,
+    "review_count": 612,
+    "stock": 12,
+    "look": { "glyph": "laptop", "finish": "starlight", "screen": "dawn" },
+    "specs": {
+      "display": { "value": "14.2″ OLED", "display": "14.2″ OLED" },
+      "hz": { "value": 120, "unit": "Hz", "display": "120 Hz" },
+      "cpu": { "value": "12-core · 3.9 GHz", "display": "12-core · 3.9 GHz" },
+      "gpu": { "value": "16-core iGPU", "display": "16-core iGPU" },
+      "ram": { "value": "32 GB LPDDR5", "display": "32 GB LPDDR5" },
+      "ssd": { "value": "1 TB NVMe", "display": "1 TB NVMe" },
+      "batt": { "value": 15, "unit": "h", "display": "15 h" },
+      "weight": { "value": "1.52 kg", "display": "1.52 kg" },
+      "ports": { "value": "4 (3× TB5, SD)", "display": "4 (3× TB5, SD)" },
+      "p3": { "value": 100, "unit": "%", "display": "100% DCI-P3" },
+      "de": { "value": 0.9, "display": "ΔE 0.9" }
+    }
+  },
+  {
+    "id": "lumen-slate-16",
+    "name": "Lumen Slate 16",
+    "category_id": "laptops",
+    "price_cents": 179900,
+    "was_price_cents": 199900,
+    "rating": 4.5,
+    "review_count": 431,
+    "stock": 3,
+    "look": { "glyph": "laptop", "finish": "sage", "screen": "night" },
+    "specs": {
+      "display": { "value": "16″ OLED", "display": "16″ OLED" },
+      "hz": { "value": 240, "unit": "Hz", "display": "240 Hz" },
+      "cpu": { "value": "8-core · 4.4 GHz", "display": "8-core · 4.4 GHz" },
+      "gpu": { "value": "8 GB dGPU", "display": "8 GB dGPU" },
+      "ram": { "value": "32 GB DDR5", "display": "32 GB DDR5" },
+      "ssd": { "value": "1 TB NVMe", "display": "1 TB NVMe" },
+      "batt": { "value": 8, "unit": "h", "display": "8 h" },
+      "weight": { "value": "2.05 kg", "display": "2.05 kg" },
+      "ports": {
+        "value": "5 (TB4, USB-A×2, HDMI, SD)",
+        "display": "5 (TB4, USB-A×2, HDMI, SD)"
+      },
+      "p3": { "value": 98, "unit": "%", "display": "98% DCI-P3" },
+      "de": { "value": 1.4, "display": "ΔE 1.4" }
+    }
+  },
+  {
+    "id": "vela-monitor-32-pro",
+    "name": "Vela Monitor 32 Pro",
+    "category_id": "monitors",
+    "price_cents": 69900,
+    "rating": 4.7,
+    "review_count": 508,
+    "stock": 12,
+    "look": { "glyph": "monitor", "finish": "silver", "screen": "sea" },
+    "specs": {
+      "panel": { "value": "32″ IPS · 4K", "display": "32″ IPS · 4K" },
+      "refresh_rate": { "value": "144 Hz", "display": "144 Hz" },
+      "colour": { "value": "98% DCI-P3", "display": "98% DCI-P3" },
+      "inputs": { "value": "TB4 · HDMI 2.1 · DP", "display": "TB4 · HDMI 2.1 · DP" },
+      "stand": { "value": "height + tilt", "display": "height + tilt" }
+    }
+  },
+  {
+    "id": "vela-monitor-27",
+    "name": "Vela Monitor 27″",
+    "category_id": "monitors",
+    "price_cents": 44900,
+    "rating": null,
+    "review_count": 0,
+    "stock": 12,
+    "look": { "glyph": "monitor", "finish": "silver", "screen": "dawn" },
+    "specs": {
+      "panel": { "value": "27″", "display": "27″" }
+    }
+  },
+  {
+    "id": "kore-buds-pro-2",
+    "name": "Kore Buds Pro 2",
+    "category_id": "audio",
+    "price_cents": 14900,
+    "rating": 4.6,
+    "review_count": 3902,
+    "stock": 12,
+    "look": { "glyph": "buds", "finish": "white" },
+    "specs": {
+      "noise_cancelling": { "value": "adaptive", "display": "adaptive" },
+      "battery": { "value": "8 h · 30 h with case", "display": "8 h · 30 h with case" },
+      "codecs": { "value": "LC3 · AAC", "display": "LC3 · AAC" },
+      "water": { "value": "IP54", "display": "IP54" }
+    }
+  },
+  {
+    "id": "kore-buds-pro",
+    "name": "Kore Buds Pro",
+    "category_id": "audio",
+    "price_cents": 12900,
+    "rating": null,
+    "review_count": 0,
+    "stock": 12,
+    "look": { "glyph": "buds", "finish": "white" },
+    "specs": {}
+  },
+  {
+    "id": "kore-keys-low",
+    "name": "Kore Keys Low",
+    "category_id": "keyboards",
+    "price_cents": 11900,
+    "rating": 4.5,
+    "review_count": 744,
+    "stock": 12,
+    "look": { "glyph": "keys", "finish": "midnight" },
+    "specs": {
+      "switches": { "value": "low-profile · quiet", "display": "low-profile · quiet" },
+      "layout": { "value": "75%", "display": "75%" },
+      "connection": { "value": "Bluetooth · USB-C", "display": "Bluetooth · USB-C" },
+      "battery": { "value": "3 months", "display": "3 months" }
+    }
+  },
+  {
+    "id": "kore-ssd-2tb",
+    "name": "Kore SSD 2 TB",
+    "category_id": "storage",
+    "price_cents": 16900,
+    "was_price_cents": 21900,
+    "rating": 4.8,
+    "review_count": 5117,
+    "stock": 12,
+    "look": { "glyph": "ssd", "finish": "graphite" },
+    "specs": {
+      "capacity": { "value": "2 TB", "display": "2 TB" },
+      "speed": { "value": "2,000 MB/s", "display": "2,000 MB/s" },
+      "connection": { "value": "USB-C 3.2", "display": "USB-C 3.2" },
+      "weight": { "value": "58 g", "display": "58 g" }
+    }
+  },
+  {
+    "id": "kore-hub-6-in-1",
+    "name": "Kore Hub 6-in-1",
+    "category_id": "docks",
+    "price_cents": 5900,
+    "was_price_cents": 7900,
+    "rating": 4.4,
+    "review_count": 1288,
+    "stock": 12,
+    "look": { "glyph": "dock", "finish": "silver" },
+    "specs": {
+      "ports": {
+        "value": "HDMI 4K60 · SD · 3× USB-A · USB-C",
+        "display": "HDMI 4K60 · SD · 3× USB-A · USB-C"
+      },
+      "power_pass_through": { "value": "100 W", "display": "100 W" },
+      "cable": { "value": "15 cm braided", "display": "15 cm braided" }
+    }
+  },
+  {
+    "id": "kore-dock-8-in-1",
+    "name": "Kore Dock 8-in-1",
+    "category_id": "docks",
+    "price_cents": 18900,
+    "rating": null,
+    "review_count": 0,
+    "stock": 12,
+    "look": { "glyph": "dock", "finish": "graphite" },
+    "specs": {
+      "ports": { "value": "8-in-1", "display": "8-in-1" }
+    }
+  }
+]

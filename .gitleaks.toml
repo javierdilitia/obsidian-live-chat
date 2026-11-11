@@ -1,0 +1,23 @@
+# Read by the gitleaks pre-commit hook and the CI `secrets` job.
+# The default rules stay on. The generic rule only fires above an entropy threshold, and
+# 32-character hex keys (the classic Azure key shape) sit right at it, so some slip through.
+# This rule flags any real-looking value assigned to an API-key name, whatever its entropy,
+# in .env, shell, JSON, YAML and Python shapes (`api_key="..."`, `os.environ["X_API_KEY"] = "..."`).
+# Its behaviour is pinned by backend/packages/agent/tests/test_repo_config.py.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "halden-model-api-key"
+description = "Literal value assigned to an API key name (model / Azure Foundry keys)"
+regex = '''(?i)(?:api[_-]?key|foundry[_-]?key)["'\]]*[ \t]*(?:[:=]{1,2}|=>)[ \t]*["']?([A-Za-z0-9+/_=-]{16,})'''
+secretGroup = 1
+keywords = ["api_key", "api-key", "apikey", "foundry_key", "foundry-key", "foundrykey"]
+
+[[rules.allowlists]]
+description = "Placeholders and identifiers, not secrets"
+regexTarget = "secret"
+regexes = [
+  '''(?i)^(?:your|change|example|placeholder|dummy|sample|replace|xxx)''',
+  '''^[a-z_]+$''',
+]

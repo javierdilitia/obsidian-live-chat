@@ -1,0 +1,45 @@
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      uv:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    # Deliberate `~` pins in web/package.json; bump these by hand in their own PR.
+    # typescript: typescript-eslint supports <6.1 only. react: the spec targets React 19.2.
+    # Pinned by backend/packages/agent/tests/test_repo_config.py.
+    ignore:
+      - dependency-name: typescript
+        versions: [">=6.1"]
+      - dependency-name: react
+        versions: [">=19.3"]
+      - dependency-name: react-dom
+        versions: [">=19.3"]
+      - dependency-name: "@types/react"
+        versions: [">=19.3"]
+      - dependency-name: "@types/react-dom"
+        versions: [">=19.3"]
+    groups:
+      npm:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)

@@ -1,0 +1,29 @@
+# uv workspace root. No [project]: each package under packages/ is its own project.
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pyright",
+    "ruff",
+    "pre-commit",
+    "httpx2",
+    "pyyaml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--import-mode=importlib --cov=halden_data_contract --cov=halden_data_fake --cov-fail-under=80"
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+include = ["packages"]
+venvPath = "."
+venv = ".venv"

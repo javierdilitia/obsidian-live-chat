@@ -1,0 +1,8 @@
+[
+  { "id": "laptops", "name": "Laptops", "product_count": 5 },
+  { "id": "monitors", "name": "Monitors", "product_count": 2 },
+  { "id": "audio", "name": "Audio", "product_count": 2 },
+  { "id": "keyboards", "name": "Keyboards", "product_count": 1 },
+  { "id": "storage", "name": "Storage", "product_count": 1 },
+  { "id": "docks", "name": "Docks", "product_count": 2 }
+]
