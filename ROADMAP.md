@@ -4,8 +4,8 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 | # | Milestone | Depends on | Status |
 |---|---|---|---|
-| 0 | Repo foundation | — | in progress |
-| 1 | Product spec | 0 | planned |
+| 0 | Repo foundation | — | done |
+| 1 | Product spec | 0 | in progress |
 | 2 | A2UI PoC | 0 (runs alongside 1) | planned |
 | 3 | Build | 1, 2 | planned |
 | 4 | Analytics and observability | 2, 3 | planned |
@@ -15,7 +15,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 0 — Repo foundation
 
-**Status:** in progress
+**Status:** done
 
 **Goal:** turn the mockup repo into the product repo: layout, a Python data contract with a fake implementation, web and agent skeletons, quality tooling, git hooks, CI and the repo documents. No product features.
 
@@ -28,7 +28,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 1 — Product spec
 
-**Status:** planned
+**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; data contract review pending
 
 **Goal:** detail every idea into a real product: tabs as A2UI surfaces and the agent's tab tools (open, edit, create, switch, close), the component catalog with every field, the action catalog with each action's kind (local / direct / agent), the data contract, persistence, and other places surfaces fit besides tabs.
 

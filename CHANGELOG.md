@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - CI on GitHub Actions (`backend`, `web`, `secrets`, `commits` jobs), Dependabot and a PR template.
 - Documents: README, ROADMAP, CHANGELOG, CONTRIBUTING and `docs/ARCHITECTURE.md`.
 - A2UI skill for Claude Code with a pinned snapshot of the A2UI docs.
+- Product spec (`docs/superpowers/specs/2026-11-11-product-spec-design.md`): tab tools and tab cards, persisted tabs and shopper history, the home and For-you surfaces, the `halden.shop` component catalog, the action catalog, persistence, and the data contract review for the data-agent teammate.
 
 ### Changed
 

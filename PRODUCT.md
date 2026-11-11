@@ -12,7 +12,14 @@ The product: a React 19.2 + Vite + TypeScript web app (`web/`) rendering A2UI v1
 
 ## Users
 
-Immediate audience: the internal company team — the mockup must sell the concept to colleagues first, then serve as a client-pitch artifact. Eventual end users of the real product: retail shoppers comparing considered purchases (e.g., laptops, electronics).
+**Shoppers** making considered electronics purchases: laptops, monitors, audio and accessories. They weigh several options over days rather than minutes, want specs explained in plain words, and come back: to the tabs the assistant built for them (kept automatically, closed ones in their history), to products they looked at, and to their orders.
+
+Three seeded shoppers stand in until real login (milestone 5):
+- **Javier**: returning, English, has past orders and one on its way.
+- **Ana**: Spanish-speaking, a couple of orders.
+- **Sam**: first visit, no history, so the first-run path is always one click away.
+
+**Watching it presented:** the internal team, then client prospects in pitches. They see the product driven live, so the scripted moments (a comparison, an in-place edit, a guide in its own tab, order tracking) must work every time.
 
 ## Product Purpose
 
@@ -24,11 +31,17 @@ Conversation is the command layer; documents are the answer. This inverts the ch
 
 ## Operating Context
 
-Shown full-screen in a browser on desktop, presented live in meetings and screen shares. The scripted demo must look alive within ~10 seconds of opening.
+- **Desktop browser first**, full-screen; responsive down to phone width using `DESIGN.md`'s breakpoints.
+- **Presented live** in meetings and screen shares. It must look alive within ~10 seconds of opening: the home page renders instantly, the agent's For-you section streams in after. A replay mode (recorded model output) keeps live demos from stalling or varying.
+- **Sessions span days.** Tabs persist and come back on reload; closed tabs go to history; prices are always today's.
+- **English and Spanish**, switched from the shell's language menu. Money is EUR.
+- **No login yet:** seeded shoppers picked from the user menu, until real authentication arrives with deployment to Azure (milestone 5).
+- **Synthetic data** until the teammate's data agent is connected.
+- **Reduced motion** is honoured everywhere: at rest, nothing is hidden.
 
 ## Capabilities and Constraints
 
-- Real models (Azure AI Foundry) generate the UI; a real backend serves catalog, order and commerce data. Persistence of saved tabs, cart and orders is planned (sub-project 3).
+- Real models (Azure AI Foundry) generate the UI; a real backend serves catalog, order and commerce data. Tabs, history, cart, saved items and orders persist in Postgres (built in milestone 3; see `docs/superpowers/specs/2026-11-11-product-spec-design.md`).
 - No chat transcript anywhere — that absence is the concept.
 - Top bar must contain: shopping cart, user, previous orders, language selector. Nothing else prominent.
 - The workspace must support: comparison graphs (e.g. 3 laptops), spec explainers ("so the consumer knows what we're talking about"), modals, and saved tabs the user can return to.
