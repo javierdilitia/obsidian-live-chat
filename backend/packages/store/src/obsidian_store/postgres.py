@@ -54,7 +54,9 @@ def _time(name: str) -> Column[datetime]:
     return Column(name, DateTime(timezone=True))
 
 
-users = Table("users", _meta, Column("id", Text), Column("name", Text), Column("language", Text))
+users_table = Table(
+    "users", _meta, Column("id", Text), Column("name", Text), Column("language", Text)
+)
 workspaces = Table(
     "workspaces", _meta, Column("user_id", Text, primary_key=True), Column("active_tab_id", Text)
 )
@@ -161,12 +163,12 @@ class PostgresStore:
 
     # Users
 
-    async def upsert_users(self, users_: Sequence[User]) -> None:
-        if not users_:
+    async def upsert_users(self, users: Sequence[User]) -> None:
+        if not users:
             return
-        statement = insert(users).values([user.model_dump() for user in users_])
+        statement = insert(users_table).values([user.model_dump() for user in users])
         statement = statement.on_conflict_do_update(
-            index_elements=[users.c.id],
+            index_elements=[users_table.c.id],
             set_={"name": statement.excluded.name, "language": statement.excluded.language},
         )
         async with self.engine.begin() as connection:
@@ -175,14 +177,18 @@ class PostgresStore:
     async def list_users(self) -> list[User]:
         async with self.engine.connect() as connection:
             result = await connection.execute(
-                select(users.c.id, users.c.name, users.c.language).order_by(users.c.id)
+                select(users_table.c.id, users_table.c.name, users_table.c.language).order_by(
+                    users_table.c.id
+                )
             )
             return [User.model_validate(dict(row)) for row in result.mappings()]
 
     async def get_user(self, user_id: str) -> User | None:
         async with self.engine.connect() as connection:
             result = await connection.execute(
-                select(users.c.id, users.c.name, users.c.language).where(users.c.id == user_id)
+                select(users_table.c.id, users_table.c.name, users_table.c.language).where(
+                    users_table.c.id == user_id
+                )
             )
             row = result.mappings().first()
         return User.model_validate(dict(row)) if row else None

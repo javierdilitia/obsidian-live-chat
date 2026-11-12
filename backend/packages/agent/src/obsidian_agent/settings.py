@@ -49,3 +49,9 @@ class Settings:
             ]
             raise MissingSettings([name for name, value in required if not value])
         return cls(endpoint, api_key, api_version, deployment, get(UI_REASONING_EFFORT))
+
+
+def env_setting(name: str, env_file: Path) -> str | None:
+    """A setting from the environment, else from the env file; blank means unset."""
+    value = os.environ.get(name) or dotenv_values(env_file).get(name)
+    return (value or "").strip() or None

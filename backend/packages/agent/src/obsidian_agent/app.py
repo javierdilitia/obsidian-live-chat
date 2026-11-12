@@ -9,12 +9,14 @@ run, from the repo's `.env`, so building the app never reads settings or touches
 import asyncio
 import json
 import logging
+import secrets
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.responses import StreamingResponse
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field, StringConstraints
@@ -22,9 +24,18 @@ from pydantic import BaseModel, Field, StringConstraints
 from obsidian_agent.cartridges import cartridge_setting, load_cartridge
 from obsidian_agent.model import AzureModel, ModelClient, ModelFailed
 from obsidian_agent.page_agent import build_page, lookup_products, page_tools
-from obsidian_agent.settings import MissingSettings, Settings
+from obsidian_agent.session import (
+    DEFAULT_USER_ID,
+    DEMO_SHOPPERS,
+    SESSION_COOKIE,
+    SESSION_KEY_SETTING,
+    unsign,
+)
+from obsidian_agent.settings import MissingSettings, Settings, env_setting
 from obsidian_agent.workspace import Tab, Workspace
 from obsidian_data_contract import Cartridge, CatalogSource, NotFoundError
+from obsidian_store import ACTION_RESULT_TTL, MemoryStore, Store, User
+from obsidian_store.postgres import PostgresStore
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +49,7 @@ RUN_TIMEOUT_S = 150.0
 # Room for the reasoning and a full page; a reply cut off here is a `length` stop.
 MAX_OUTPUT_TOKENS = 16_000
 TITLE_LIMIT = 60
+DATABASE_SETTING = "OBSIDIAN_DATABASE_URL"
 
 
 def azure_model(settings: Settings) -> AzureModel:
@@ -63,13 +75,80 @@ class ActionRequest(BaseModel):
     context: dict[str, Any] = Field(default_factory=lambda: {})
 
 
-def create_app(model: ModelClient | None = None, cartridge: Cartridge | None = None) -> FastAPI:
+def _user_json(user: User) -> dict[str, str]:
+    return {"id": user.id, "name": user.name, "language": user.language}
+
+
+def create_app(
+    model: ModelClient | None = None,
+    cartridge: Cartridge | None = None,
+    store: Store | None = None,
+    session_key: bytes | None = None,
+) -> FastAPI:
     """The app. Tests pass a `ScriptedModel`; without one, the Azure model is made on first use.
 
     Without a cartridge, the one `OBSIDIAN_CARTRIDGE` names (or the only one installed) is loaded
     at once, so a bad choice fails at start, naming the installed cartridges.
+
+    Without a store, `OBSIDIAN_DATABASE_URL` names the Postgres database, opened on the first
+    request; unset, everything is kept in memory and lost on restart. Without a session key,
+    `OBSIDIAN_SESSION_KEY` is used; unset, a random key per process.
     """
     app = FastAPI(title="Obsidian agent", version="0.1.0")
+    database_url: str | None = None
+    if store is None:
+        database_url = env_setting(DATABASE_SETTING, ENV_FILE)
+        if database_url is None:
+            log.warning(
+                "%s is not set: the store is in memory, and nothing survives a restart.",
+                DATABASE_SETTING,
+            )
+            store = MemoryStore()
+    if session_key is None:
+        configured = env_setting(SESSION_KEY_SETTING, ENV_FILE)
+        if configured is None:
+            log.warning(
+                "%s is not set: a random key signs sessions, so a restart signs every browser "
+                "back in as %s.",
+                SESSION_KEY_SETTING,
+                DEFAULT_USER_ID,
+            )
+            session_key = secrets.token_bytes(32)
+        else:
+            session_key = configured.encode("utf-8")
+    key = session_key
+    app.state.store = store
+    ready_lock = asyncio.Lock()
+    opened: list[Store] = []
+
+    async def ready() -> Store:
+        """The store, opened on the first request: Postgres is connected and migrated (when
+        configured), the shoppers are seeded and day-old action results are purged. A failure
+        is retried on the next request."""
+        if opened:
+            return opened[0]
+        async with ready_lock:
+            if opened:
+                return opened[0]
+            the_store = store
+            if the_store is None:
+                the_store = await PostgresStore.connect(database_url or "")
+                app.state.store = the_store
+            await the_store.upsert_users(DEMO_SHOPPERS)
+            await the_store.purge_action_results(datetime.now(UTC) - ACTION_RESULT_TTL)
+            opened.append(the_store)
+            return the_store
+
+    async def current_user(request: Request) -> User:
+        """The shopper the session cookie names, if it verifies and they exist; else demo-user."""
+        the_store = await ready()
+        user_id = unsign(request.cookies.get(SESSION_COOKIE, ""), key)
+        user = await the_store.get_user(user_id) if user_id else None
+        if user is None:
+            # Seeded in ready(), and an upsert never removes a user.
+            user = await the_store.get_user(DEFAULT_USER_ID) or DEMO_SHOPPERS[0]
+        return user
+
     if cartridge is None:
         cartridge = load_cartridge(cartridge_setting(ENV_FILE))
     app.state.cartridge = cartridge
@@ -96,6 +175,16 @@ def create_app(model: ModelClient | None = None, cartridge: Cartridge | None = N
     @app.get("/health")
     async def health() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
         return {"status": "ok", "cartridge": cartridge_id}
+
+    @app.get("/api/session")
+    async def session(user: Annotated[User, Depends(current_user)]) -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
+        """The current shopper."""
+        return {"user": _user_json(user)}
+
+    @app.get("/api/users")
+    async def users() -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
+        """The seeded shoppers, by ID, for the user menu."""
+        return {"users": [_user_json(user) for user in await (await ready()).list_users()]}
 
     @app.post("/api/runs")
     async def runs(request: RunRequest) -> StreamingResponse:  # pyright: ignore[reportUnusedFunction]
