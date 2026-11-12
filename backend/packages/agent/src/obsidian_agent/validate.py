@@ -9,6 +9,8 @@ row no product has, and a product named twice in one component. Text limits are 
 from the same catalog, on the whole page.
 """
 
+import json
+import math
 import re
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
@@ -29,6 +31,7 @@ IssueCode = Literal[
     "spec_not_numeric",
     "spec_unknown",
     "duplicate_product",
+    "page_too_large",
 ]
 
 _SECTION = frozenset({"Page"})
@@ -58,6 +61,27 @@ class Issue:
     message: str
 
 
+# A saved page's limit (spec §10.2, §15): the compact JSON of its snapshot, in bytes.
+SNAPSHOT_LIMIT_BYTES = 256 * 1024
+
+
+def page_size_bytes(snapshot: Snapshot) -> int:
+    """The page's size as stored: compact JSON, UTF-8."""
+    text = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":"))
+    return len(text.encode("utf-8"))
+
+
+def _size_issues(snapshot: Snapshot) -> list[Issue]:
+    size = page_size_bytes(snapshot)
+    if size <= SNAPSHOT_LIMIT_BYTES:
+        return []
+    message = (
+        f"The page is {math.ceil(size / 1024)} KB; the limit is 256 KB. "
+        "Use fewer sections or shorter text."
+    )
+    return [Issue("page_too_large", ROOT_ID, message)]
+
+
 def validate_page(snapshot: Snapshot, *, products: Mapping[str, Product]) -> list[Issue]:
     """Every problem on the page; empty when it may be sent.
 
@@ -80,6 +104,7 @@ def validate_page(snapshot: Snapshot, *, products: Mapping[str, Product]) -> lis
         issues.extend(_placement_issues(component, parent_types.get(component["id"])))
         issues.extend(_spec_issues(component, products))
         issues.extend(_duplicate_issues(component))
+    issues.extend(_size_issues(snapshot))
     return issues
 
 

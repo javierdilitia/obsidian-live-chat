@@ -11,8 +11,10 @@ import asyncio
 import json
 import logging
 import secrets
+import time
 import uuid
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -23,7 +25,7 @@ from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field, StringConstraints
 
 from obsidian_agent.cartridges import cartridge_setting, load_cartridge
-from obsidian_agent.model import AzureModel, ModelClient, ModelFailed
+from obsidian_agent.model import AzureModel, ModelClient, ModelFailed, UsageMeter
 from obsidian_agent.page_agent import build_page, lookup_products, page_tools
 from obsidian_agent.session import (
     DEFAULT_USER_ID,
@@ -33,11 +35,13 @@ from obsidian_agent.session import (
     unsign,
 )
 from obsidian_agent.settings import MissingSettings, Settings, env_setting
+from obsidian_agent.validate import page_size_bytes
 from obsidian_data_contract import Cartridge, CatalogSource, NotFoundError
 from obsidian_store import (
     ACTION_RESULT_TTL,
     MemoryStore,
     ProductFact,
+    RunRecord,
     Store,
     TabRecord,
     User,
@@ -80,6 +84,23 @@ class ActionRequest(BaseModel):
     surface_id: str = Field(alias="surfaceId")
     source_component_id: str = Field(alias="sourceComponentId")
     context: dict[str, Any] = Field(default_factory=lambda: {})
+
+
+@dataclass
+class _RunState:
+    """What a run learned on its way, for its `runs` row. A run that ends without saying how
+    (the client went away) is `cancelled`."""
+
+    outcome: str = "cancelled"
+    error: str | None = None
+    tab_id: str | None = None
+    ui_model: str | None = None
+    meter: UsageMeter | None = None
+    # Model attempts of a build that returned; 0 when the build raised or never started.
+    attempts: int = 0
+
+    def fail(self, code: str, reason: str) -> None:
+        self.outcome, self.error = code, reason
 
 
 def _user_json(user: User) -> dict[str, str]:
@@ -164,10 +185,14 @@ def create_app(
     # One run at a time per shopper: a second command waits for the first to finish.
     run_locks: dict[str, asyncio.Lock] = {}
     models: list[ModelClient] = [model] if model is not None else []
+    # The model's name for the `runs` row: the deployment, or a test model's class name.
+    model_names: list[str] = [type(model).__name__] if model is not None else []
 
     def get_model() -> ModelClient:
         if not models:
-            models.append(azure_model(Settings.from_env(ENV_FILE)))
+            settings = Settings.from_env(ENV_FILE)
+            models.append(azure_model(settings))
+            model_names.append(settings.ui_deployment)
         return models[0]
 
     tool_sets: list[list[dict[str, Any]]] = []
@@ -209,70 +234,124 @@ def create_app(
         return tabs[0] if tabs else None
 
     async def run_events(command: str, user: User) -> AsyncIterator[str]:
+        """One run's frames; whatever its end, it leaves one `runs` row."""
         the_store = await ready()
         async with run_locks.setdefault(user.id, asyncio.Lock()):
             run_id = uuid.uuid4().hex
-            yield _frame({"type": "RUN_STARTED", "runId": run_id})
+            state = _RunState()
+            started_at = datetime.now(UTC)
+            clock = time.perf_counter()
+            first_message_ms: int | None = None
             try:
-                page_model = get_model()
-            except MissingSettings as error:
-                yield _run_error("not_configured", f"Missing settings: {', '.join(error.names)}.")
-                return
-            tab = await first_open_tab(user.id)
-            if tab is None:
-                tab = await the_store.create_tab(
-                    user.id,
-                    surface_id=f"shop:{uuid.uuid4().hex}",
-                    kind="compare",
-                    card={"title": _title(command), "commands": []},
-                    language=user.language,
+                async for event in run_steps(command, user, run_id, state):
+                    if first_message_ms is None and event.get("name") == "a2ui":
+                        first_message_ms = round((time.perf_counter() - clock) * 1000)
+                    yield _frame(event)
+            finally:
+                meter = state.meter
+                usage = meter.usage if meter is not None else None
+                run = RunRecord(
+                    id=run_id,
+                    user_id=user.id,
+                    tab_id=state.tab_id,
+                    trigger="command",
+                    tool=None,
+                    outcome=state.outcome,
+                    router_model=None,
+                    ui_model=state.ui_model,
+                    tokens_in=usage.input_tokens if usage else 0,
+                    tokens_out=usage.output_tokens if usage else 0,
+                    tokens_cached=usage.cached_tokens if usage else 0,
+                    latency_ms=round((time.perf_counter() - clock) * 1000),
+                    first_message_ms=first_message_ms,
+                    retries=max(state.attempts - 1, 0),
+                    tool_round_used=meter is not None and meter.tool_rounds > 0,
+                    error=state.error,
+                    started_at=started_at,
+                    finished_at=datetime.now(UTC),
                 )
-                value = {"surface_id": tab.surface_id, "title": tab.card["title"]}
-                yield _frame({"type": "CUSTOM", "name": "tab_opened", "value": value})
-            current = tab.snapshot
-            failed = ("build_failed", "Couldn't build this page.")
-            if current is not None:
-                failed = ("edit_failed", "Couldn't change this page.")
-            try:
-                async with asyncio.timeout(RUN_TIMEOUT_S):
-                    result = await build_page(
-                        page_model,
-                        catalog,
-                        tools=await get_tools(),
-                        surface_id=tab.surface_id,
-                        command=command,
-                        current=current,
-                    )
-            except ModelFailed as error:
-                log.warning("run %s: unusable model response: %s", run_id, error)
-                yield _run_error(*failed)
-                return
-            except TimeoutError:
-                log.warning("run %s: timed out after %.0f s", run_id, RUN_TIMEOUT_S)
-                yield _run_error("timeout", "This took too long. Try again.")
-                return
-            except Exception:
-                log.exception("run %s: the model call failed", run_id)
-                yield _run_error("model_unavailable", "The model is unavailable. Try again.")
-                return
-            if not result.ok:
-                log.warning(
-                    "run %s failed after %d attempts: %s", run_id, result.attempts, result.error
-                )
-                yield _run_error(*failed)
-                return
-            assert result.snapshot is not None  # noqa: S101 - a successful build has a page
-            card = {"title": tab.card["title"], "commands": [*tab.card["commands"], command]}
-            facts = {
-                product_id: ProductFact(price_cents=product.price_cents, stock=product.stock)
-                for product_id, product in result.products.items()
-            }
-            await the_store.save_tab(
-                tab.id, card=card, snapshot=result.snapshot, product_facts=facts, run_id=run_id
+                try:
+                    await the_store.record_run(run)
+                except Exception:
+                    log.exception("run %s: could not record the run", run_id)
+
+    async def run_steps(
+        command: str, user: User, run_id: str, state: _RunState
+    ) -> AsyncIterator[dict[str, Any]]:
+        """The run itself, as AG-UI events. Every way out sets `state.outcome`."""
+        the_store = await ready()
+        yield {"type": "RUN_STARTED", "runId": run_id}
+        try:
+            page_model = get_model()
+        except MissingSettings as error:
+            message = f"Missing settings: {', '.join(error.names)}."
+            state.fail("not_configured", message)
+            yield _error_event("not_configured", message)
+            return
+        state.ui_model = model_names[0]
+        meter = state.meter = UsageMeter(page_model)
+        tab = await first_open_tab(user.id)
+        if tab is None:
+            tab = await the_store.create_tab(
+                user.id,
+                surface_id=f"shop:{uuid.uuid4().hex}",
+                kind="compare",
+                card={"title": _title(command), "commands": []},
+                language=user.language,
             )
-            for message in result.messages:
-                yield _frame({"type": "CUSTOM", "name": "a2ui", "value": message})
-            yield _frame({"type": "RUN_FINISHED", "runId": run_id})
+            value = {"surface_id": tab.surface_id, "title": tab.card["title"]}
+            yield {"type": "CUSTOM", "name": "tab_opened", "value": value}
+        state.tab_id = tab.id
+        current = tab.snapshot
+        failed = ("build_failed", "Couldn't build this page.")
+        if current is not None:
+            failed = ("edit_failed", "Couldn't change this page.")
+        try:
+            async with asyncio.timeout(RUN_TIMEOUT_S):
+                result = await build_page(
+                    meter,
+                    catalog,
+                    tools=await get_tools(),
+                    surface_id=tab.surface_id,
+                    command=command,
+                    current=current,
+                )
+        except ModelFailed as error:
+            log.warning("run %s: unusable model response: %s", run_id, error)
+            state.fail(failed[0], f"unusable model response: {error}")
+            yield _error_event(*failed)
+            return
+        except TimeoutError:
+            log.warning("run %s: timed out after %.0f s", run_id, RUN_TIMEOUT_S)
+            state.fail("timeout", f"timed out after {RUN_TIMEOUT_S:.0f} s")
+            yield _error_event("timeout", "This took too long. Try again.")
+            return
+        except Exception as error:
+            log.exception("run %s: the model call failed", run_id)
+            state.fail("model_unavailable", f"the model call failed: {error!r}")
+            yield _error_event("model_unavailable", "The model is unavailable. Try again.")
+            return
+        state.attempts = result.attempts
+        if not result.ok or result.snapshot is None:
+            log.warning(
+                "run %s failed after %d attempts: %s", run_id, result.attempts, result.error
+            )
+            state.fail(failed[0], result.error or "the build failed")
+            yield _error_event(*failed)
+            return
+        card = {"title": tab.card["title"], "commands": [*tab.card["commands"], command]}
+        facts = {
+            product_id: ProductFact(price_cents=product.price_cents, stock=product.stock)
+            for product_id, product in result.products.items()
+        }
+        await the_store.save_tab(
+            tab.id, card=card, snapshot=result.snapshot, product_facts=facts, run_id=run_id
+        )
+        log.info("run %s: saved a page of %d bytes", run_id, page_size_bytes(result.snapshot))
+        state.outcome = "ok"
+        for message in result.messages:
+            yield {"type": "CUSTOM", "name": "a2ui", "value": message}
+        yield {"type": "RUN_FINISHED", "runId": run_id}
 
     @app.get("/api/workspace")
     async def get_workspace(  # pyright: ignore[reportUnusedFunction]
@@ -387,8 +466,8 @@ def _frame(event: dict[str, Any]) -> str:
     return f"data: {json.dumps(event, ensure_ascii=False, separators=(',', ':'))}\n\n"
 
 
-def _run_error(code: str, message: str) -> str:
-    return _frame({"type": "RUN_ERROR", "code": code, "message": message})
+def _error_event(code: str, message: str) -> dict[str, Any]:
+    return {"type": "RUN_ERROR", "code": code, "message": message}
 
 
 def _title(command: str) -> str:

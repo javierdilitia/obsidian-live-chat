@@ -90,6 +90,43 @@ class ScriptedModel:
         return self._results[len(self.calls) - 1]
 
 
+class UsageMeter:
+    """Wraps a `ModelClient` and keeps every result, for the run's telemetry."""
+
+    def __init__(self, model: ModelClient) -> None:
+        self._model = model
+        self.results: list[ModelResult] = []
+
+    async def call(
+        self,
+        *,
+        system: str,
+        input: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+    ) -> ModelResult:
+        result = await self._model.call(system=system, input=input, tools=tools)
+        self.results.append(result)
+        return result
+
+    @property
+    def usage(self) -> Usage:
+        """The tokens of every call, summed."""
+        return Usage(
+            input_tokens=sum(result.usage.input_tokens for result in self.results),
+            cached_tokens=sum(result.usage.cached_tokens for result in self.results),
+            output_tokens=sum(result.usage.output_tokens for result in self.results),
+        )
+
+    @property
+    def calls(self) -> int:
+        return len(self.results)
+
+    @property
+    def tool_rounds(self) -> int:
+        """Calls that ended asking for tools."""
+        return sum(1 for result in self.results if result.stop == "tool_calls")
+
+
 def stop_from_response(response: Any, *, has_tool_calls: bool) -> Stop:
     """Map the response status to a stop reason. Only a max-token cut-off counts as `length`."""
     if response.status == "incomplete":
