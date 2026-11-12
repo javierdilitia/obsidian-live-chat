@@ -1,16 +1,32 @@
 /* The demo shell, from the mockup's chrome: the shell bar (the store, the cart, the agent's seam),
    one tab the agent opens, the command bar, the workspace that holds the page, toasts and the one
    disclaimer. A command runs over SSE (`streamRun`); its A2UI messages go to one
-   `MessageProcessor([shopCatalog])`, whose action handler posts the page's buttons to the server. */
+   `MessageProcessor([shopCatalog])`, whose action handler posts the page's buttons to the server.
+   On mount the app shows what the server holds (`readWorkspace`), so a reload keeps the page; a
+   streamed message the processor rejects re-syncs the page the same way. */
 import { A2uiSurface, type ReactCatalogComponent } from "@a2ui/react";
 import { MessageProcessor, type ActionPayload, type SurfaceModel } from "@a2ui/web_core/v1_0";
-import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type SubmitEvent,
+} from "react";
 import { formatPrice, shopCatalog } from "./a2ui/catalog";
 import { dispatchAction, type CartLine } from "./lib/actions";
 import { streamRun, type RunEnd } from "./lib/sse";
+import { readWorkspace, type Workspace } from "./lib/workspace";
 import "./styles/shell.css";
 
 type Surface = SurfaceModel<ReactCatalogComponent>;
+/** The page on screen; `key` changes whenever the surface is created again (a re-sync). */
+interface Page {
+  surface: Surface;
+  key: number;
+}
 
 type Status =
   | { kind: "building" | "updating" }
@@ -25,6 +41,9 @@ const BUILT_MS = 2400;
 const TOAST_MS = 2600;
 const TOAST_OUT_MS = 320;
 const UNREACHABLE = "Couldn't reach the assistant. Try again.";
+const NOT_SHOWN = "Couldn't show all of this page.";
+/** The server's limit on a command. */
+const COMMAND_LIMIT = 500;
 
 /* ——— icons, from mockup/index.html ——— */
 
@@ -181,6 +200,26 @@ async function sendAction(action: ActionPayload): Promise<{ cart?: CartLine[]; m
   }
 }
 
+/* ——— the page ——— */
+
+/** Keeps the shell when the page throws while rendering: one line stands where the page was. */
+export class PageBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  override render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <p className="page-error" role="alert">
+        {"Couldn't show this page."}
+      </p>
+    );
+  }
+}
+
 /* ——— the state field in the command bar ——— */
 
 function StateText({ status }: { status: Status }) {
@@ -214,7 +253,9 @@ export default function App() {
         setToasts((list) => [...list, { id, text: message }]);
       }),
   );
-  const [surface, setSurface] = useState<Surface | null>(null);
+  const [page, setPage] = useState<Page | null>(null);
+  /** The page came back from the server (a reload or a re-sync): it fades in, nothing rises. */
+  const [restored, setRestored] = useState(false);
   const [tabTitle, setTabTitle] = useState<string | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [command, setCommand] = useState("");
@@ -222,15 +263,53 @@ export default function App() {
   const [shown, setShown] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const refocus = useRef(false);
+  /** A command has been sent: the reload's answer, if it comes later, is out of date. */
+  const sent = useRef(false);
 
   const running = status?.kind === "building" || status?.kind === "updating";
 
   useEffect(() => {
-    const created = processor.onSurfaceCreated(setSurface);
+    let created = 0;
+    const subscriptions = [
+      processor.onSurfaceCreated((surface) => {
+        setPage({ surface, key: (created += 1) });
+      }),
+      processor.onSurfaceDeleted(() => {
+        setPage(null);
+      }),
+    ];
     return () => {
-      created.unsubscribe();
+      for (const subscription of subscriptions) subscription.unsubscribe();
     };
   }, [processor]);
+
+  /** Shows what the server holds: its cart, its tab and its page, rendered as it is now. */
+  const showSaved = useCallback(
+    ({ tab, cart: lines }: Workspace) => {
+      setCart(lines);
+      if (!tab) return;
+      setTabTitle(tab.title);
+      processor.model.deleteSurface(tab.surface_id);
+      if (!tab.snapshot) return;
+      setRestored(true);
+      processor.processMessagesWithErrors(tab.snapshot);
+    },
+    [processor],
+  );
+
+  // A reload: the server still holds the tab, the page and the cart.
+  useEffect(() => {
+    let live = true;
+    readWorkspace().then(
+      (saved) => {
+        if (live && !sent.current && (saved.tab || saved.cart.length > 0)) showSaved(saved);
+      },
+      () => undefined, // no server yet: start empty
+    );
+    return () => {
+      live = false;
+    };
+  }, [showSaved]);
 
   useEffect(() => {
     if (status?.kind !== "built" || status.rested) return;
@@ -254,7 +333,9 @@ export default function App() {
   }, []);
 
   async function run(text: string) {
-    setStatus({ kind: surface ? "updating" : "building" });
+    sent.current = true;
+    setRestored(false);
+    setStatus({ kind: page ? "updating" : "building" });
     const rejected: unknown[] = [];
     let end: RunEnd;
     try {
@@ -266,10 +347,14 @@ export default function App() {
     } catch {
       end = { type: "RUN_ERROR", code: "unreachable", message: UNREACHABLE };
     }
+    // The server kept the change, so the page on screen is out of date: take the server's.
+    if (rejected.length > 0) {
+      await readWorkspace().then(showSaved, () => undefined);
+    }
     if (end.type === "RUN_ERROR") {
       setStatus({ kind: "error", message: end.message });
     } else if (rejected.length > 0) {
-      setStatus({ kind: "error", message: "Couldn't show all of this page." });
+      setStatus({ kind: "error", message: NOT_SHOWN });
     } else {
       setShown(text);
       setStatus({ kind: "built" });
@@ -370,6 +455,7 @@ export default function App() {
                   placeholder={PROMPT}
                   aria-label={PROMPT}
                   autoComplete="off"
+                  maxLength={COMMAND_LIMIT}
                   disabled={running}
                   onChange={(event) => {
                     setCommand(event.target.value);
@@ -401,12 +487,16 @@ export default function App() {
 
         <section
           id="workspace"
-          className="workspace col"
+          className={restored ? "workspace col restored" : "workspace col"}
           {...(tabTitle === null
             ? { "aria-label": "AI workspace" }
             : { role: "tabpanel", "aria-labelledby": TAB_ID })}
         >
-          {surface && <A2uiSurface surface={surface} />}
+          {page && (
+            <PageBoundary key={page.key}>
+              <A2uiSurface surface={page.surface} />
+            </PageBoundary>
+          )}
         </section>
 
         {/* the one disclaimer, where a store keeps its small print */}

@@ -63,3 +63,27 @@ test("streamRun throws when the stream ends before the run does", async () => {
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(frame(started))));
   await expect(streamRun("Only OLED", () => undefined)).rejects.toThrow(/ended/);
 });
+
+test("streamRun ends with the server's message when it refuses the command", async () => {
+  const refused = (body: unknown) => () => Promise.resolve(Response.json(body, { status: 422 }));
+  vi.stubGlobal("fetch", refused({ detail: "This command is too long." }));
+  expect(await streamRun("x".repeat(501), () => undefined)).toEqual({
+    type: "RUN_ERROR",
+    code: "refused",
+    message: "This command is too long.",
+  });
+
+  // FastAPI's validation errors are a list; the first one's text is the message.
+  vi.stubGlobal(
+    "fetch",
+    refused({ detail: [{ msg: "String should have at most 500 characters" }] }),
+  );
+  expect(await streamRun("x".repeat(501), () => undefined)).toMatchObject({
+    code: "refused",
+    message: "String should have at most 500 characters.",
+  });
+
+  // A 5xx is still a server that can't be reached.
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 503 })));
+  await expect(streamRun("Only OLED", () => undefined)).rejects.toThrow(/503/);
+});

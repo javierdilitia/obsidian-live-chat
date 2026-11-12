@@ -9,7 +9,7 @@ export interface ActionRequest {
   context: Record<string, unknown>;
 }
 
-const CartLineSchema = z.object({
+export const CartLineSchema = z.object({
   productId: z.string(),
   name: z.string(),
   qty: z.number(),

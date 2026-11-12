@@ -164,6 +164,7 @@ async def _reply(
 
     Tools are offered on every call, so the history (which may hold earlier tool calls) is always
     valid. A tool call past the limit is answered with a refusal and the reply is returned as is.
+    A reply cut off by the output limit (`length`) stays out of the history.
     """
     while True:
         result = await model.call(system=SYSTEM_PROMPT, input=list(history), tools=TOOLS)
@@ -176,6 +177,10 @@ async def _reply(
             usage.output_tokens,
             result.latency_ms,
         )
+        if result.stop == "length":
+            # A cut-off reply can end in a half-written item (reasoning, or a function call with
+            # no output); echoed back, the API rejects the whole input. The retry starts clean.
+            return result, tool_rounds
         history.extend(result.output_items)
         if result.stop != "tool_calls":
             return result, tool_rounds

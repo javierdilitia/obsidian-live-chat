@@ -111,6 +111,33 @@ async def test_length_stop_is_a_failure() -> None:
     assert "cut off" in json.dumps(model.calls[1]["input"])
 
 
+async def test_length_stop_does_not_echo_cut_off_items() -> None:
+    # A cut-off reply can end in a half-written reasoning item or an unanswered function call;
+    # sent back as input, either makes the Responses API answer 400.
+    cut_off_items: list[dict[str, Any]] = [
+        {"type": "reasoning", "id": "rs_cut", "summary": []},
+        {"type": "function_call", "call_id": "call-cut", "name": "get_products", "arguments": "{"},
+    ]
+    cut_off = ModelResult(
+        text="<a2ui>\nroot = Page(",
+        tool_calls=[],
+        usage=Usage(input_tokens=100, cached_tokens=0, output_tokens=16_000),
+        stop="length",
+        latency_ms=5,
+        output_items=cut_off_items,
+    )
+    model = ScriptedModel([cut_off, _reply(_block("build.a2ui"))])
+
+    result = await build_page(
+        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+    )
+
+    assert result.ok and result.attempts == 2
+    retry = json.dumps(model.calls[1]["input"])
+    assert "rs_cut" not in retry and "call-cut" not in retry
+    assert "cut off" in retry
+
+
 async def test_failed_edit_returns_the_current_page() -> None:
     model = ScriptedModel([_reply("I can't do that."), _reply("Still no block.")])
     current = _built()

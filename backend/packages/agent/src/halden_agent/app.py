@@ -1,4 +1,4 @@
-"""FastAPI application factory: a run over SSE, catalog reads for the components, add to cart.
+"""FastAPI application factory: a run over SSE, the workspace for a reload, catalog reads, cart.
 
 Dev run: `uv run --directory backend uvicorn halden_agent.app:create_app --factory --reload`
 
@@ -6,6 +6,7 @@ The demo keeps one tab and one cart in memory (`Workspace`). The Azure model is 
 run, from the repo's `.env`, so building the app never reads settings or touches the network.
 """
 
+import asyncio
 import json
 import logging
 import uuid
@@ -32,6 +33,8 @@ ENV_FILE = Path(__file__).resolve().parents[5] / ".env"
 # A page build is one or a few reasoning calls; past two minutes the shopper has given up.
 MODEL_TIMEOUT_S = 120.0
 MODEL_MAX_RETRIES = 1
+# The whole run (tool rounds, a retry): past this the run ends and the page stays as it was.
+RUN_TIMEOUT_S = 150.0
 # Room for the reasoning and a full page; a reply cut off here is a `length` stop.
 MAX_OUTPUT_TOKENS = 16_000
 TITLE_LIMIT = 60
@@ -105,16 +108,21 @@ def create_app(model: ModelClient | None = None, source: CatalogSource | None = 
             if current is not None:
                 failed = ("edit_failed", "Couldn't change this page.")
             try:
-                result = await build_page(
-                    page_model,
-                    catalog,
-                    surface_id=tab.surface_id,
-                    command=command,
-                    current=current,
-                )
+                async with asyncio.timeout(RUN_TIMEOUT_S):
+                    result = await build_page(
+                        page_model,
+                        catalog,
+                        surface_id=tab.surface_id,
+                        command=command,
+                        current=current,
+                    )
             except ModelFailed as error:
                 log.warning("run %s: unusable model response: %s", run_id, error)
                 yield _run_error(*failed)
+                return
+            except TimeoutError:
+                log.warning("run %s: timed out after %.0f s", run_id, RUN_TIMEOUT_S)
+                yield _run_error("timeout", "This took too long. Try again.")
                 return
             except Exception:
                 log.exception("run %s: the model call failed", run_id)
@@ -131,6 +139,15 @@ def create_app(model: ModelClient | None = None, source: CatalogSource | None = 
             for message in result.messages:
                 yield _frame({"type": "CUSTOM", "name": "a2ui", "value": message})
             yield _frame({"type": "RUN_FINISHED", "runId": run_id})
+
+    @app.get("/api/workspace")
+    async def get_workspace() -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
+        """What a reloaded page shows: the tab, with its page if it has one, and the cart."""
+        tab = workspace.tab
+        shown = None
+        if tab is not None:
+            shown = {"surface_id": tab.surface_id, "title": tab.title, "snapshot": tab.snapshot}
+        return {"tab": shown, "cart": await cart_lines()}
 
     @app.get("/api/catalog/products")
     async def products(  # pyright: ignore[reportUnusedFunction]

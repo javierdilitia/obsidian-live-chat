@@ -452,6 +452,29 @@
   padding-top: 22px;
   min-height: calc(100vh - 220px);
 }
+/* reload and restore (spec §9): no build, the page fades in as a whole. Its parts skip the rise
+   and the bar fill; the class goes with the next command, and the parts' finished animations
+   stay finished, so only the parts that command mounts rise in. */
+.workspace.restored {
+  animation: page-in 0.5s var(--ease) both;
+}
+.workspace.restored .rise,
+.workspace.restored .bar-fill {
+  animation-duration: 0s;
+  animation-delay: 0s;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+}
+/* a page that failed to render: one quiet line where it would be */
+.page-error {
+  margin: 0;
+  padding: 48px 0;
+  text-align: center;
+  color: var(--tx-2);
+}
 
 /* ——— the one disclaimer: the store's small print, under everything ——— */
 .demo-note {

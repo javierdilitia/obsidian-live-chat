@@ -101,7 +101,12 @@ interface MockApiOptions {
   failProducts?: number;
   /** One event list per `POST /api/runs`, in order; a run past the list answers 503. */
   runs?: readonly (readonly unknown[])[];
+  /** One answer per `GET /api/workspace`, in order; the last one repeats. No tab and no cart by
+   *  default, as a fresh server answers. */
+  workspace?: readonly unknown[];
 }
+
+const FRESH_WORKSPACE = { tab: null, cart: [] };
 
 /**
  * Stubs `fetch` with the endpoints the app calls; `products` is the catalog. `cart.add` adds one of
@@ -109,10 +114,11 @@ interface MockApiOptions {
  */
 export function mockApi(
   products: Product[] = LAPTOPS,
-  { failProducts = 0, runs = [] }: MockApiOptions = {},
+  { failProducts = 0, runs = [], workspace = [FRESH_WORKSPACE] }: MockApiOptions = {},
 ) {
   let failures = failProducts;
   const pendingRuns = [...runs];
+  const workspaces = [...workspace];
   const cart = new Map<string, number>();
   const cartLines = () =>
     [...cart].flatMap(([productId, qty]) =>
@@ -131,6 +137,10 @@ export function mockApi(
       const found = ids.flatMap((id) => products.filter((p) => p.id === id));
       const missing = ids.filter((id) => !products.some((p) => p.id === id));
       return Promise.resolve(Response.json({ products: found, missing }));
+    }
+    if (url.pathname === "/api/workspace") {
+      const answer = workspaces.length > 1 ? workspaces.shift() : workspaces[0];
+      return Promise.resolve(Response.json(answer));
     }
     if (url.pathname === "/api/runs" && init?.method === "POST") {
       const events = pendingRuns.shift();

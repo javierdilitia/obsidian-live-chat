@@ -1,6 +1,6 @@
 /* The demo shell end to end, with a fake server: runs stream the Task 3 fixtures over SSE. */
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import App from "./App";
+import App, { PageBoundary } from "./App";
 import build from "./a2ui/fixtures/build.json";
 import edit from "./a2ui/fixtures/edit_add_colour.json";
 import { mountCounts, resetMountProbe } from "./a2ui/probe";
@@ -23,6 +23,37 @@ const a2ui = (messages: unknown[]) =>
 const runError = (code: string, message: string) => ({ type: "RUN_ERROR", code, message });
 
 const BUILD_RUN = [started, tabOpened, ...a2ui(build), finished];
+const EDIT_RUN = [started, ...a2ui(edit), finished];
+
+/** The server's snapshot after the edit: the built page with the edit's components applied. */
+function editedSnapshot() {
+  const [created] = build;
+  const [update] = edit;
+  if (!created || !update) throw new Error("the fixtures are empty");
+  const components = new Map<string, unknown>(
+    created.createSurface.components.map((component) => [component.id, component]),
+  );
+  for (const component of update.updateComponents.components) {
+    components.set(component.id, component);
+  }
+  return {
+    ...created,
+    createSurface: { ...created.createSurface, components: [...components.values()] },
+  };
+}
+
+const aerisLine = {
+  productId: "aeris-studio-16",
+  name: "Aeris Studio 16",
+  qty: 1,
+  price_cents: 189900,
+};
+
+/** What `GET /api/workspace` answers once the server holds the page. */
+const savedWorkspace = (snapshot: unknown, cart: unknown[] = []) => ({
+  tab: { surface_id: SURFACE_ID, title: BUILD_COMMAND, snapshot },
+  cart,
+});
 
 beforeEach(() => {
   resetProductCache();
@@ -170,4 +201,86 @@ test("add to cart shows a toast and the cart count", async () => {
   expect(await screen.findByText("Aeris Studio 16 added to your cart")).toBeInTheDocument();
   expect(cart).toHaveTextContent("1 · €1,899");
   expect(cart).toHaveAccessibleName("Cart, 1 item, €1,899");
+});
+
+test("App restores the page after a reload", async () => {
+  const fetchMock = mockApi(undefined, {
+    workspace: [savedWorkspace(build[0], [aerisLine])],
+    runs: [EDIT_RUN],
+  });
+  render(<App />);
+
+  // The tab, the page and the cart come back with no run and no build.
+  await screen.findByRole("tab", { name: BUILD_COMMAND });
+  const panel = screen.getByRole("tabpanel", { name: BUILD_COMMAND });
+  expect(within(panel).getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
+  const shelf = await within(panel).findByRole("list", { name: "Products" });
+  await within(shelf).findByText("€1,899");
+  expect(screen.getByRole("status", { name: /^Cart/ })).toHaveAccessibleName(
+    "Cart, 1 item, €1,899",
+  );
+  const runs = () => fetchMock.mock.calls.filter(([url]) => url === "/api/runs");
+  expect(runs()).toHaveLength(0);
+  expect(assistant()).toBeEmptyDOMElement();
+  // The page fades in as a whole: its parts don't rise in as they do for a build.
+  expect(panel).toHaveClass("restored");
+
+  // The next command edits the restored page, and its new parts rise in as usual.
+  send(EDIT_COMMAND);
+  expect(assistant()).toHaveTextContent("Updating this page…");
+  expect(panel).not.toHaveClass("restored");
+  await waitForState("Built · just now");
+  expect(runs()).toHaveLength(1);
+  expect(screen.getByText("Colour range — share of DCI-P3")).toBeInTheDocument();
+});
+
+test("App re-syncs when a message is rejected", async () => {
+  // The server applied the edit, but its message doesn't fit the page the browser holds.
+  const broken = {
+    version: "1.0",
+    updateComponents: {
+      surfaceId: SURFACE_ID,
+      components: [{ id: "root", component: "Page", title: 5 }],
+    },
+  };
+  const fetchMock = mockApi(undefined, {
+    workspace: [{ tab: null, cart: [] }, savedWorkspace(editedSnapshot(), [aerisLine])],
+    runs: [BUILD_RUN, [started, ...a2ui([broken]), finished]],
+  });
+  render(<App />);
+  await buildPage();
+
+  send(EDIT_COMMAND);
+  await waitForState("Couldn't show all of this page.");
+
+  // The page is the server's: the edit shows, and the cart matches the server's.
+  expect(await screen.findByText("Colour range — share of DCI-P3")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
+  expect(screen.getAllByRole("tab")).toHaveLength(1);
+  expect(screen.getByRole("status", { name: /^Cart/ })).toHaveAccessibleName(
+    "Cart, 1 item, €1,899",
+  );
+  const reads = fetchMock.mock.calls.filter(([url]) => url === "/api/workspace");
+  expect(reads).toHaveLength(2);
+  expect(assistant()).toHaveTextContent("Couldn't show all of this page.");
+});
+
+test("command input is capped at 500", () => {
+  mockApi();
+  render(<App />);
+  expect(commandBar()).toHaveAttribute("maxLength", "500");
+});
+
+test("a page that fails to render shows a message, not a blank app", () => {
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  function Broken(): never {
+    throw new Error("a component failed");
+  }
+  render(
+    <PageBoundary>
+      <Broken />
+    </PageBoundary>,
+  );
+  expect(screen.getByText("Couldn't show this page.")).toBeInTheDocument();
+  quiet.mockRestore();
 });

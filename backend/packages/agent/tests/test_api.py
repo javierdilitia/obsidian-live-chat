@@ -1,5 +1,6 @@
 """The API: a run streams AG-UI frames over SSE, the catalog reads, and the cart action."""
 
+import asyncio
 import copy
 import json
 import re
@@ -178,6 +179,39 @@ def test_unusable_reply_is_a_failed_build() -> None:
     }
 
 
+class _SlowEdit:
+    """Builds the page at once, then takes forever over the edit."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def call(self, **_kwargs: Any) -> ModelResult:
+        self.calls += 1
+        if self.calls == 1:
+            return _reply(BUILD)
+        await asyncio.sleep(30)
+        raise AssertionError("the run should have timed out")
+
+
+def test_run_timeout_keeps_the_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(app_module, "RUN_TIMEOUT_S", 0.05)
+    app = create_app(model=_SlowEdit(), source=FakeCatalogSource())
+    client = TestClient(app)
+    _run(client, "Compare 3 laptops for video editing under €2,000")
+    tab = app.state.workspace.tab
+    before = copy.deepcopy(tab.snapshot)
+
+    frames = _run(client, "Add colour accuracy for grading")
+
+    assert _kinds(frames) == ["RUN_STARTED", "RUN_ERROR"]
+    assert frames[-1] == {
+        "type": "RUN_ERROR",
+        "code": "timeout",
+        "message": "This took too long. Try again.",
+    }
+    assert tab.snapshot == before and len(tab.commands) == 1
+
+
 def test_missing_settings_is_a_run_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(app_module, "ENV_FILE", tmp_path / ".env")
     for name in (ENDPOINT, API_KEY, UI_DEPLOYMENT):
@@ -195,6 +229,43 @@ def test_missing_settings_is_a_run_error(monkeypatch: pytest.MonkeyPatch, tmp_pa
 def test_empty_command_is_rejected() -> None:
     app, _ = _app()
     assert TestClient(app).post("/api/runs", json={"command": "  "}).status_code == 422
+
+
+def test_workspace_returns_tab_and_cart() -> None:
+    app, _ = _app("no page", "no page", BUILD)
+    client = TestClient(app)
+    assert client.get("/api/workspace").json() == {"tab": None, "cart": []}
+
+    # A failed first build leaves the tab open with no page yet.
+    opened = _run(client, "Compare laptops")[1]["value"]
+    empty = {"surface_id": opened["surface_id"], "title": opened["title"], "snapshot": None}
+    assert client.get("/api/workspace").json() == {"tab": empty, "cart": []}
+
+    page = _a2ui(_run(client, "Compare laptops"))[0]
+    _add(client, "aeris-studio-16")
+    _add(client, "aeris-studio-16")
+    _add(client, "kore-zephyr-14")
+
+    response = client.get("/api/workspace")
+    assert response.status_code == 200
+    assert response.json() == {
+        "tab": {"surface_id": opened["surface_id"], "title": "Compare laptops", "snapshot": page},
+        "cart": [
+            {
+                "productId": "aeris-studio-16",
+                "name": "Aeris Studio 16",
+                "qty": 2,
+                "price_cents": 189900,
+            },
+            {
+                "productId": "kore-zephyr-14",
+                "name": "Kore Zephyr 14",
+                "qty": 1,
+                "price_cents": 174900,
+            },
+        ],
+    }
+    assert page == app.state.workspace.tab.snapshot
 
 
 class _Repriced(FakeCatalogSource):

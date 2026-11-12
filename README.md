@@ -54,12 +54,18 @@ pnpm --dir web dev
 
 Open <http://localhost:5173/?probe>. `?probe` adds a small panel in the bottom-left corner that counts how many times each part of the page has mounted, so you can see that an edit mounts only the new section (the old ones stay at 1). Leave it off for a clean page.
 
-Try, in order: "Compare 3 laptops for video editing under €2,000", then "Add colour accuracy for grading", then "Only OLED", then "Add to cart" on the pick. The agent keeps one tab and one cart in memory, and reloading the browser doesn't clear them: to start over, restart the agent (Ctrl+C, run it again) and then reload the page. A reload alone leaves the agent editing a page the browser no longer has.
+Try, in order: "Compare 3 laptops for video editing under €2,000", then "Add colour accuracy for grading", then "Only OLED", then "Add to cart" on the pick. The agent keeps one tab and one cart in memory: a reload brings back the page and the cart as they were. To start over, restart the agent (Ctrl+C, run it again) and then reload the page.
 
 The one live test (a real build and edit against the deployment) is skipped unless `HALDEN_LIVE=1`. Run it alone with `--no-cov`, because a single test falls under the 80 % coverage gate:
 
 ```bash
 HALDEN_LIVE=1 uv run --directory backend pytest packages/agent/tests/test_page_agent.py::test_live_build_then_edit -s -q --no-cov
+```
+
+In PowerShell:
+
+```powershell
+$env:HALDEN_LIVE=1; uv run --directory backend pytest packages/agent/tests/test_page_agent.py::test_live_build_then_edit -s -q --no-cov; Remove-Item Env:HALDEN_LIVE
 ```
 
 ## Read next

@@ -51,9 +51,28 @@ export function createSseParser(): { feed(text: string): AgUiEvent[] } {
   };
 }
 
+const RefusalSchema = z.object({
+  detail: z.union([z.string(), z.array(z.object({ msg: z.string() })).nonempty()]),
+});
+const REFUSED = "The assistant couldn't take this command.";
+
+/** Why the server refused the command (a 4xx): its own words, as one sentence. */
+async function refusal(response: Response): Promise<RunEnd> {
+  let message = REFUSED;
+  try {
+    const { detail } = RefusalSchema.parse(await response.json());
+    const text = (typeof detail === "string" ? detail : detail[0].msg).trim();
+    if (text) message = /[.!?]$/.test(text) ? text : `${text}.`;
+  } catch {
+    // no reason given: the generic one
+  }
+  return { type: "RUN_ERROR", code: "refused", message };
+}
+
 /**
  * Sends one command and passes every event to `onEvent` as it arrives. Returns the event that
- * ended the run; throws when the server can't be reached or the stream stops before the run ends.
+ * ended the run, or a `refused` RUN_ERROR with the server's reason when it answers 4xx; throws
+ * when the server can't be reached or the stream stops before the run ends.
  */
 export async function streamRun(
   command: string,
@@ -64,6 +83,7 @@ export async function streamRun(
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
     body: JSON.stringify({ command }),
   });
+  if (response.status >= 400 && response.status < 500) return refusal(response);
   if (!response.ok || !response.body) {
     throw new Error(`POST /api/runs: HTTP ${String(response.status)}`);
   }
