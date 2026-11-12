@@ -1,6 +1,6 @@
 # Milestone 3 — Build, slice by slice
 
-**Date:** 2026-11-12 · **Tracking:** [milestone 3 on GitHub](https://github.com/javierdilitia/obsidian-live-chat/milestone/4), one issue per slice (table below). **Status:** in progress. Slice 1 is built per its task plan, [`2026-11-12-slice-1-cartridge-boundary.md`](2026-11-12-slice-1-cartridge-boundary.md); its placement rules are still to be checked by eye on the next live run. Each later slice gets its own plan (writing-plans skill) when it starts, from this document and the spec.
+**Date:** 2026-11-12 · **Tracking:** [milestone 3 on GitHub](https://github.com/javierdilitia/obsidian-live-chat/milestone/4), one issue per slice (table below). **Status:** in progress. Slice 1 is built per its task plan, [`2026-11-12-slice-1-cartridge-boundary.md`](2026-11-12-slice-1-cartridge-boundary.md); its placement rules are still to be checked by eye on the next live run. Slice 2 has its task plan: [`2026-11-12-slice-2-store-session-actions.md`](2026-11-12-slice-2-store-session-actions.md). Each later slice gets its own plan (writing-plans skill) when it starts, from this document and the spec.
 
 **Sources:** the approved product spec [`../specs/2026-11-11-product-spec-design.md`](../specs/2026-11-11-product-spec-design.md) (cited below as §n), [`ROADMAP.md`](../../../ROADMAP.md) milestone 3 (its goal and "Inputs for milestone 3"), and [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) ("Obsidian core vs cartridge", "Known cartridge seams").
 

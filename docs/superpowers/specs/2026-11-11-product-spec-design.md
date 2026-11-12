@@ -182,6 +182,7 @@ History entries use the same card plus `closed_at`. The router sees history card
 - **Persisted after every successful run:** the card and a snapshot (one compacted v1.0 `createSurface` with `components` + `dataModel`). Each run also appends a revision row (§10). Tab order and the active tab persist through direct actions. Scroll position and page-local UI state do not.
 - **Reload:** `GET /api/workspace` returns the open tabs (cards + snapshots, in order) and the active tab. They render at once, with no build animation and no model call.
 - **Restore from history:** the tab springs in and the page fades in. No globe, because no model is thinking. It keeps its original language and surface ID.
+- **Stale text (decided 2026-11-12, issue #7, option D):** a saved page also keeps `product_facts`, the price and stock of every product it names as they were when the model wrote it. When a tab reopens, today's data is compared with those facts; if a price moved, an item sold out or a product disappeared, the page shows "Prices changed since this was built" with a Refresh button that runs a normal model edit, only when tapped. Slice 2 stores the facts; slice 6 shows the note.
 - **Stale data:** prices are live. A product that no longer exists renders a "no longer available" state in its slot, and the card gets a flag so the router can offer a rebuild.
 - **Tab cap:** 12 open tabs. When `create_tab` would make a 13th, the least recently used tab moves to history, with a toast ("Moved 'OLED burn-in' to history").
 - **History retention:** the last 100 entries per shopper; the oldest is dropped when a tab closes.
@@ -354,6 +355,7 @@ colour = ChartGrid([BarChart(title="Colour range — share of DCI-P3", ..., spec
 
 - The client reads each action's kind from a registry generated from the catalog; the server checks the kind again and rejects a mismatch.
 - Every event's `context` carries only IDs plus a `requestId` (UUID per click). Repeating a `requestId` returns the stored result (idempotency, §10).
+- **Shell buttons** (the cart drawer, the user menu) are not on an A2UI surface. They send `surfaceId: "shell"` and a fixed `sourceComponentId` per place (`cart-drawer`, `user-menu`); the action registry lists which sources may send each action, and the server accepts a `shell` source only for those actions.
 - Direct handlers always check the session user, that the IDs exist, stock and current prices, and that the event's `surfaceId` is one of the session's open surfaces and its `sourceComponentId` is a button on that surface. They return `{ok, cart?, saved?, toast?, tab?, error?: {code, message}}`.
 
 ### 8.2 Every trigger
@@ -417,8 +419,8 @@ Postgres 17 runs locally through `docker compose`, in CI as a service container,
 |---|---|---|
 | `users` | `id, name, language, created_at` | Seeded: `demo-user` (Javier, EN, the 3 seed orders), `ana` (ES, two orders), `sam` (new shopper, nothing yet: shows the first-run path) |
 | `workspaces` | `user_id pk, active_tab_id` | |
-| `tabs` | `id, user_id, surface_id unique, kind, status (open \| history), position, card jsonb, snapshot jsonb, language, created_at, updated_at, closed_at` | Index `(user_id, status, position)`. Snapshot ≤ 256 KB, or the run fails validation |
-| `tab_revisions` | `tab_id, rev, card jsonb, snapshot jsonb, run_id, created_at` | PK `(tab_id, rev)`; the last 20 per tab are kept |
+| `tabs` | `id, user_id, surface_id unique, kind, status (open \| history), position, card jsonb, snapshot jsonb, product_facts jsonb, language, created_at, updated_at, closed_at` | Index `(user_id, status, position)`. Snapshot ≤ 256 KB, or the run fails validation |
+| `tab_revisions` | `tab_id, rev, card jsonb, snapshot jsonb, product_facts jsonb, run_id, created_at` | PK `(tab_id, rev)`; the last 20 per tab are kept |
 | `cart_lines` | `user_id, product_id, qty, added_at, updated_at` | PK `(user_id, product_id)`. **No price stored**: it is read live |
 | `saved_items` | `user_id, product_id, saved_at` | PK `(user_id, product_id)` |
 | `orders` | `id, user_id, placed_at, status, total_cents, currency` | Orders placed in our app; prices frozen at checkout |
