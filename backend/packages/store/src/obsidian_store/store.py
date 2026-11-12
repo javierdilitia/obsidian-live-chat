@@ -27,7 +27,7 @@ class Store(Protocol):
     # Users
 
     async def upsert_users(self, users: Sequence[User]) -> None:
-        """Adds the users, or updates the name and language of those that exist."""
+        """Adds the users, or updates the name of those that exist; never changes a language."""
         ...
 
     async def list_users(self) -> list[User]:
@@ -35,6 +35,10 @@ class Store(Protocol):
         ...
 
     async def get_user(self, user_id: str) -> User | None: ...
+
+    async def set_user_language(self, user_id: str, language: str) -> User | None:
+        """Sets the user's language; `None` when there is no such user."""
+        ...
 
     # Workspace and tabs
 
@@ -61,8 +65,10 @@ class Store(Protocol):
         snapshot: Snapshot,
         product_facts: ProductFacts,
         run_id: str,
+        language: str,
     ) -> TabRecord:
-        """Stores a run's page and appends a revision, keeping the last `TAB_REVISIONS_KEPT`.
+        """Stores a run's page and its language, and appends a revision (the last
+        `TAB_REVISIONS_KEPT` are kept).
 
         Raises `KeyError` for an unknown tab.
         """

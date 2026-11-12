@@ -56,6 +56,22 @@ class StoreContract:
         await store.upsert_users([User(id="ana", name="Ana M.", language="es")])
         assert await store.get_user("ana") == User(id="ana", name="Ana M.", language="es")
 
+    async def test_set_user_language(self, store: Store) -> None:
+        await store.upsert_users(SHOPPERS)
+        assert await store.set_user_language("ana", "en") == User(
+            id="ana", name="Ana", language="en"
+        )
+        reread = await store.get_user("ana")
+        assert reread is not None
+        assert reread.language == "en"
+        assert await store.set_user_language("ghost", "en") is None
+
+    async def test_upsert_keeps_a_chosen_language(self, store: Store) -> None:
+        await store.upsert_users(SHOPPERS)
+        await store.set_user_language("ana", "en")
+        await store.upsert_users([User(id="ana", name="Ana M.", language="es")])
+        assert await store.get_user("ana") == User(id="ana", name="Ana M.", language="en")
+
     # Tabs
 
     async def test_tabs_belong_to_their_user(self, store: Store) -> None:
@@ -99,10 +115,20 @@ class StoreContract:
             "p2": ProductFact(price_cents=5, stock=0),
         }
         await store.save_tab(
-            tab.id, card=_card("one"), snapshot=_snapshot(1), product_facts=facts_1, run_id="r1"
+            tab.id,
+            card=_card("one"),
+            snapshot=_snapshot(1),
+            product_facts=facts_1,
+            run_id="r1",
+            language="en",
         )
         saved = await store.save_tab(
-            tab.id, card=_card("two"), snapshot=_snapshot(2), product_facts=facts_2, run_id="r2"
+            tab.id,
+            card=_card("two"),
+            snapshot=_snapshot(2),
+            product_facts=facts_2,
+            run_id="r2",
+            language="en",
         )
         assert saved.snapshot == _snapshot(2)
         revisions = await store.tab_revisions(tab.id)
@@ -116,6 +142,23 @@ class StoreContract:
         assert reread.card == _card("two")
         assert reread.updated_at >= reread.created_at
 
+    async def test_save_tab_sets_the_language(self, store: Store) -> None:
+        await store.upsert_users(SHOPPERS)
+        tab = await store.create_tab(
+            "sam", surface_id="shop:1", kind="compare", card=_card("1"), language="en"
+        )
+        saved = await store.save_tab(
+            tab.id,
+            card=_card("1"),
+            snapshot=_snapshot(1),
+            product_facts={},
+            run_id="r1",
+            language="es",
+        )
+        assert saved.language == "es"
+        (reread,) = await store.open_tabs("sam")
+        assert reread.language == "es"
+
     async def test_only_twenty_revisions_are_kept(self, store: Store) -> None:
         await store.upsert_users(SHOPPERS)
         tab = await store.create_tab(
@@ -123,7 +166,12 @@ class StoreContract:
         )
         for n in range(1, 24):
             await store.save_tab(
-                tab.id, card=_card(str(n)), snapshot=_snapshot(n), product_facts={}, run_id=f"r{n}"
+                tab.id,
+                card=_card(str(n)),
+                snapshot=_snapshot(n),
+                product_facts={},
+                run_id=f"r{n}",
+                language="en",
             )
         revisions = await store.tab_revisions(tab.id)
         assert TAB_REVISIONS_KEPT == 20
@@ -143,7 +191,12 @@ class StoreContract:
     async def test_save_unknown_tab_raises(self, store: Store) -> None:
         with pytest.raises(KeyError):
             await store.save_tab(
-                "no-such-tab", card=_card("x"), snapshot=_snapshot(1), product_facts={}, run_id="r"
+                "no-such-tab",
+                card=_card("x"),
+                snapshot=_snapshot(1),
+                product_facts={},
+                run_id="r",
+                language="en",
             )
 
     # Cart

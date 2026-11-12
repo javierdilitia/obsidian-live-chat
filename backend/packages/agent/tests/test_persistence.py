@@ -176,7 +176,9 @@ async def test_interleaved_adds_take_the_last_item_once() -> None:
     )
     button = {"id": "buy", "component": "AddToCartButton", "productId": "aeris-studio-16"}
     page = {"createSurface": {"surfaceId": "shop:1", "components": [button]}}
-    await store.save_tab(tab.id, card={}, snapshot=page, product_facts={}, run_id="r")
+    await store.save_tab(
+        tab.id, card={}, snapshot=page, product_facts={}, run_id="r", language="en"
+    )
 
     def body(request_id: str) -> dict[str, Any]:
         return {
@@ -216,7 +218,9 @@ async def test_the_same_request_twice_at_once_runs_once() -> None:
     )
     button = {"id": "buy", "component": "AddToCartButton", "productId": "aeris-studio-16"}
     page = {"createSurface": {"surfaceId": "shop:1", "components": [button]}}
-    await store.save_tab(tab.id, card={}, snapshot=page, product_facts={}, run_id="r")
+    await store.save_tab(
+        tab.id, card={}, snapshot=page, product_facts={}, run_id="r", language="en"
+    )
     body = {
         "name": "cart.add",
         "surfaceId": "shop:1",

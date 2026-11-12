@@ -85,7 +85,12 @@ class _Shop:
         )
         asyncio.run(
             self.store.save_tab(
-                tab.id, card={}, snapshot=_page(surface_id), product_facts={}, run_id="r"
+                tab.id,
+                card={},
+                snapshot=_page(surface_id),
+                product_facts={},
+                run_id="r",
+                language="en",
             )
         )
         return surface_id

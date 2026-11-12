@@ -169,7 +169,7 @@ class PostgresStore:
         statement = insert(users_table).values([user.model_dump() for user in users])
         statement = statement.on_conflict_do_update(
             index_elements=[users_table.c.id],
-            set_={"name": statement.excluded.name, "language": statement.excluded.language},
+            set_={"name": statement.excluded.name},
         )
         async with self.engine.begin() as connection:
             await connection.execute(statement)
@@ -189,6 +189,17 @@ class PostgresStore:
                 select(users_table.c.id, users_table.c.name, users_table.c.language).where(
                     users_table.c.id == user_id
                 )
+            )
+            row = result.mappings().first()
+        return User.model_validate(dict(row)) if row else None
+
+    async def set_user_language(self, user_id: str, language: str) -> User | None:
+        async with self.engine.begin() as connection:
+            result = await connection.execute(
+                update(users_table)
+                .where(users_table.c.id == user_id)
+                .values(language=language)
+                .returning(users_table.c.id, users_table.c.name, users_table.c.language)
             )
             row = result.mappings().first()
         return User.model_validate(dict(row)) if row else None
@@ -269,6 +280,7 @@ class PostgresStore:
         snapshot: Snapshot,
         product_facts: ProductFacts,
         run_id: str,
+        language: str,
     ) -> TabRecord:
         facts = _facts_json(product_facts)
         async with self.engine.begin() as connection:
@@ -278,7 +290,13 @@ class PostgresStore:
             result = await connection.execute(
                 update(tabs)
                 .where(tabs.c.id == tab_id)
-                .values(card=card, snapshot=snapshot, product_facts=facts, updated_at=now)
+                .values(
+                    card=card,
+                    snapshot=snapshot,
+                    product_facts=facts,
+                    language=language,
+                    updated_at=now,
+                )
                 .returning(*tabs.c)
             )
             row = result.mappings().first()

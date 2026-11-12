@@ -44,13 +44,24 @@ class MemoryStore:
 
     async def upsert_users(self, users: Sequence[User]) -> None:
         for user in users:
-            self._users[user.id] = user
+            known = self._users.get(user.id)
+            self._users[user.id] = (
+                user if known is None else known.model_copy(update={"name": user.name})
+            )
 
     async def list_users(self) -> list[User]:
         return [self._users[user_id] for user_id in sorted(self._users)]
 
     async def get_user(self, user_id: str) -> User | None:
         return self._users.get(user_id)
+
+    async def set_user_language(self, user_id: str, language: str) -> User | None:
+        known = self._users.get(user_id)
+        if known is None:
+            return None
+        user = known.model_copy(update={"language": language})
+        self._users[user_id] = user
+        return user
 
     # Workspace and tabs
 
@@ -97,6 +108,7 @@ class MemoryStore:
         snapshot: Snapshot,
         product_facts: ProductFacts,
         run_id: str,
+        language: str,
     ) -> TabRecord:
         tab = self._tabs[tab_id]
         now = self._now()
@@ -105,6 +117,7 @@ class MemoryStore:
                 "card": card,
                 "snapshot": snapshot,
                 "product_facts": product_facts,
+                "language": language,
                 "updated_at": now,
             }
         )

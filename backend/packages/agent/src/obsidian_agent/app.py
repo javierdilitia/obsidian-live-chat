@@ -356,7 +356,12 @@ def create_app(
             for product_id, product in result.products.items()
         }
         await the_store.save_tab(
-            tab.id, card=card, snapshot=result.snapshot, product_facts=facts, run_id=run_id
+            tab.id,
+            card=card,
+            snapshot=result.snapshot,
+            product_facts=facts,
+            run_id=run_id,
+            language=tab.language,
         )
         log.info("run %s: saved a page of %d bytes", run_id, page_size_bytes(result.snapshot))
         state.outcome = "ok"
