@@ -1,6 +1,6 @@
 # Milestone 3 — Build, slice by slice
 
-**Date:** 2026-11-12 · **Tracking:** [milestone 3 on GitHub](https://github.com/javierdilitia/obsidian-live-chat/milestone/4), one issue per slice (table below). **Status:** in progress. Slice 1 is built per its task plan, [`2026-11-12-slice-1-cartridge-boundary.md`](2026-11-12-slice-1-cartridge-boundary.md); its placement rules are still to be checked by eye on the next live run. Slice 2 is built per its task plan, [`2026-11-12-slice-2-store-session-actions.md`](2026-11-12-slice-2-store-session-actions.md); the restart and the shopper switch are still to be checked by eye. Slice 3's task plan is [`2026-11-12-slice-3-language.md`](2026-11-12-slice-3-language.md), waiting for review. Each later slice gets its own plan (writing-plans skill) when it starts, from this document and the spec.
+**Date:** 2026-11-12 · **Tracking:** [milestone 3 on GitHub](https://github.com/javierdilitia/obsidian-live-chat/milestone/4), one issue per slice (table below). **Status:** in progress. Slice 1 is built per its task plan, [`2026-11-12-slice-1-cartridge-boundary.md`](2026-11-12-slice-1-cartridge-boundary.md); its placement rules are still to be checked by eye on the next live run. Slice 2 is built per its task plan, [`2026-11-12-slice-2-store-session-actions.md`](2026-11-12-slice-2-store-session-actions.md); the restart and the shopper switch are still to be checked by eye. Slice 3 is built per its task plan, [`2026-11-12-slice-3-language.md`](2026-11-12-slice-3-language.md); the switch, and the model's Spanish on a live run, are still to be checked by eye. Each later slice gets its own plan (writing-plans skill) when it starts, from this document and the spec.
 
 **Sources:** the approved product spec [`../specs/2026-11-11-product-spec-design.md`](../specs/2026-11-11-product-spec-design.md) (cited below as §n), [`ROADMAP.md`](../../../ROADMAP.md) milestone 3 (its goal and "Inputs for milestone 3"), and [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) ("Obsidian core vs cartridge", "Known cartridge seams").
 
@@ -89,7 +89,7 @@ Why this order:
 
 **Exit criteria.**
 - `web/src/i18n/en.json` and `es.json` hold every fixed string in core; each cartridge holds its glossary and disclaimer in both languages. A test fails when a key exists in one language and not the other.
-- The language menu switches the shell and every page's fixed strings without a reload; money and dates format with `Intl` per language (`€1.899` in ES, `€1,899` in EN).
+- The language menu switches the shell and every page's fixed strings without a reload; money and dates format with `Intl` per language (`1.899 €` in ES, `€1,899` in EN; the user's choice, 2026-11-12).
 - A run carries the language and the page prompt asks for prose in it; a tab's stored language changes only when it is edited (tests).
 - The seeded shopper `ana` starts in Spanish.
 
