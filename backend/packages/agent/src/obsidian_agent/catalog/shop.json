@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://halden.example/catalogs/shop/v1/catalog.json",
-  "catalogId": "https://halden.example/catalogs/shop/v1/catalog.json",
+  "$id": "https://obsidian.example/catalogs/shop/v1/catalog.json",
+  "catalogId": "https://obsidian.example/catalogs/shop/v1/catalog.json",
   "protocolVersion": "1.0",
-  "title": "Halden shop catalog",
-  "description": "The components a Halden shop tab is built from. Components take product IDs and spec keys; prices, specs, stock and images are filled in by the app.",
+  "title": "Obsidian shop catalog",
+  "description": "The components a shop tab is built from. Components take product IDs and spec keys; prices, specs, stock and images are filled in by the app.",
   "instructions": "- IDs, never values. Write product IDs and spec keys only. Never write a price, a spec value, a stock level or an action: the app fills them in.\n- `root` is always a `Page`. Its `children` are the page's sections, in order.\n- Section-level components (`Verdict`, `ProductShelf`, `SpecTable`, `ChartGrid`) are always assigned to a named variable with a short meaning-based name, such as `verdict`, `shelf`, `specs`, `colour` or `charts`, and listed by that name in `Page.children`. Never write a section inline inside `Page(...)`.\n- Smaller parts (a `BarChart` inside a `ChartGrid`, an `AddToCartButton` inside a `Verdict`) are written inline.\n- An `AddToCartButton` may only name a product the page shows.\n- To change a page that already exists, start the block with `surface(update=true)`. Then write `root` again with its full new child list and define only the sections that are new or changed. Never repeat a section that stays as it is: naming it in `root`'s child list keeps it.",
   "components": {
     "Page": {

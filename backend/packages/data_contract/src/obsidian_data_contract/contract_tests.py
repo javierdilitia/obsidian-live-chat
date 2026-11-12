@@ -13,14 +13,14 @@ Usage, in the implementing package's tests:
         def known_user_id(self) -> str: ...
 
 Needs the `testing` extra (pytest, pytest-asyncio). For readable assertion diffs, call
-`pytest.register_assert_rewrite("halden_data_contract.contract_tests")` in a conftest.py.
+`pytest.register_assert_rewrite("obsidian_data_contract.contract_tests")` in a conftest.py.
 """
 
 import pytest
 
-from halden_data_contract.errors import NotFoundError
-from halden_data_contract.models import ProductQuery, ProductSummary, RenderLook
-from halden_data_contract.source import CatalogSource
+from obsidian_data_contract.errors import NotFoundError
+from obsidian_data_contract.models import ProductQuery, ProductSummary, RenderLook
+from obsidian_data_contract.source import CatalogSource
 
 
 def _sort_key(p: ProductSummary) -> tuple[bool, float, str]:

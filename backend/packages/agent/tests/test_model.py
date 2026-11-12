@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from halden_agent.model import (
+from obsidian_agent.model import (
     AzureModel,
     ModelFailed,
     ModelResult,
@@ -16,7 +16,7 @@ from halden_agent.model import (
     result_from_response,
     stop_from_response,
 )
-from halden_agent.settings import MissingSettings, Settings
+from obsidian_agent.settings import MissingSettings, Settings
 
 ENV_NAMES = [
     "AZURE_FOUNDRY_ENDPOINT",

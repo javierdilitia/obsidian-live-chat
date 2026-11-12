@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-from halden_agent.a2ui_adapter import ROOT_ID, Snapshot, shop_catalog_json
+from obsidian_agent.a2ui_adapter import ROOT_ID, Snapshot, shop_catalog_json
 
 IssueCode = Literal[
     "unknown_product",

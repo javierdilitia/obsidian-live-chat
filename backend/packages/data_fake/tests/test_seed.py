@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from halden_data_contract import ProductQuery
-from halden_data_contract.contract_tests import CatalogSourceContract
 from halden_data_fake import FakeCatalogSource
+from obsidian_data_contract import ProductQuery
+from obsidian_data_contract.contract_tests import CatalogSourceContract
 
 
 async def test_seed_integrity():

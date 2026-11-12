@@ -135,7 +135,10 @@ export function mockApi(
         .map((p) => ({ productId, name: p.name, qty, price_cents: p.price_cents })),
     );
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(input instanceof Request ? input.url : String(input), "http://halden.test");
+    const url = new URL(
+      input instanceof Request ? input.url : String(input),
+      "http://obsidian.test",
+    );
     if (url.pathname === "/api/catalog/products") {
       if (failures > 0) {
         failures -= 1;

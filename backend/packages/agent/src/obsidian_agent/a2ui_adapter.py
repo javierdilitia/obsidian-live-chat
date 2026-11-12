@@ -50,7 +50,7 @@ class CompileError(Exception):
 @cache
 def shop_catalog_json() -> dict[str, Any]:
     """The shop catalog document, as shipped in the package."""
-    text = files("halden_agent").joinpath("catalog", "shop.json").read_text(encoding="utf-8")
+    text = files("obsidian_agent").joinpath("catalog", "shop.json").read_text(encoding="utf-8")
     document: dict[str, Any] = json.loads(text)
     return document
 

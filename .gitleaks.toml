@@ -8,7 +8,7 @@
 useDefault = true
 
 [[rules]]
-id = "halden-model-api-key"
+id = "obsidian-model-api-key"
 description = "Literal value assigned to an API key name (model / Azure Foundry keys)"
 regex = '''(?i)(?:api[_-]?key|foundry[_-]?key)["'\]]*[ \t]*(?:[:=]{1,2}|=>)[ \t]*["']?([A-Za-z0-9+/_=-]{16,})'''
 secretGroup = 1

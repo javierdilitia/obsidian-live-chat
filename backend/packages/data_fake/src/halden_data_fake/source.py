@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-from halden_data_contract import (
+from obsidian_data_contract import (
     Category,
     NotFoundError,
     Order,

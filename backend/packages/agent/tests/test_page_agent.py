@@ -7,7 +7,8 @@ from typing import Any
 
 import pytest
 
-from halden_agent.a2ui_adapter import (
+from halden_data_fake import FakeCatalogSource
+from obsidian_agent.a2ui_adapter import (
     Message,
     Snapshot,
     apply_messages,
@@ -15,10 +16,9 @@ from halden_agent.a2ui_adapter import (
     decompile,
     prompt_snippet,
 )
-from halden_agent.fixtures import FIXTURE_SURFACE_ID
-from halden_agent.model import ModelResult, ScriptedModel, Stop, ToolCall, Usage
-from halden_agent.page_agent import PAGE_PROMPT, SYSTEM_PROMPT, build_page
-from halden_data_fake import FakeCatalogSource
+from obsidian_agent.fixtures import FIXTURE_SURFACE_ID
+from obsidian_agent.model import ModelResult, ScriptedModel, Stop, ToolCall, Usage
+from obsidian_agent.page_agent import PAGE_PROMPT, SYSTEM_PROMPT, build_page
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ROOT_ENV = Path(__file__).resolve().parents[4] / ".env"
@@ -280,8 +280,8 @@ class _Recording:
 
 @pytest.mark.live
 async def test_live_build_then_edit() -> None:
-    from halden_agent.app import azure_model
-    from halden_agent.settings import Settings
+    from obsidian_agent.app import azure_model
+    from obsidian_agent.settings import Settings
 
     model = _Recording(azure_model(Settings.from_env(ROOT_ENV)))
     source = FakeCatalogSource()

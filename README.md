@@ -36,7 +36,7 @@ uv run --project backend pre-commit install --install-hooks -t pre-commit -t com
 python scripts/check.py all
 
 # 5. Run the apps
-uv run --directory backend uvicorn halden_agent.app:create_app --factory --reload   # agent: http://127.0.0.1:8000/health
+uv run --directory backend uvicorn obsidian_agent.app:create_app --factory --reload   # agent: http://127.0.0.1:8000/health
 pnpm --dir web dev                                                                  # web: http://localhost:5173
 ```
 
@@ -48,7 +48,7 @@ The demo calls the Azure deployment named in the repo root's `.env` (`AZURE_FOUN
 
 ```bash
 # terminal 1: the agent, on http://127.0.0.1:8000
-uv run --directory backend uvicorn halden_agent.app:create_app --factory --reload
+uv run --directory backend uvicorn obsidian_agent.app:create_app --factory --reload
 
 # terminal 2: the web app, on http://localhost:5173 (Vite proxies /api to the agent)
 pnpm --dir web dev
@@ -58,16 +58,16 @@ Open <http://localhost:5173/?probe>. `?probe` adds a small panel in the bottom-l
 
 Try, in order: "Compare 3 laptops for video editing under €2,000", then "Add colour accuracy for grading", then "Only OLED", then "Add to cart" on the pick. The agent keeps one tab and one cart in memory: a reload brings back the page and the cart as they were. To start over, restart the agent (Ctrl+C, run it again) and then reload the page.
 
-The one live test (a real build and edit against the deployment) is skipped unless `HALDEN_LIVE=1`. Run it alone with `--no-cov`, because a single test falls under the 80 % coverage gate:
+The one live test (a real build and edit against the deployment) is skipped unless `OBSIDIAN_LIVE=1`. Run it alone with `--no-cov`, because a single test falls under the 80 % coverage gate:
 
 ```bash
-HALDEN_LIVE=1 uv run --directory backend pytest packages/agent/tests/test_page_agent.py::test_live_build_then_edit -s -q --no-cov
+OBSIDIAN_LIVE=1 uv run --directory backend pytest packages/agent/tests/test_page_agent.py::test_live_build_then_edit -s -q --no-cov
 ```
 
 In PowerShell:
 
 ```powershell
-$env:HALDEN_LIVE=1; uv run --directory backend pytest packages/agent/tests/test_page_agent.py::test_live_build_then_edit -s -q --no-cov; Remove-Item Env:HALDEN_LIVE
+$env:OBSIDIAN_LIVE=1; uv run --directory backend pytest packages/agent/tests/test_page_agent.py::test_live_build_then_edit -s -q --no-cov; Remove-Item Env:OBSIDIAN_LIVE
 ```
 
 ## Read next

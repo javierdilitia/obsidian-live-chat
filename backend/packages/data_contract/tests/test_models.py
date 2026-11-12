@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from halden_data_contract import (
+from obsidian_data_contract import (
     NotFoundError,
     Order,
     OrderLine,

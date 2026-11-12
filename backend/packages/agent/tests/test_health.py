@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from halden_agent.app import create_app
+from obsidian_agent.app import create_app
 
 
 def test_health():

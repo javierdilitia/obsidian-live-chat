@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { z } from "zod";
-import shopJson from "../../../backend/packages/agent/src/halden_agent/catalog/shop.json";
+import shopJson from "../../../backend/packages/agent/src/obsidian_agent/catalog/shop.json";
 import { dispatchAction } from "../lib/actions";
 import { cart } from "../lib/cart";
 import { RETRY_BASE_MS, resetProductCache } from "../lib/products";

@@ -34,7 +34,7 @@ Python backend (FastAPI)
 | Backend | **Python 3.12**, FastAPI, uv workspace | `a2ui-agent-sdk` is the most mature agent SDK; macros (server-side expansion such as `ProductCard(id)`) and the eval framework are Python-only |
 | Frontend | **React 19.2** + `@a2ui/react`, Vite, TypeScript | Our components, our styling, our motion |
 | Models | **Azure AI Foundry**: a small fast model for routing, a top-tier model for UI generation | Deployments arrive before sub-project 2 |
-| Data | `halden_data_contract` (interface) + `halden_data_fake` (JSON seed) | See [Data contract boundary](#data-contract-boundary) |
+| Data | `obsidian_data_contract` (interface) + `halden_data_fake` (JSON seed) | See [Data contract boundary](#data-contract-boundary) |
 
 A2UI packages are pinned to **exact versions**, never ranges: the spec has broken three times in about a year.
 
@@ -94,7 +94,7 @@ Components take **IDs**, not values: `SpecTable(productIds, keys)`, `OrderTracke
 
 ## Data contract boundary
 
-The rest of the backend imports only `halden_data_contract`. Nothing else knows where the data comes from.
+The rest of the backend imports only `obsidian_data_contract`. Nothing else knows where the data comes from.
 
 **Obsidian core vs cartridge.**
 
@@ -111,15 +111,15 @@ The rest of the backend imports only `halden_data_contract`. Nothing else knows 
 
 ```
 backend/packages/
-  data_contract/   halden_data_contract  CatalogSource protocol + Pydantic models + contract test suite
+  data_contract/   obsidian_data_contract  CatalogSource protocol + Pydantic models + contract test suite
   data_fake/       halden_data_fake      FakeCatalogSource from JSON seed files
-  agent/           halden_agent          FastAPI app (GET /health only, for now)
+  agent/           obsidian_agent          FastAPI app (GET /health only, for now)
 ```
 
 - `CatalogSource` is an async, **read-only** protocol: `list_categories`, `search_products`, `get_product`, `get_products`, `get_orders`, `get_order`, `get_order_status`. The only error is `NotFoundError(kind, ids)`.
 - Cart, saved-for-later, checkout and refunds are **our** commerce services (sub-project 3), not the data agent's job.
 - Models are frozen and reject unknown fields. Search is deterministic: rating descending, then id.
-- `halden_data_contract.contract_tests.CatalogSourceContract` is a reusable pytest suite. The fake runs it in CI. The teammate's adapter will run the same suite, which is how we know it's a drop-in replacement.
+- `obsidian_data_contract.contract_tests.CatalogSourceContract` is a reusable pytest suite. The fake runs it in CI. The teammate's adapter will run the same suite, which is how we know it's a drop-in replacement.
 - The contract is v0. It gets reviewed with the data-agent teammate during sub-project 1, before anything beyond the fake depends on it.
 
 ## Transport

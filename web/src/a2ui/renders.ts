@@ -86,7 +86,7 @@ const FOOTAGE: Record<string, Footage> = {
 };
 const DUSK: Footage = { c: ["#1C2B4B", "#7B4B6C", "#F2B27A"], sun: "#FFE4BD" };
 
-const MATERIALS_ID = "halden-materials";
+const MATERIALS_ID = "obsidian-materials";
 
 function materialsMarkup(): string {
   let s = "";

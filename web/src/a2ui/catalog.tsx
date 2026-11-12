@@ -24,7 +24,7 @@ import { seriesColour, useRise } from "./motion";
 import { probeEnabled, useMountCounts, useMountProbe } from "./probe";
 import { installMaterials, renderMarkup, type Look } from "./renders";
 
-export const SHOP_CATALOG_ID = "https://halden.example/catalogs/shop/v1/catalog.json";
+export const SHOP_CATALOG_ID = "https://obsidian.example/catalogs/shop/v1/catalog.json";
 
 /* ——— the component APIs: the same fields and limits as shop.json ——— */
 

@@ -7,7 +7,7 @@ and a restart forgets it.
 import asyncio
 from dataclasses import dataclass, field
 
-from halden_agent.a2ui_adapter import Snapshot
+from obsidian_agent.a2ui_adapter import Snapshot
 
 
 @dataclass

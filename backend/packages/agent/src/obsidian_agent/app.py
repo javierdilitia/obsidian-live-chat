@@ -1,6 +1,6 @@
 """FastAPI application factory: a run over SSE, the workspace for a reload, catalog reads, cart.
 
-Dev run: `uv run --directory backend uvicorn halden_agent.app:create_app --factory --reload`
+Dev run: `uv run --directory backend uvicorn obsidian_agent.app:create_app --factory --reload`
 
 The demo keeps one tab and one cart in memory (`Workspace`). The Azure model is made on the first
 run, from the repo's `.env`, so building the app never reads settings or touches the network.
@@ -19,16 +19,16 @@ from fastapi.responses import StreamingResponse
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field, StringConstraints
 
-from halden_agent.model import AzureModel, ModelClient, ModelFailed
-from halden_agent.page_agent import build_page, lookup_products
-from halden_agent.settings import MissingSettings, Settings
-from halden_agent.workspace import Tab, Workspace
-from halden_data_contract import CatalogSource, NotFoundError
 from halden_data_fake import FakeCatalogSource
+from obsidian_agent.model import AzureModel, ModelClient, ModelFailed
+from obsidian_agent.page_agent import build_page, lookup_products
+from obsidian_agent.settings import MissingSettings, Settings
+from obsidian_agent.workspace import Tab, Workspace
+from obsidian_data_contract import CatalogSource, NotFoundError
 
 log = logging.getLogger(__name__)
 
-# The repo root's `.env` (this file is backend/packages/agent/src/halden_agent/app.py).
+# The repo root's `.env` (this file is backend/packages/agent/src/obsidian_agent/app.py).
 ENV_FILE = Path(__file__).resolve().parents[5] / ".env"
 # A page build is one or a few reasoning calls; past two minutes the shopper has given up.
 MODEL_TIMEOUT_S = 120.0
@@ -65,7 +65,7 @@ class ActionRequest(BaseModel):
 
 def create_app(model: ModelClient | None = None, source: CatalogSource | None = None) -> FastAPI:
     """The app. Tests pass a `ScriptedModel`; without one, the Azure model is made on first use."""
-    app = FastAPI(title="Halden agent", version="0.1.0")
+    app = FastAPI(title="Obsidian agent", version="0.1.0")
     catalog: CatalogSource = source if source is not None else FakeCatalogSource()
     workspace = Workspace()
     app.state.workspace = workspace

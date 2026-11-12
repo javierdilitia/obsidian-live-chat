@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from halden_agent.a2ui_adapter import (
+from obsidian_agent.a2ui_adapter import (
     CompileError,
     Message,
     Snapshot,
@@ -15,7 +15,7 @@ from halden_agent.a2ui_adapter import (
     decompile,
     prompt_snippet,
 )
-from halden_agent.fixtures import FIXTURE_SURFACE_ID, compile_fixtures
+from obsidian_agent.fixtures import FIXTURE_SURFACE_ID, compile_fixtures
 
 FIXTURES = Path(__file__).parent / "fixtures"
 WEB_FIXTURES = Path(__file__).parents[4] / "web" / "src" / "a2ui" / "fixtures"
@@ -55,7 +55,7 @@ def test_named_variables_become_ids() -> None:
     assert messages[0]["createSurface"]["surfaceId"] == SURFACE
     assert (
         messages[0]["createSurface"]["catalogId"]
-        == "https://halden.example/catalogs/shop/v1/catalog.json"
+        == "https://obsidian.example/catalogs/shop/v1/catalog.json"
     )
 
 
@@ -121,7 +121,7 @@ def test_block_for_another_surface_is_rejected() -> None:
 def test_web_fixtures_match_the_express_fixtures() -> None:
     for name, messages in compile_fixtures().items():
         written = json.loads((WEB_FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
-        assert written == messages, f"run `python -m halden_agent.fixtures` to refresh {name}"
+        assert written == messages, f"run `python -m obsidian_agent.fixtures` to refresh {name}"
 
 
 def test_prompt_snippet_teaches_the_catalog_and_the_edit_syntax() -> None:

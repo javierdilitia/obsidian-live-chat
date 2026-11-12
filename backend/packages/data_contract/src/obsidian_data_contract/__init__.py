@@ -1,7 +1,7 @@
-"""Halden data contract: the read-only interface and data shapes the backend depends on."""
+"""Obsidian data contract: the read-only interface and data shapes the backend depends on."""
 
-from halden_data_contract.errors import NotFoundError
-from halden_data_contract.models import (
+from obsidian_data_contract.errors import NotFoundError
+from obsidian_data_contract.models import (
     Category,
     Finish,
     Glyph,
@@ -19,7 +19,7 @@ from halden_data_contract.models import (
     StepState,
     TrackingStep,
 )
-from halden_data_contract.source import CatalogSource
+from obsidian_data_contract.source import CatalogSource
 
 __all__ = [
     "CatalogSource",
