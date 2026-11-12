@@ -6,7 +6,7 @@ from typing import Any
 
 from halden_agent.a2ui_adapter import Snapshot, apply_messages, compile_block
 from halden_agent.fixtures import FIXTURE_SURFACE_ID
-from halden_agent.validate import Issue, issues_for_model, validate_page
+from halden_agent.validate import Issue, issues_for_model, page_product_ids, validate_page
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SURFACE = FIXTURE_SURFACE_ID
@@ -92,3 +92,21 @@ root = Verdict(text="Aeris wins.")
 
 def test_no_issues_means_no_feedback() -> None:
     assert issues_for_model([]) == ""
+
+
+def test_template_children_are_rejected() -> None:
+    # This catalog has no data model, so a template child list would render nothing.
+    text = """<a2ui>
+root = Page(title="Laptops", kicker="comparison", children=_template($/items, item))
+item = Verdict(text="Aeris wins.")
+</a2ui>"""
+    page = apply_messages(None, compile_block(text, surface_id=SURFACE, current=None))
+
+    issues = validate_page(page, known_products=KNOWN)
+
+    assert _codes(issues) == [("template_children", "root")]
+    assert "by name" in issues_for_model(issues)
+
+
+def test_page_product_ids() -> None:
+    assert page_product_ids(_build()) == {"aeris-studio-16", "kore-zephyr-14", "vela-prism-15"}

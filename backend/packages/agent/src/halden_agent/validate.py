@@ -2,8 +2,9 @@
 
 The SDK already rejects what the catalog schema forbids while compiling. These checks cover what
 the schema cannot say: products that do not exist, a button for a product the page does not show,
-a section written inline (it would get a position-based ID and remount on the next insert), and a
-root that is not a `Page`. Text limits are checked again, from the same catalog, on the whole page.
+a section written inline (it would get a position-based ID and remount on the next insert), a
+template child list (this catalog has no data model to fill it), and a root that is not a `Page`.
+Text limits are checked again, from the same catalog, on the whole page.
 """
 
 import re
@@ -14,7 +15,12 @@ from typing import Any, Literal, cast
 from halden_agent.a2ui_adapter import ROOT_ID, Snapshot, shop_catalog_json
 
 IssueCode = Literal[
-    "unknown_product", "button_target", "text_limit", "root_not_page", "unnamed_section"
+    "unknown_product",
+    "button_target",
+    "text_limit",
+    "root_not_page",
+    "unnamed_section",
+    "template_children",
 ]
 
 # The SDK names an inline component after where it sits: `<parent>_<prop>` for a single child,
@@ -47,6 +53,12 @@ def validate_page(snapshot: Snapshot, *, known_products: set[str]) -> list[Issue
     return issues
 
 
+def page_product_ids(snapshot: Snapshot) -> set[str]:
+    """Every product ID the page names, buttons included: the IDs to look up before validating."""
+    components: list[dict[str, Any]] = snapshot["createSurface"]["components"]
+    return {product_id for component in components for product_id in _product_ids(component)}
+
+
 def _root_issues(by_id: dict[str, dict[str, Any]]) -> list[Issue]:
     root = by_id.get(ROOT_ID)
     if root is None or root["component"] != "Page":
@@ -70,6 +82,15 @@ def _component_issues(
 ) -> list[Issue]:
     component_id: str = component["id"]
     issues: list[Issue] = []
+    if isinstance(component.get("children"), dict):
+        issues.append(
+            Issue(
+                "template_children",
+                component_id,
+                f"{component_id}.children is a template (_template). This catalog has no data "
+                "model: list each child by name, for example children=[verdict, shelf].",
+            )
+        )
     unknown = [
         product_id for product_id in _product_ids(component) if product_id not in known_products
     ]
