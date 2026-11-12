@@ -5,7 +5,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 | # | Milestone | Depends on | Status |
 |---|---|---|---|
 | 0 | Repo foundation | — | done |
-| 1 | Product spec | 0 | in progress |
+| 1 | Product spec | 0 | done |
 | 2 | First working demo | 0 (runs alongside 1) | done |
 | 3 | Build, slice by slice | 1, 2 | planned |
 | 4 | Analytics and observability | 2, 3 | planned |
@@ -29,7 +29,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 1 — Product spec
 
-**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; the contract decisions we own are recorded and in the contract with tests (spec §11.1); waits only on the user's review of the spec. The Haier intake moved to milestone H, after milestone 3
+**Status:** done (2026-11-12) — spec approved: `docs/superpowers/specs/2026-11-11-product-spec-design.md`, updated with the first demo's results and feedback; the contract decisions we own are in the contract with tests (spec §11.1). The Haier intake moved to milestone H, after milestone 3
 
 **Goal:** detail every idea into a real product: tabs as A2UI surfaces and the agent's tab tools (open, edit, create, switch, close), the component catalog with every field, the action catalog with each action's kind (local / direct / agent), the data contract, persistence, and other places surfaces fit besides tabs.
 

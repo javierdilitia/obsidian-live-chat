@@ -4,7 +4,7 @@ Obsidian is a framework for agent-built shopping UIs, and it is not a chatbot. T
 
 Obsidian is client- and domain-agnostic. Each store plugs in as a **cartridge**: its data, its data model and seed, and its presentation config (brand, spec glossary, product renders, diagrams, category-pairing rules). **Halden**, a fictional electronics retailer with a synthetic dataset, is the first cartridge; it exists only to demo Obsidian during development. **Haier** is the next cartridge: real data and backend from the data-agent teammate, and the final demo runs on it.
 
-**Status:** milestone 2, the first working demo, is done and merged: type a command, a tab opens and the model builds a comparison page with A2UI; the next command edits it in place; "Add to cart" works. Milestone 1, the product spec, waits only on its final review; the Haier intake comes after milestone 3. See [ROADMAP.md](ROADMAP.md) and [Run the demo](#run-the-demo).
+**Status:** milestone 2, the first working demo, is done and merged: type a command, a tab opens and the model builds a comparison page with A2UI; the next command edits it in place; "Add to cart" works. Milestone 1, the product spec, is done and approved; milestone 3 builds it. The Haier intake comes after milestone 3 (milestone H). See [ROADMAP.md](ROADMAP.md) and [Run the demo](#run-the-demo).
 
 ## Folder map
 

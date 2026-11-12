@@ -1,7 +1,7 @@
 # Sub-project 1 — Product spec: design
 
-**Date:** 2026-11-11 · **Status:** approved in conversation, awaiting written-spec review
-**Branch:** `docs/product-spec`
+**Date:** 2026-11-11 · **Status:** approved (2026-11-12), the target for milestone 3. Updated before approval with the Obsidian/cartridge framing, the contract rules we own (§11.1), and the first demo's results and feedback (§15).
+**Branch:** `docs/product-spec` (merged)
 **Builds on:** [`ROADMAP.md`](../../../ROADMAP.md) milestone 1, [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md), [`docs/research/A2UI-DECISION.md`](../../research/A2UI-DECISION.md), [`2026-11-11-repo-foundation-design.md`](2026-11-11-repo-foundation-design.md), `PRODUCT.md`, `DESIGN.md`, the mockup in `mockup/`, and the data contract in `backend/packages/data_contract/`.
 
 Where this spec and `docs/ARCHITECTURE.md` disagree, this spec wins (ARCHITECTURE.md says so itself).
@@ -52,6 +52,8 @@ Each page kind is either **generated** (the UI model writes Express) or a **temp
 | `orders` | template | order list | box |
 | `order` | template | order tracker | box |
 | `confirmation` | template | order confirmation | check |
+
+**More than 4 products.** A comparison holds 2–4 products. A request for 5 or more opens an `explore` page instead (a `ProductGrid` of up to 8 tiles, each with a reason), never stacked comparisons; the shopper narrows from there to a comparison. When there are more results than fit, the grid pages or scrolls sideways; the milestone 3 slice picks which.
 
 Templates cover pages that carry money or dates and never need creativity; they appear without a model call. The model may still **edit** a template tab ("also show my other orders"), because edits work by component ID, whoever built the tab.
 
@@ -121,7 +123,7 @@ The backend runs the brief's queries (`get_products`, `search_products`, `get_or
 4. the fetched rows, compact (IDs, names, the needed specs; prices only so the model can reason about budget, never to write them);
 5. for `edit_tab`, the current surface decompiled to Express.
 
-The UI model also has the read-only data tools (`search_products`, `get_products`, `get_order`) for **one** extra round when the brief missed something. Telemetry records whether that round fired.
+The UI model also has the read-only data tools (`search_products`, `get_products`, `get_order`) for **one** extra round when the brief missed something. Telemetry records whether that round fired. `search_products` offers the contract's full query: multi-word `text` and `sort` (`rating`, `price_asc`, `price_desc`), so "the cheapest OLED laptop" is one call.
 
 ### 3.4 Follow-up chips
 
@@ -236,8 +238,8 @@ Two surfaces, side by side in the mockup's home layout.
 ### 7.1 Rules
 
 - **IDs, never values.** Components take product IDs, order IDs and spec keys. The model writes only prose: titles, verdicts, tags, reasons, headings. Prices, specs, stock and images come from the catalog at render time.
-- **Semantic section IDs.** Every section-level component gets an ID chosen by the model (`verdict`, `shelf`, `specs`, `colour`, `charts`). Edits target those IDs; the card's `sections` lists them. Adding a section means rewriting `Page.children` (A2UI has no per-component delete or insert).
-- **Post-compile validation** (backend, before anything reaches the browser): every product and order ID exists; every button's ID is one the page shows; text fields respect their limits; `Page` is the root of a tab and section-level components sit only under `Page`. A failure triggers the one retry (§13).
+- **Semantic section IDs.** Every section-level component gets an ID chosen by the model (`verdict`, `shelf`, `specs`, `colour`, `charts`). Edits target those IDs; the card's `sections` lists them. Adding a section means rewriting `Page.children` (A2UI has no per-component delete or insert). A new section goes where it fits in reading order, next to the section it extends (a colour-accuracy section after the spec table), not last by default.
+- **Post-compile validation** (backend, before anything reaches the browser): every product and order ID exists; every button's ID is one the page shows; text fields respect their limits; `Page` is the root of a tab and section-level components sit only under `Page`; chart spec keys are numeric specs and table spec keys are known spec keys; no product ID repeats within one component. A failure triggers the one retry (§13).
 - **Fixed strings** (button labels, "The pick", "In stock", the footer disclaimer, empty states) come from our EN/ES bundle, not from the model.
 - **Spec labels and explainer copy** come from our spec glossary (`web/src/i18n/specs.{en,es}.json`, keyed by spec key), not from the model or the data agent. **[Halden cartridge]** The glossary's contents are Halden's; the lookup mechanism is core.
 - Series colours are assigned by position (frost, steel, deep), never by the model.
@@ -265,7 +267,7 @@ Two surfaces, side by side in the mockup's home layout.
 | Component | Fields | Notes |
 |---|---|---|
 | `ProductShelf` | `items: [{productId, tag (≤ 40)}]` (2–4), `pickId?` | Render on its plate, name (opens the modal), trust line, price block, series dash + tag, stock line, ghost Add to cart. |
-| `SpecTable` | `productIds` (2–4), `specKeys` (≤ 12), `highlightBest = true` | Labels are explainer triggers. "Best" uses `SpecDefinition.better` (§11 D); missing values show "—". |
+| `SpecTable` | `productIds` (2–4), `specKeys` (≤ 12), `highlightBest = true` | Labels are explainer triggers. "Best" uses the spec's better direction from the cartridge's spec glossary (Halden's today; from `SpecDefinition` if Haier provides one, §11.2 D); missing values show "—". |
 | `RadarChart` | `title` (≤ 60), `productIds` (2–4), `axes: specKey[]` (3–8) | Numeric specs only; code normalises each axis across the shown products. |
 | `BarChart` | `title` (≤ 60), `productIds` (2–4), `specKey`, `note?` (≤ 160) | Scale and dimming from the spec definition. |
 | `ProductHero` | `productId` | Large render, buy box (trust, price, three promises, primary buy button), spec sheet. The product modal renders the same component. |
@@ -352,7 +354,7 @@ colour = ChartGrid([BarChart(title="Colour range — share of DCI-P3", ..., spec
 
 - The client reads each action's kind from a registry generated from the catalog; the server checks the kind again and rejects a mismatch.
 - Every event's `context` carries only IDs plus a `requestId` (UUID per click). Repeating a `requestId` returns the stored result (idempotency, §10).
-- Direct handlers always check the session user, that the IDs exist, stock and current prices. They return `{ok, cart?, saved?, toast?, tab?, error?: {code, message}}`.
+- Direct handlers always check the session user, that the IDs exist, stock and current prices, and that the event's `surfaceId` is one of the session's open surfaces and its `sourceComponentId` is a button on that surface. They return `{ok, cart?, saved?, toast?, tab?, error?: {code, message}}`.
 
 ### 8.2 Every trigger
 
@@ -507,13 +509,15 @@ No browser screenshots or headless-browser tests (the user's rule); UI is verifi
 - **Replay mode:** `MODEL_MODE=live|replay`. In `replay`, the router and UI model are replaced by recorded outputs keyed by the command plus a hash of the relevant cards. Live demos in meetings cannot stall or vary, and backend tests run full runs deterministically. Recording happens in `live` mode with `MODEL_RECORD=1`.
 - **Model quality** (edit accuracy, blank rate, consistency, button safety): the first demo checks button safety by test and edits by test and by eye; milestone 4 tracks all four.
 
-## 15. What the first demo (milestone 2) must confirm
+## 15. What the first demo (milestone 2) had to confirm
 
 1. Express variable names become component IDs, so the model can name sections (`colour = …`).
 2. Rewriting `root` with a new child list re-renders `Page` but does not remount unchanged children.
 3. Express syntax for list-of-object props (`ProductShelf.items`).
 4. A custom React component can dispatch an A2UI action it builds itself (the button rule in §7.6).
 5. The decompiler round-trips our catalog, so edits can show the model its current page.
+
+**Result (milestone 2, 2026-11-12): all five confirmed.** Section names became component IDs; an edit sent only what changed, and the React renderer kept unchanged sections mounted; `ProductShelf.items` compiles from Express; `AddToCartButton` builds and sends its own `cart.add`; edits show the model its page through the decompiler. The demo's feedback (ROADMAP, "Inputs for milestone 3") is folded into §2.1 (more than 4 products), §3.3 (search tool), §7.1 (section placement, stricter validation) and §8.1 (action checks).
 
 Two questions wait for the milestone 3 slices that need them: typical snapshot size for a comparison (the 256 KB limit is a guess), with saved tabs; and how often the one extra data-tool round fires (§3.3), with the router.
 

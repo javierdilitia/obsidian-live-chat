@@ -1,5 +1,7 @@
 # Repo Foundation Implementation Plan
 
+**Status:** done (milestone 0). Kept as history; the current state lives in `ROADMAP.md` and `docs/ARCHITECTURE.md`. Package names are from before the `halden_*` → `obsidian_*` rename.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn the mockup repo into the product repo: new layout, a Python data contract with a fake implementation, web and agent skeletons, quality tooling, git hooks, CI and the repo documents.

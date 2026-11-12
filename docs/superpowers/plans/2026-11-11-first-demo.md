@@ -1,5 +1,7 @@
 # First Working Demo Implementation Plan (milestone 2)
 
+**Status:** done (2026-11-12). Kept as history; the current state lives in `ROADMAP.md` and `docs/ARCHITECTURE.md`. Package names are from before the `halden_*` → `obsidian_*` rename.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** The first slice of the real product. You type "Compare 3 laptops for video editing under €2,000", a tab opens, and your Azure model builds the comparison page with A2UI. Then "Add colour accuracy" edits the same page in place, and the untouched parts stay still. "Add to cart" works, with the price read on the server.
