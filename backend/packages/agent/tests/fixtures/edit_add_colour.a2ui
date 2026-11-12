@@ -1,0 +1,10 @@
+<a2ui>
+surface(update=true)
+root = Page(title="Three laptops for video editing under €2,000", kicker="video-editing comparison",
+            meta=["9 specs weighed", "today's prices"], children=[verdict, shelf, colour, specs, charts])
+colour = ChartGrid([BarChart(title="Colour range — share of DCI-P3",
+                             productIds=["aeris-studio-16", "kore-zephyr-14", "vela-prism-15"], specKey="p3"),
+                    BarChart(title="Colour error — ΔE, shorter is truer",
+                             productIds=["aeris-studio-16", "kore-zephyr-14", "vela-prism-15"], specKey="de",
+                             note="Under ΔE 2 the eye can't see the error.")])
+</a2ui>

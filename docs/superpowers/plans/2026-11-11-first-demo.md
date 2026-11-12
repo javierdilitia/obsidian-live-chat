@@ -187,6 +187,97 @@
 
 ---
 
+### Task 7: Reload restore and the final-review fixes
+
+Added 2026-11-12 after the final whole-branch review ("with fixes") and the user's by-eye check.
+
+**Files:** Modify `backend/packages/agent/src/halden_agent/app.py`, `.../page_agent.py`; `web/src/App.tsx`, `web/src/lib/sse.ts` (or a new `web/src/lib/workspace.ts`); `README.md`. Tests in `test_api.py`, `test_page_agent.py`, `web/src/App.test.tsx`.
+
+**Interfaces (produced):**
+- `GET /api/workspace` returns `{tab: {surface_id, title, snapshot} | null, cart: [{productId, name, qty, price_cents}]}` (spec §5 "Reload", trimmed to the demo's one tab).
+- On mount, `App` reads `/api/workspace`. If there is a tab with a snapshot, it shows the tab and renders the snapshot as one `createSurface` with no build animation (spec §9 "Reload and restore": no globe, the page fades in). The cart cell starts from the returned cart.
+- When the processor rejects a streamed message, the App re-reads `/api/workspace` and re-renders the surface from the server's snapshot, so client and server never drift.
+- `build_page`: on `stop == "length"`, the cut-off reply's `output_items` are not echoed into the retry's input (an incomplete reasoning item or an unanswered `function_call` makes the Responses API return 400).
+- A whole run is bounded: `build_page` runs under `asyncio.timeout(RUN_TIMEOUT_S = 150)`; a timeout ends as `RUN_ERROR {code: "timeout"}` with a clear message and keeps the page.
+- The command input has `maxLength={500}` (the server's limit); a 4xx response shows its own message, not "Couldn't reach the assistant".
+- An error boundary around the surface shows "Couldn't show this page" instead of a blank app.
+- README: the live-test command in PowerShell form too (`$env:HALDEN_LIVE=1; uv run …`).
+
+- [ ] **Step 1: Write the tests.** `test_workspace_returns_tab_and_cart`; `test_length_stop_does_not_echo_cut_off_items`; `test_run_timeout_keeps_the_page`; `App restores the page after a reload` (mocked `/api/workspace`, no rise animation on restore); `App re-syncs when a message is rejected`; `command input is capped at 500`.
+- [ ] **Step 2:** Run the tests. Expected: FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `python scripts/check.py all`. Expected: PASS.
+- [ ] **Step 5:** Commit `fix: restore the page after a reload and bound each run`.
+
+---
+
+### Task 8: The motion grammar: dot globe, landing dots and follow-up choreography
+
+Added 2026-11-12 at the user's request after the by-eye check: the mockup's waiting animation and the dots that form the page were missing, an edit did not bring the new section into view, and the 9 % glow was not visible.
+
+**Files:** Create `web/src/motion/globe.ts` (port of `mockup/js/orb.js`: the Fibonacci dot globe and `outlinePoints`), `web/src/motion/choreography.ts` (pure: what each run event does to which component IDs), `web/src/motion/Globe.tsx`, `web/src/motion/Seam.tsx`; tests `web/src/motion/choreography.test.ts`, `web/src/motion/globe.test.ts`. Modify `web/src/App.tsx`, `web/src/a2ui/motion.ts`, `web/src/a2ui/catalog.tsx`, `web/src/styles/{shell,page}.css`.
+
+Source of truth: `DESIGN.md` "Dot globe", "Agent seam", "Landing hero", "Follow-up updates", "The build"; spec §9; the mockup's `js/orb.js`, `js/agent.js`, `js/hero.js`, `css/chrome.css`, `css/hero.css`. Port, don't redesign.
+
+**Behaviour (produced):**
+- Landing: the breathing globe on its own canvas to the right of the hero line (220/160/96 px by breakpoint, 5.6 s breath; leans in on focus and on typing). It draws only while on screen.
+- `RUN_STARTED`: the thinking globe forms out of a point (.75 s) in the centre of the visible workspace for a build, or over the page at 72 % radius for an edit. The seam fills to 18 %.
+- First `createSurface` (a build): the page is laid out unseen, then the globe's dots fly out and land on the outlines of its on-screen blocks (680–940 ms, 0–260 ms random delay, ease-out-expo). The page fades in under them, the dots fade (.52 s), then the content cascades in (the existing 45 ms rise). The seam goes to 55 % at the build status, 85 % when the dots land and 100 % at Built, then fades.
+- `updateComponents` (an edit): the existing parts it names step back (opacity .1, 3 px blur, 3 px lift, .3 s). A section ID that is new to `Page.children` opens its own room first (grid rows 0fr→1fr, .6 s). The dots land only on the changed parts' outlines, those parts rise in at a 40 ms stagger, and the parts that existed before glow once. Nothing else moves, and the mount probe still shows no remounts.
+- The page scrolls the first new or changed section into view (smooth; instant under reduced motion), below the sticky chrome.
+- The glow is visible. First find why the user could not see it (the element animated, layers painted over it, or the colour on the panel), then fix the cause. Keep DESIGN.md's 9 % steel unless the cause is the colour itself; if so, note the new value under "Notes from building".
+- The state field after an edit reports the change ("Updated · 1 section added", "Updated · 3 parts changed").
+- Reduced motion: the globe holds one still frame, nothing flies, the page fades in, and content rests visible.
+
+- [ ] **Step 1: Write the tests.** `choreography.test.ts`: `a build lands on every section`; `an edit steps back only the named existing parts`; `a new section opens its room`; `the scroll target is the first new or changed section`; `reduced motion skips flight and stagger`. `globe.test.ts`: `outlinePoints spaces n points along the given rects`. `mount.test.tsx` still passes, and a new case checks that an edit's step-back and rise do not remount.
+- [ ] **Step 2:** Run `pnpm --dir web test`. Expected: FAIL.
+- [ ] **Step 3:** Implement. Canvas drawing is guarded so jsdom tests do not need a canvas.
+- [ ] **Step 4:** Run `python scripts/check.py all`. Expected: PASS.
+- [ ] **Step 5:** Commit `feat(web): add the dot globe, landing dots and follow-up choreography`.
+
+---
+
+### Task 9: Cart drawer, "In cart · View" and fly-to-cart
+
+Added 2026-11-12 at the user's request: the cart cell could not be opened.
+
+**Files:** Modify `backend/packages/agent/src/halden_agent/app.py` (+ `test_api.py`); create `web/src/shell/CartDrawer.tsx`, `web/src/lib/cart.ts` (one cart store every buy button reads), `web/src/styles/overlays.css`; modify `web/src/App.tsx`, `web/src/a2ui/catalog.tsx`; tests `web/src/shell/CartDrawer.test.tsx` and additions to `catalog.test.tsx`.
+
+Source of truth: spec §2.2 (the cart is an app store every buy button reads), §7.6, §8.2 (cart actions), §13 (direct action errors); `DESIGN.md` "Overlays", "Toasts & fly-to-cart", "Shell bar" (cart value roll); the mockup's `js/shop.js` (cart, fly-to-cart) and `css/overlays.css`.
+
+**Interfaces (produced):**
+- `POST /api/actions` also handles `cart.set_qty{productId, qty}` (stock check on increase; `qty` 0 removes) and `cart.remove{productId}`, each returning `{ok, cart, error?}` with live prices. `GET /api/cart` returns the cart.
+- The cart cell opens the cart drawer: one line per product (render, name, unit price, quantity stepper, remove ×), the total, and the empty-state copy from the mockup. Esc and the close button close it; focus stays inside while it is open and returns to the cart cell. No checkout button in this demo (there is no checkout yet).
+- Every buy button reads the cart store: once its product is in the cart it flips to "In cart · View", which opens the drawer instead of adding again.
+- Adding to cart launches the 14 px series-coloured dot that flies to the cart value (.65 s), and the value rolls (the old one lifts and blurs out, the new one rises in on --spring). Reduced motion: no flight, the value just changes.
+
+- [ ] **Step 1: Write the tests.** `test_set_qty_checks_stock`; `test_remove_and_zero_qty`; `test_cart_endpoint`; `drawer lists lines and total`; `stepper sends cart.set_qty`; `remove sends cart.remove`; `Esc closes and returns focus`; `button flips to In cart · View and opens the drawer`.
+- [ ] **Step 2:** Run the tests. Expected: FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `python scripts/check.py all`. Expected: PASS.
+- [ ] **Step 5:** Commit `feat: add the cart drawer, In cart · View and fly-to-cart`.
+
+---
+
 ## Notes from building
 
 (Add one dated line per surprise: SDK behaviour, edit syntax, action dispatch route, token counts, seconds per build and edit, by-eye results.)
+
+- 2026-11-12 — Edit syntax: an edit starts with `surface(update=true)` (the ID can be left out: it defaults to the surface the parser was made for), rewrites `root` and defines only the new section; it compiles to one `updateComponents` holding `root`, `colour` and colour's inline charts, nothing else. Without `update=true` a block that defines `root` compiles to a second `createSurface`, which the SDK rejects ("Surface … already exists"). SDK `inference_formats/express/compiler.py:1612` (the `update` keyword), `:1676-1718` (create vs update); docs `llms-full.txt:5754`. The SDK's own Express prompt rules never mention `update=true`, so the rule lives in `shop.json`'s `instructions`.
+- 2026-11-12 — Auto-IDs: a variable's name is its component ID (`compiler.py:156-178`, `:1972`). An inline component gets `<parent>_<prop>` in a single slot (`verdict_button`), `<parent>_<prop>_<n>` in a list (`charts_children_0`), and `_inline_<n>` when it has no parent, e.g. a list held by a variable (`compiler.py:2534-2541`). A section written inline in `Page` is therefore `root_children_<n>`; the `unnamed_section` check also matches `^_inline_\d+$` (ruling R8).
+- 2026-11-12 — List-of-object props need no special syntax: `items=[{productId: "aeris-studio-16", tag: "most power"}, ...]` compiles to plain JSON objects (`compiler.py:2428-2486`).
+- 2026-11-12 — Decompile round-trips the shop catalog exactly. `ExpressDecompiler.decompile(..., use_keyword_args=True)` writes every component as its own variable, inline children included (`charts_children_0 = BarChart(...)`); `ExpressParser.decompile` has no keyword option, so the adapter calls `ExpressDecompiler` directly (`decompiler.py:492`, `:670`).
+- 2026-11-12 — The SDK checks the catalog schema while compiling (`RendererState`): `maxLength`, `minItems`/`maxItems`, unknown props and dangling references fail at compile time, before `validate_page` runs.
+- 2026-11-12 — Pyright strict: `a2ui` is a namespace package, and its top-level `py.typed` does not cover `a2ui.parser`, `a2ui.utils` or `a2ui.inference_formats`, so those three imports carry `# pyright: ignore[reportMissingTypeStubs]` (the source is annotated; `a2ui.core` has its own `py.typed`).
+- 2026-11-12 — First live build and edit (`test_live_build_then_edit`, one run, `1 passed in 13.02s`). Build: 1 attempt, 2 calls (one tool round), 6.6 s, input 7,949 tokens (3,051 cached), output 409. Edit: 1 attempt, 2 calls, 5.2 s, input 7,443 (6,457 cached: the fixed system prompt hits the Azure cache), output 342. Run it with `HALDEN_LIVE=1 uv run --directory backend pytest packages/agent/tests/test_page_agent.py::test_live_build_then_edit -s -q --no-cov`; `--no-cov` is needed because one test alone falls under the 80 % coverage gate.
+- 2026-11-12 — Live model behaviour: it named every section, and the edit was an update (`surface(update=true)`) with only `root` and a new `colour` ChartGrid. It appended `colour` last rather than after `shelf`, and the build's own charts already used `de`, so "add colour accuracy" partly repeats a chart. Section order and chart overlap are prompt-quality questions for later, not compile failures.
+- 2026-11-12 — Action dispatch route: `@a2ui/react` has one. A component calls `context.dispatchAction({event: {name, context}})` (`@a2ui/web_core` `resolution/component-context.js:40-52` → `state/surface-model.js:236-274`), which fills in `surfaceId`, `sourceComponentId` and a timestamp and reaches the `MessageProcessor`'s action handler (`processing/message-processor.js:74`). `AddToCartButton` (and the shelf's per-product buttons) send `cart.add{productId}` that way; the app passes `dispatchAction` from `web/src/lib/actions.ts` as the processor's handler, which posts `{name, surfaceId, sourceComponentId, context}` to `/api/actions`.
+- 2026-11-12 — Remounts: none. `A2uiSurface` keys every child by its node ID (`@a2ui/react` `chunk-H4D2JAR7.js:580`, `<ChildElement key={child.id}>`), the node ID is the component ID at the root data path (`web_core` `resolution/node-resolver.js:550-556`), a child's edge key holds the slot and component ID but not its position (`node-resolver.js:398-405`), and an `updateComponents` that re-sends `root` with the same type updates its model in place (`processing/message-processor.js:984-997`). Inserting `colour` mid-page mounts only `colour` and its two charts (`mount.test.tsx`).
+- 2026-11-12 — Docs vs package: the `@a2ui/react` README is written for v0.9 (`@a2ui/react/v0_9`, `@a2ui/web_core/v0_9`); for our v1.0 messages the working imports are the package root `@a2ui/react` plus `@a2ui/web_core/v1_0` (`Catalog(id, "1.0", …)`, `ComponentIdSchema`, `ChildListSchema`, `MessageProcessor`), as `llms-full.txt` "How to Define a Catalog" shows. `pnpm` warns that `@a2ui/markdown-it@0.2.2` (a dependency of `@a2ui/react@0.15.0`) wants `@a2ui/web_core@^0.14.0`; we don't use Markdown, so it is left as is. Component schemas must leave out `component`/`id`, and a `.default()` in zod is not applied by the binder, so defaults (`variant`, `highlightBest`, …) are applied in code.
+- 2026-11-12 — Under the TypeScript 6 config, the CSS side-effect imports need `vite/client` in `tsconfig.json` `types`; the web tests silence Lit's "dev mode" banner (from `@a2ui/web_core`) with its documented opt-out, `globalThis.litIssuedWarnings = new Set(["dev-mode"])`, in `test-setup.ts`.
+- 2026-11-12 — Renderer rejections (`processMessagesWithErrors`, `@a2ui/web_core` 0.15.0, default config): an `updateComponents` for a surface the processor doesn't hold is an `INTEGRITY_ERROR` ("Surface not found for message"), and a known component with a wrongly typed prop is `VALIDATION_FAILED`; but a component whose type no catalog has is accepted without an error (the SDK's parser rejects it, `llms-full.txt:6900`; the renderer does not). For the re-sync after a rejection the app calls `processor.model.deleteSurface(id)` (`state/surface-group-model.js:79`), which emits `onSurfaceDeleted`, then processes the server's snapshot as one `createSurface`.
+- 2026-11-12 — The 9 % glow was invisible because of how it was played, not its colour. `useGlow` gave the mockup's `--ease` (expo-out) as the Web Animation's own `easing`, which bends the whole 1.8 s timeline; a CSS `animation-timing-function`, as the mockup's `@keyframes morph` uses, applies per keyframe interval. So the 25 % hold lasted about 80 ms instead of 450 ms, and half the wash was gone by about 255 ms (the mockup's: about 590 ms). It also fired the moment an edit's props arrived, on whole sections at once, while those sections swapped their content (new products blank, then loading), instead of with each part's rise after the step-back and the dots, so nothing drew the eye to it. The animated element was right (the section's root, nothing paints over it: no child backgrounds, `rise-in` never touches `background-color`, and script animations composite above CSS ones). Fixed by putting the easing on the 25 % keyframe (the mockup's curve, applied as CSS applies it) and letting the run glow each part as it rises (`a2ui/motion.ts` `glow`, `motion/run.ts`). The colour stays DESIGN.md's 9 % steel.
+- 2026-11-12 — A component view's child list holds render tokens, not component IDs: `@a2ui/react` `toViewValue` (`chunk-H4D2JAR7.js:395-404`) turns each child node into its node `id` (`a2ui-n16`, unique per node and new when a node is replaced), while the component ID is the node's `componentId` (`web_core` `resolution/component-node.d.ts:57-59`). So the Page keys each section's room by the token, as `buildChild` keys the section, and the run finds parts by the `data-part` each component writes from `context.componentModel.id`.
+- 2026-11-12 — On Windows (case-insensitive) `./motion/Globe` resolves to `globe.ts` before `Globe.tsx`, so the plan's `Globe.tsx` beside `globe.ts` breaks the import; the globe's React canvases live in `motion/GlobeCanvas.tsx`.
+- 2026-11-12 — By eye, round 1 (Tasks 1–6): build, colour edit, "Only OLED" (swapped the one non-OLED laptop and moved "The pick") and add to cart all worked. Missing: the mockup's thinking globe and landing dots, no scroll to the new section, the glow not visible, the cart cell not clickable — added as Tasks 7–9 at the user's request.
+- 2026-11-12 — By eye, rounds 2–3 (Tasks 7–9): motion, reload restore and the cart drawer work. "Show 5 laptops" built two stacked shelves (3 + 2) because shelves and spec tables hold 2–4 products; noted as a milestone 3 input.
