@@ -6,7 +6,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 |---|---|---|---|
 | 0 | Repo foundation | — | done |
 | 1 | Product spec | 0 | in progress |
-| 2 | First working demo | 0 (runs alongside 1) | in progress — awaiting by-eye check |
+| 2 | First working demo | 0 (runs alongside 1) | done |
 | 3 | Build, slice by slice | 1, 2 | planned |
 | 4 | Analytics and observability | 2, 3 | planned |
 | 5 | CD to Azure, then subagents | 3 | planned |
@@ -38,7 +38,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 2 — First working demo
 
-**Status:** in progress — awaiting by-eye check. Built per `docs/superpowers/plans/2026-11-11-first-demo.md`; the last step is the four checks by eye in that plan's Task 6. How to run it: [README.md](README.md#run-the-demo).
+**Status:** done (2026-11-12). Built per `docs/superpowers/plans/2026-11-11-first-demo.md` (Tasks 1–9) and checked by eye: build, in-place edits that mount only what changed, add to cart with the server's price, the mockup's motion (dot globe, landing dots, follow-up choreography) and the cart drawer. A2UI held up: section names become component IDs, an edit sends only what changed, and the React renderer keeps unchanged sections mounted. How to run it: [README.md](README.md#run-the-demo).
 
 **Goal:** the first slice of the real build, in the real packages (it stays). Instead of a separate measured PoC, we learn whether A2UI holds up by building on it. You type "Compare 3 laptops for video editing under €2,000", a tab opens and the Azure model builds the comparison with A2UI; "Add colour accuracy" edits it in place; "Add to cart" works with the price read on the server.
 
@@ -57,6 +57,13 @@ The detailed measurements once planned here (OpenUI comparison, 20-run accuracy,
 **Goal:** the rest of the product spec, one slice at a time on top of the demo: several tabs and the router, saved tabs and history, the home page and For you, cart, checkout and orders, the language switch, the rest of the catalog.
 
 **Exit criteria:** set per slice, each with its own plan.
+
+**Inputs for milestone 3** (from trying the demo and from its reviews; each goes to a slice when milestone 3 is split):
+- More than 4 products: a shelf and a spec table hold 2–4, so "show 5 laptops" builds two stacked comparisons (3 + 2). Decide between an explore page (`ProductGrid`, 2–8 tiles) and wider comparisons that scroll sideways.
+- Placement: on an edit the model put the new section last instead of where it fits (after the shelf); the build's charts can already cover what a later edit adds.
+- Runs: a new command should cancel the one in flight (spec §3.5); today it waits, with the command bar disabled.
+- Validator: section placement under `Page` (spec §7.1), numeric spec keys for charts, known spec keys for tables, duplicate product IDs.
+- Actions: check `surfaceId` and `sourceComponentId` (spec §8.1); in `cart.add`, read the quantity after the catalog call before the real data source arrives.
 
 ## 4 — Analytics and observability
 

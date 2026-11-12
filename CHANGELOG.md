@@ -23,6 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - `halden_data_fake`: the seed catalog grows to 50 products.
   - `halden_agent`: the Azure model client, the `halden.shop` A2UI catalog and adapter, the page validator (unknown products, unnamed sections, misaimed buttons, text limits; one retry), and `POST /api/runs` (a build or edit streamed over SSE), `GET /api/catalog/products` and `POST /api/actions` (`cart.add`).
   - `web/`: the shop catalog components in the mockup's look and motion, and the demo shell from the mockup's chrome: the command bar with its state field ("Building comparison…", "Updating this page…", "Built · just now", or the error), one tab with a loading ring, the agent's seam, the cart count in the shell bar, toasts and the one disclaimer. Vite proxies `/api` to the agent; `?probe` shows mount counts.
+  - Reload restore: `GET /api/workspace` brings back the tab, its page and the cart after a browser reload, with no build animation; each run is bounded at 150 s.
+  - The mockup's motion grammar: the breathing landing globe, the thinking globe, dots that land on the page outline, the seam fill, and on follow-ups the step-back, the new section's room, a scroll to the change and a glow you can see.
+  - The cart drawer (`cart.set_qty`, `cart.remove`, `GET /api/cart`): lines with steppers and remove, the total, "In cart · View" on every buy button, fly-to-cart and the cart value roll.
 
 ### Changed
 
