@@ -7,6 +7,8 @@ import { vi } from "vitest";
 import type { Product } from "../lib/products";
 import { shopCatalog } from "./catalog";
 import build from "./fixtures/build.json";
+import { I18nProvider } from "../i18n/I18nProvider";
+import type { Language } from "../i18n/i18n";
 
 type Messages = Parameters<MessageProcessor["processMessages"]>[0];
 
@@ -108,6 +110,8 @@ interface MockApiOptions {
   cart?: Readonly<Record<string, number>>;
   /** The seeded shoppers `GET /api/users` lists; the first is the session's. */
   users?: readonly { id: string; name: string; language: string }[];
+  /** `cart.add` answers this error instead of adding. */
+  addError?: { code: string; message: string; params?: Record<string, string | number> };
   /** `session.switch_user` answers this error instead of switching. */
   switchError?: { code: string; message: string };
 }
@@ -135,6 +139,7 @@ export function mockApi(
     cart: held = {},
     users = SHOPPERS,
     switchError,
+    addError,
   }: MockApiOptions = {},
 ) {
   let failures = failProducts;
@@ -200,6 +205,9 @@ export function mockApi(
         else cart.set(productId, qty);
         return Promise.resolve(Response.json({ ok: true, cart: cartLines() }));
       }
+      if (addError) {
+        return Promise.resolve(Response.json({ ok: false, cart: cartLines(), error: addError }));
+      }
       const product = products.find((p) => p.id === action.context.productId);
       if (!product) {
         const error = { code: "not_found", message: "This product is no longer available." };
@@ -215,13 +223,18 @@ export function mockApi(
 }
 
 /** Renders the fixture surface with the real renderer; returns the processor for later messages. */
-export async function showSurface(messages: unknown, onAction?: ActionListener) {
+export async function showSurface(
+  messages: unknown,
+  onAction?: ActionListener,
+  language?: Language,
+) {
   const processor = new MessageProcessor<ReactCatalogComponent>([shopCatalog], onAction);
   processor.processMessages(messages as Messages);
   const surface = processor.model.getSurface(SURFACE_ID);
   if (!surface) throw new Error(`no surface ${SURFACE_ID}`);
   await act(async () => {
-    render(<A2uiSurface surface={surface} />);
+    const page = <A2uiSurface surface={surface} />;
+    render(language ? <I18nProvider language={language}>{page}</I18nProvider> : page);
     await Promise.resolve();
   });
   return processor;

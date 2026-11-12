@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { LAPTOPS, mockApi } from "../a2ui/test-helpers";
+import { I18nProvider } from "../i18n/I18nProvider";
+import { englishLeft } from "../i18n/test-helpers";
 import type { CartLine } from "../lib/actions";
 import { cart } from "../lib/cart";
 import { resetProductCache } from "../lib/products";
@@ -143,10 +145,15 @@ test("a refused step says why", async () => {
       Response.json({
         ok: false,
         cart: [aeris],
-        error: { code: "out_of_stock", message: "Only 1 Aeris Studio 16 in stock." },
+        error: {
+          code: "out_of_stock",
+          message: "Only 1 Aeris Studio 16 in stock.",
+          params: { reason: "only", name: "Aeris Studio 16", count: 1 },
+        },
       }),
     ),
   );
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
   fireEvent.click(within(drawer).getByRole("button", { name: "One more Aeris Studio 16" }));
 
@@ -209,4 +216,29 @@ test("the close button and the scrim close it; Tab stays inside", async () => {
   });
   fireEvent.click(document.querySelector(".scrim") as HTMLElement);
   expect(cart.get().open).toBe(false);
+});
+
+test("the drawer in Spanish", async () => {
+  mockApi(LAPTOPS, { cart: { [kore.productId]: 2 } });
+  render(
+    <I18nProvider language="es">
+      <CartDrawer onNotice={() => undefined} />
+    </I18nProvider>,
+  );
+  await act(async () => {
+    cart.open();
+    await Promise.resolve();
+  });
+  const drawer = screen.getByRole("dialog", { name: "Cesta de la compra" });
+  expect(within(drawer).getByText(/Tu cesta está vacía\./)).toBeInTheDocument();
+  expect(englishLeft(document.body)).toEqual([]);
+
+  await act(async () => {
+    cart.setLines([kore]);
+    await Promise.resolve();
+  });
+
+  expect(within(drawer).getByText(/por 2$/)).toBeInTheDocument();
+  expect(within(drawer).getByText(/^3\.498\s€$/)).toBeInTheDocument();
+  expect(englishLeft(document.body)).toEqual([]);
 });

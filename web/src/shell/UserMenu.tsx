@@ -10,9 +10,8 @@
    the shell bar's backdrop blur would otherwise be its containing block. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "../i18n/I18nProvider";
 import { browser, readSession, readUsers, switchUser, type User } from "../lib/session";
-
-const FAILED = "Couldn't switch shopper. Try again.";
 /** The menu's gap under its cell, and its least distance from the window's edges. */
 const GAP = 8;
 const EDGE = 12;
@@ -58,6 +57,7 @@ function Tick() {
 }
 
 export function UserMenu({ onNotice }: { onNotice: (text: string) => void }) {
+  const { t } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [open, setOpen] = useState(false);
@@ -141,20 +141,21 @@ export function UserMenu({ onNotice }: { onNotice: (text: string) => void }) {
       return;
     }
     setSwitching(chosen);
-    let problem: string | null = FAILED;
+    let switched = false;
     try {
       const result = await switchUser(chosen.id);
-      problem = result.ok ? null : (result.error?.message ?? FAILED);
+      switched = result.ok;
+      if (result.error) console.warn(`session.switch_user: ${result.error.message}`);
     } catch {
       // the server could not be reached: the shopper stays as they were
     }
-    if (problem === null) {
+    if (switched) {
       // the new cookie is set: the page comes back as the new shopper's workspace
       browser.reload();
       return;
     }
     setSwitching(null);
-    onNotice(problem);
+    onNotice(t("user.failed"));
   }
 
   if (!user) return null;
@@ -165,7 +166,7 @@ export function UserMenu({ onNotice }: { onNotice: (text: string) => void }) {
         ref={cell}
         type="button"
         className="cell cell-user"
-        aria-label={`Shopper: ${user.name}`}
+        aria-label={t("user.cell", { name: user.name })}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="user-menu"
@@ -185,7 +186,7 @@ export function UserMenu({ onNotice }: { onNotice: (text: string) => void }) {
           id="user-menu"
           className={open ? "menu on" : "menu"}
           role="menu"
-          aria-label="Switch shopper"
+          aria-label={t("user.switch")}
           aria-busy={switching !== null}
           aria-hidden={!open}
           inert={!open}
@@ -194,7 +195,7 @@ export function UserMenu({ onNotice }: { onNotice: (text: string) => void }) {
           <div className="mhead">
             <b>{user.name}</b>
             <span aria-live="polite">
-              {switching ? `Switching to ${switching.name}…` : "Switch shopper"}
+              {switching ? t("user.switching", { name: switching.name }) : t("user.switch")}
             </span>
           </div>
           {users.map((shopper) => {

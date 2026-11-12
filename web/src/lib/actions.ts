@@ -32,7 +32,15 @@ export const UserSchema = z.object({ id: z.string(), name: z.string(), language:
 const ActionResultSchema = z.object({
   ok: z.boolean(),
   cart: z.array(CartLineSchema),
-  error: z.object({ code: z.string(), message: z.string() }).optional(),
+  /** `message` is the server's English, for the console; the shopper reads the bundle's words
+   *  for `code` (and `params`, which say what the server knew). */
+  error: z
+    .object({
+      code: z.string(),
+      message: z.string(),
+      params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+    })
+    .optional(),
   /** `session.switch_user`: the shopper the session now names. */
   user: UserSchema.optional(),
 });
@@ -40,6 +48,7 @@ const ActionResultSchema = z.object({
 export type CartLine = z.infer<typeof CartLineSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type ActionResult = z.infer<typeof ActionResultSchema>;
+export type ActionError = NonNullable<ActionResult["error"]>;
 
 /**
  * Posts an action to `/api/actions`, with a new `requestId` in its context. Takes an A2UI

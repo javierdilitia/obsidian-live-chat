@@ -6,6 +6,8 @@ import build from "./a2ui/fixtures/build.json";
 import edit from "./a2ui/fixtures/edit_add_colour.json";
 import { mountCounts, resetMountProbe } from "./a2ui/probe";
 import { LAPTOPS, SURFACE_ID, mockApi } from "./a2ui/test-helpers";
+import { I18nProvider } from "./i18n/I18nProvider";
+import { englishLeft } from "./i18n/test-helpers";
 import { resetProductCache } from "./lib/products";
 import { browser } from "./lib/session";
 
@@ -717,11 +719,100 @@ test("a failed switch shows the error and keeps the menu", async () => {
 
   fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Sam/ }));
 
-  expect(await screen.findByText("Couldn't switch shopper.")).toBeInTheDocument();
+  expect(await screen.findByText("Couldn't switch shopper. Try again.")).toBeInTheDocument();
   expect(screen.getByRole("menu", { name: "Switch shopper" })).toBeInTheDocument();
   expect(within(menu).getByRole("menuitemradio", { name: /Javier/ })).toHaveAttribute(
     "aria-checked",
     "true",
   );
   expect(reload).not.toHaveBeenCalled();
+});
+
+/* ——— Spanish ——— */
+
+function renderIn(language: "en" | "es") {
+  return render(
+    <I18nProvider language={language}>
+      <App />
+    </I18nProvider>,
+  );
+}
+
+function sendIn(textbox: string, command: string) {
+  const input = screen.getByRole("textbox", { name: textbox });
+  fireEvent.change(input, { target: { value: command } });
+  const form = input.closest("form");
+  if (!form) throw new Error("the command bar is not a form");
+  fireEvent.submit(form);
+}
+
+const ES_PROMPT = "¿Qué estás buscando?";
+
+test("the shell in Spanish", async () => {
+  mockApi();
+  renderIn("es");
+
+  expect(screen.getByRole("textbox", { name: ES_PROMPT })).toHaveAttribute(
+    "placeholder",
+    ES_PROMPT,
+  );
+  expect(screen.getByRole("button", { name: "Cesta, vacía" })).toBeInTheDocument();
+  await screen.findByRole("button", { name: "Cliente: Javier" });
+  expect(englishLeft(document.body)).toEqual([]);
+});
+
+test("a run error shows the bundle's words", async () => {
+  mockApi(undefined, {
+    runs: [
+      [started, tabOpened, runError("edit_failed", "Couldn't change this page.")],
+      [started, runError("brand_new", "Something new went wrong.")],
+    ],
+  });
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  renderIn("es");
+  const field = () => screen.getByRole("status", { name: "Asistente" });
+
+  sendIn(ES_PROMPT, BUILD_COMMAND);
+  await waitFor(() => {
+    expect(field()).toHaveTextContent("No se ha podido cambiar esta página.");
+  });
+
+  sendIn(ES_PROMPT, EDIT_COMMAND);
+  await waitFor(() => {
+    expect(field()).toHaveTextContent("Algo ha fallado. Inténtalo de nuevo.");
+  });
+});
+
+async function refusedAdd(error: {
+  code: string;
+  message: string;
+  params?: Record<string, string | number>;
+}) {
+  mockApi(undefined, { runs: [BUILD_RUN], addError: error });
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  renderIn("es");
+  sendIn(ES_PROMPT, BUILD_COMMAND);
+  const button = await screen.findByRole("button", { name: /^Añadir Aeris Studio 16 · 1\.899/ });
+  await act(async () => {
+    fireEvent.click(button);
+    await Promise.resolve();
+  });
+}
+
+test("a refused add says why, in the shopper's language", async () => {
+  await refusedAdd({
+    code: "out_of_stock",
+    message: "No more Aeris Studio 16 in stock: all 2 are in your cart.",
+    params: { reason: "all_in_cart", name: "Aeris Studio 16", count: 2 },
+  });
+
+  expect(
+    await screen.findByText("No quedan más unidades de Aeris Studio 16: las 2 están en tu cesta."),
+  ).toBeInTheDocument();
+});
+
+test("a refusal the web has no words for reads as a generic line", async () => {
+  await refusedAdd({ code: "price_changed", message: "The price changed." });
+
+  expect(await screen.findByText("Algo ha fallado. Inténtalo de nuevo.")).toBeInTheDocument();
 });

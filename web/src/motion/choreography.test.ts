@@ -46,7 +46,7 @@ test("a build lands on every section", () => {
   expect(plan.rooms).toEqual([]);
   expect(plan.glow).toEqual([]);
   expect(plan.scrollTo).toBeNull();
-  expect(plan.state).toEqual({ lead: "Built", detail: "just now" });
+  expect(plan.state).toEqual({ lead: "run.built", detail: { key: "run.justNow" } });
 });
 
 test("an edit steps back only the named existing parts", () => {
@@ -64,7 +64,10 @@ test("an edit steps back only the named existing parts", () => {
   // the parts that were there before glow once, and so does the header of a re-sent page
   expect(plan.glow).toEqual(["root", "verdict", "shelf", "charts_children_1"]);
   expect(plan.rooms).toEqual([]);
-  expect(plan.state).toEqual({ lead: "Updated", detail: "3 parts changed" });
+  expect(plan.state).toEqual({
+    lead: "run.updated",
+    detail: { key: "run.partsChanged", count: 3 },
+  });
 });
 
 test("a part inside a named part moves with it, not on its own", () => {
@@ -72,7 +75,10 @@ test("a part inside a named part moves with it, not on its own", () => {
   const plan = planRun({ before: BUILT, after: BUILT, changed, reducedMotion: false });
 
   expect(plan.stepBack).toEqual(["verdict_button", "charts"]);
-  expect(plan.state).toEqual({ lead: "Updated", detail: "2 parts changed" });
+  expect(plan.state).toEqual({
+    lead: "run.updated",
+    detail: { key: "run.partsChanged", count: 2 },
+  });
 });
 
 test("a new section opens its room", () => {
@@ -89,7 +95,10 @@ test("a new section opens its room", () => {
   expect(plan.land).toEqual(["colour"]);
   expect(plan.rise).toEqual(["colour"]);
   expect(plan.glow).toEqual(["root"]);
-  expect(plan.state).toEqual({ lead: "Updated", detail: "1 section added" });
+  expect(plan.state).toEqual({
+    lead: "run.updated",
+    detail: { key: "run.sectionsAdded", count: 1 },
+  });
 });
 
 test("the scroll target is the first new or changed section", () => {
@@ -122,11 +131,14 @@ test("reduced motion skips flight and stagger", () => {
   expect(edit.glow).toEqual([]);
   expect(edit.rooms).toEqual(["colour"]);
   expect(edit.scrollTo).toBe("colour");
-  expect(edit.state).toEqual({ lead: "Updated", detail: "1 section added" });
+  expect(edit.state).toEqual({
+    lead: "run.updated",
+    detail: { key: "run.sectionsAdded", count: 1 },
+  });
 });
 
 test("an edit that changes nothing on screen says the page was updated", () => {
   const plan = planRun({ before: BUILT, after: BUILT, changed: ["root"], reducedMotion: false });
   expect(plan.land).toEqual([]);
-  expect(plan.state).toEqual({ lead: "Updated", detail: "page updated" });
+  expect(plan.state).toEqual({ lead: "run.updated", detail: { key: "run.pageUpdated" } });
 });

@@ -1,6 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import { createElement, useEffect, useRef } from "react";
 import { describe, expect, it } from "vitest";
+import type { CartridgeUI } from "../cartridge";
 import en from "./en.json";
 import es from "./es.json";
 import {
@@ -104,5 +105,31 @@ describe("useI18n", () => {
     expect(screen.getByText("Cesta")).toBeInTheDocument();
     expect(mounts).toBe(1);
     expect(document.documentElement.lang).toBe("es");
+  });
+});
+
+describe("the cartridges", () => {
+  const installed = import.meta.glob<{ cartridge: CartridgeUI }>("../cartridges/*/index.ts", {
+    eager: true,
+  });
+
+  it("every installed cartridge has its glossary and disclaimer in both languages", () => {
+    expect(Object.keys(installed).length).toBeGreaterThan(0);
+    for (const { cartridge } of Object.values(installed)) {
+      const enKeys = Object.keys(cartridge.specs.en).sort();
+      expect(Object.keys(cartridge.specs.es).sort()).toEqual(enKeys);
+      for (const language of ["en", "es"] as const) {
+        for (const [key, { label }] of Object.entries(cartridge.specs[language])) {
+          expect({ key, language, label: label.trim() !== "" }).toEqual({
+            key,
+            language,
+            label: true,
+          });
+        }
+        expect(cartridge.disclaimer[language].shell.trim()).not.toBe("");
+      }
+      expect(cartridge.disclaimer.es.footer).toHaveLength(cartridge.disclaimer.en.footer.length);
+      for (const key of Object.keys(cartridge.better)) expect(enKeys).toContain(key);
+    }
   });
 });

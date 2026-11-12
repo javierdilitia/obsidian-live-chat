@@ -155,3 +155,28 @@ export function formatRating(value: number, language: Language): string {
 export function formatDate(at: Date, language: Language): string {
   return dates(language).format(at);
 }
+
+/** A message and its params, worded when shown, in the language current then. */
+export interface Message {
+  key: MessageKey;
+  params?: MessageParams;
+}
+
+/** The words for a direct action's refusal: `out_of_stock` says why (its `params.reason`), a code
+    the bundles know has its line, anything else a generic one. Never the server's English. */
+export function actionErrorMessage(error: { code: string; params?: MessageParams }): Message {
+  const params = error.params ?? {};
+  const reason = params.reason;
+  if (error.code === "out_of_stock" && typeof reason === "string") {
+    const key = `actionError.out_of_stock.${reason}`;
+    if (hasMessage(key)) return { key, params };
+  }
+  const key = `actionError.${error.code}`;
+  return hasMessage(key) ? { key, params } : { key: "actionError.unknown" };
+}
+
+/** The words for a run that ended in error: the code's line, or a generic one. */
+export function runErrorMessage(code: string): Message {
+  const key = `runError.${code}`;
+  return { key: hasMessage(key) ? key : "runError.unknown" };
+}

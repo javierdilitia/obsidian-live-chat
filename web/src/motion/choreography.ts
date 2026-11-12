@@ -39,8 +39,16 @@ export interface Plan {
   /** Whether the globe's dots fly to the outlines. */
   fly: boolean;
   stagger: number;
-  /** What the state field says when the run is done. */
-  state: { lead: string; detail: string };
+  /** What the state field says when the run is done, as bundle keys (worded at render). */
+  state: RunState;
+}
+
+export interface RunState {
+  lead: "run.built" | "run.updated";
+  detail: {
+    key: "run.justNow" | "run.sectionsAdded" | "run.partsChanged" | "run.pageUpdated";
+    count?: number;
+  };
 }
 
 const BUILD_STAGGER_MS = 45;
@@ -104,10 +112,6 @@ export function stepBackIds(
   return topmost(before, existing);
 }
 
-function plural(count: number, one: string): string {
-  return `${String(count)} ${one}${count === 1 ? "" : "s"}`;
-}
-
 export function planRun({ before, after, changed, reducedMotion }: RunInput): Plan {
   const fly = !reducedMotion;
   if (before === null) {
@@ -121,7 +125,7 @@ export function planRun({ before, after, changed, reducedMotion }: RunInput): Pl
       scrollTo: null,
       fly,
       stagger: reducedMotion ? 0 : BUILD_STAGGER_MS,
-      state: { lead: "Built", detail: "just now" },
+      state: { lead: "run.built", detail: { key: "run.justNow" } },
     };
   }
 
@@ -139,12 +143,12 @@ export function planRun({ before, after, changed, reducedMotion }: RunInput): Pl
     : [...(named.has(ROOT) && existed(ROOT) ? [ROOT] : []), ...changedExisting];
 
   const firstChanged = changedExisting.map((id) => sectionOf(after, id)).find(Boolean);
-  const detail =
+  const detail: RunState["detail"] =
     rooms.length > 0
-      ? `${plural(rooms.length, "section")} added`
+      ? { key: "run.sectionsAdded", count: rooms.length }
       : parts.length > 0
-        ? `${plural(parts.length, "part")} changed`
-        : "page updated";
+        ? { key: "run.partsChanged", count: parts.length }
+        : { key: "run.pageUpdated" };
 
   return {
     kind: "edit",
@@ -156,6 +160,6 @@ export function planRun({ before, after, changed, reducedMotion }: RunInput): Pl
     scrollTo: rooms[0] ?? firstChanged ?? null,
     fly,
     stagger: reducedMotion ? 0 : EDIT_STAGGER_MS,
-    state: { lead: "Updated", detail },
+    state: { lead: "run.updated", detail },
   };
 }
