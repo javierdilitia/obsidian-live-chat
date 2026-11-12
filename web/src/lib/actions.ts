@@ -11,6 +11,7 @@ export const DISPATCHED_ACTIONS = [
   "cart.set_qty",
   "cart.remove",
   "session.switch_user",
+  "prefs.set_language",
 ] as const;
 
 export interface ActionRequest {
@@ -41,7 +42,8 @@ const ActionResultSchema = z.object({
       params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
     })
     .optional(),
-  /** `session.switch_user`: the shopper the session now names. */
+  /** `session.switch_user`: the shopper the session now names; `prefs.set_language`: the
+   *  shopper with their new language. */
   user: UserSchema.optional(),
 });
 

@@ -188,6 +188,11 @@ export function mockApi(
         name: string;
         context: { productId?: string; qty?: number; userId?: string };
       };
+      if (action.name === "prefs.set_language") {
+        const language = (action.context as { language?: string }).language ?? "en";
+        const user = { ...(users[0] ?? SHOPPERS[0]), language };
+        return Promise.resolve(Response.json({ ok: true, user, cart: cartLines() }));
+      }
       if (action.name === "session.switch_user") {
         const user = users.find((u) => u.id === action.context.userId);
         if (switchError || !user) {

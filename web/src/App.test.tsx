@@ -9,7 +9,7 @@ import { LAPTOPS, SURFACE_ID, mockApi } from "./a2ui/test-helpers";
 import { I18nProvider } from "./i18n/I18nProvider";
 import { englishLeft } from "./i18n/test-helpers";
 import { resetProductCache } from "./lib/products";
-import { browser } from "./lib/session";
+import { bootLanguage, browser } from "./lib/session";
 
 /** A product look whose render fails (see the mock below). */
 const BROKEN_LOOK = "broken";
@@ -815,4 +815,40 @@ test("a refusal the web has no words for reads as a generic line", async () => {
   await refusedAdd({ code: "price_changed", message: "The price changed." });
 
   expect(await screen.findByText("Algo ha fallado. Inténtalo de nuevo.")).toBeInTheDocument();
+});
+
+test("switching language re-words the open page", async () => {
+  mockApi(undefined, { runs: [BUILD_RUN] });
+  renderIn("en");
+  const shelf = await buildPage();
+  await within(shelf).findByText("€1,899");
+  resetMountProbe();
+
+  fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
+  const menu = screen.getByRole("menu", { name: "Language" });
+  await act(async () => {
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Español" }));
+    await Promise.resolve();
+  });
+
+  expect(await within(shelf).findByText("Nuestra elección")).toBeInTheDocument();
+  expect(within(shelf).getByText(/^1\.899\s€$/)).toBeInTheDocument();
+  expect(screen.getByRole("status", { name: "Asistente" })).toHaveTextContent(
+    "Creada · ahora mismo",
+  );
+  expect(screen.getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
+  expect(mountCounts()).toEqual({});
+});
+
+test("bootLanguage reads the session", async () => {
+  mockApi(undefined, {
+    users: [
+      { id: "ana", name: "Ana", language: "es" },
+      { id: "demo-user", name: "Javier", language: "en" },
+    ],
+  });
+  expect(await bootLanguage()).toBe("es");
+
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 500 })));
+  expect(await bootLanguage()).toBe("en");
 });

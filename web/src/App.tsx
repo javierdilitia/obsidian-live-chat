@@ -32,6 +32,7 @@ import type { RunState } from "./motion/choreography";
 import { playMessages, startThinking, stopThinking, type Stage } from "./motion/run";
 import { Seam } from "./motion/Seam";
 import { CartDrawer } from "./shell/CartDrawer";
+import { LanguageMenu } from "./shell/LanguageMenu";
 import { UserMenu } from "./shell/UserMenu";
 import { prefersReducedMotion } from "./a2ui/motion";
 import "./styles/shell.css";
@@ -548,6 +549,7 @@ export default function App() {
           </span>
         </div>
         <div className="ledger">
+          <LanguageMenu onNotice={notify} />
           <CartCell lines={lines} open={cartOpen} />
           <UserMenu onNotice={notify} />
         </div>
