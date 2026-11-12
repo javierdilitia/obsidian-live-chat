@@ -53,7 +53,7 @@ Each page kind is either **generated** (the UI model writes Express) or a **temp
 | `order` | template | order tracker | box |
 | `confirmation` | template | order confirmation | check |
 
-**More than 4 products.** A comparison holds 2–4 products. A request for 5 or more opens an `explore` page instead (a `ProductGrid` of up to 8 tiles, each with a reason), never stacked comparisons; the shopper narrows from there to a comparison. When there are more results than fit, the grid pages or scrolls sideways; the milestone 3 slice picks which.
+**More than 4 products.** A request for 5 or more products opens an `explore` page (a `ProductGrid`, each tile with a reason), never stacked comparisons; the shopper narrows from there to a comparison. Decided with the user on 2026-11-12 ([issue #8](https://github.com/javierdilitia/obsidian-live-chat/issues/8)): the explore grid **pages** when it holds more tiles than fit, and product components that can **scroll sideways** are not tied to 2–4 products, so the layout adapts to the request. Milestone 3's slice 4 settles which count limits stay (for readability or correctness, each with its reason in §7) and how wide sections behave on mobile; until then the limits in §7 stand.
 
 Templates cover pages that carry money or dates and never need creativity; they appear without a model call. The model may still **edit** a template tab ("also show my other orders"), because edits work by component ID, whoever built the tab.
 
