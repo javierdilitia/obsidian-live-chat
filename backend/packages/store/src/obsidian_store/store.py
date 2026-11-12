@@ -1,12 +1,25 @@
 """The `Store` protocol: everything Obsidian keeps between requests, grouped by area."""
 
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
-from obsidian_store.models import ProductFacts, Snapshot, TabRecord, TabRevision, User
+from obsidian_store.models import (
+    ActionRecord,
+    CartChange,
+    CartLine,
+    ProductFacts,
+    RunRecord,
+    Snapshot,
+    TabRecord,
+    TabRevision,
+    User,
+)
 
 # Revisions kept per tab; saving the 21st drops the oldest.
 TAB_REVISIONS_KEPT = 20
+# A repeated `requestId` gets the stored answer for this long.
+ACTION_RESULT_TTL = timedelta(hours=24)
 
 
 @runtime_checkable
@@ -57,4 +70,43 @@ class Store(Protocol):
 
     async def tab_revisions(self, tab_id: str) -> list[TabRevision]:
         """The kept revisions, oldest first."""
+        ...
+
+    # Cart. Each change is atomic: two at once never sell the same last item twice.
+
+    async def cart(self, user_id: str) -> list[CartLine]:
+        """The user's cart, in the order the products were first added."""
+        ...
+
+    async def add_to_cart(self, user_id: str, product_id: str, *, stock: int) -> CartChange:
+        """Adds one, only if the new quantity is at most `stock`."""
+        ...
+
+    async def set_cart_qty(
+        self, user_id: str, product_id: str, qty: int, *, stock: int
+    ) -> CartChange:
+        """Sets `qty` if it is at most `stock` or at most the current quantity (a decrease is
+        always allowed); `0` removes the line."""
+        ...
+
+    async def remove_from_cart(self, user_id: str, product_id: str) -> None: ...
+
+    # Runs
+
+    async def record_run(self, run: RunRecord) -> None: ...
+
+    async def runs(self, user_id: str) -> list[RunRecord]:
+        """The user's runs, by `started_at`."""
+        ...
+
+    # Idempotency
+
+    async def action_result(self, request_id: str, *, since: datetime) -> ActionRecord | None:
+        """The stored answer for `request_id`, if it was saved at or after `since`."""
+        ...
+
+    async def save_action_result(self, record: ActionRecord) -> None: ...
+
+    async def purge_action_results(self, before: datetime) -> int:
+        """Removes the answers saved before `before`; returns how many."""
         ...
