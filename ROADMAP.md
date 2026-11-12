@@ -62,7 +62,7 @@ The detailed measurements once planned here (OpenUI comparison, 20-run accuracy,
 **Exit criteria:** set per slice in the slices document; each slice gets its own task plan when it starts.
 
 **Inputs for milestone 3** (from trying the demo and from its reviews; the slice that takes each is in brackets):
-- [Slice 4] More than 4 products: a shelf and a spec table hold 2–4, so "show 5 laptops" builds two stacked comparisons (3 + 2). Decide between an explore page (`ProductGrid`, 2–8 tiles) and wider comparisons that scroll sideways.
+- [Slice 4, [issue #8](https://github.com/javierdilitia/obsidian-live-chat/issues/8), closed by slice 4's PR] More than 4 products: a shelf and a spec table hold 2–4, so "show 5 laptops" builds two stacked comparisons (3 + 2). Decided (2026-11-12): five or more products open an explore page whose grid pages; product components that can scroll sideways are not tied to 2–4 products; slice 4's plan settles which limits stay and the mobile behaviour.
 - [Slice 1] Placement: on an edit the model put the new section last instead of where it fits (after the shelf); the build's charts can already cover what a later edit adds.
 - [Slice 5] Runs: a new command should cancel the one in flight (spec §3.5); today it waits, with the command bar disabled.
 - [Slice 1] Validator: section placement under `Page` (spec §7.1), numeric spec keys for charts, known spec keys for tables, duplicate product IDs.

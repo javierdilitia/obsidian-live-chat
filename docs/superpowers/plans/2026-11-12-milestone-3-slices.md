@@ -95,17 +95,21 @@ Why this order:
 
 ## Slice 4 — The rest of the generated catalog
 
-**Goal.** The UI model can build every generated page kind: comparisons, guides, product pages and explore pages. A request for five or more products opens one explore page, never stacked comparisons.
+**Goal.** The UI model can build every generated page kind: comparisons, guides, product pages and explore pages. A request for five or more products opens one explore page, never stacked comparisons. The layout adapts to the request instead of bending it to fixed counts ([issue #8](https://github.com/javierdilitia/obsidian-live-chat/issues/8); this slice's PR closes it): the explore grid pages, and the product components scroll sideways when they hold more products than fit, so a count limit stays only where it protects readability or correctness.
+
+**Issue #8 decisions (the user, 2026-11-12).** Five or more products open an explore page. Components that can scroll sideways are not tied to 2, 3 or 4 products. Paging is wanted, since it opens more possibilities. Slice 4's plan settles the rest of the issue's list: which of today's 2–4 limits are real (spec-table and chart readability) and which only encode a layout and grow; whether sections get a layout or column hint, with the validator still able to reject a broken page; how paging works (page-local state in the surface's data model, §2.2); and how wide sections behave on mobile.
 
 **Spec sections.** §2.1 the generated kinds (`compare`, `guide`, `product`, `explore`) and "More than 4 products"; §7.2–§7.4 every component not built yet (`Section`, `Split`, `Prose`, `Callout`, `Diagram`, `RadarChart`, `ProductHero`, `ProductGrid`, `ProductTile`, `ProductList`, `ProductRow`) with their limits and child rules in the validator; §7.6 `ProductLink`; §8.2 the local actions `openProduct` (the product modal, rendered with `ProductHero`) and `explainSpec` (the explainer popover from the cartridge glossary); §9 "only swapped radar series redraw, only changed bars refill"; §2.2 `GET /api/catalog/products/{id}` and `GET /api/catalog/specs/{category_id}` (built from the data, see Open questions 5); §7.3 the `Diagram` set (`oled-burn-in`, `panel-types`, `refresh-rate`, `colour-gamut`, `ports`, `battery-life`) as Halden cartridge content behind a core `Diagram` component.
 
-**Inputs for milestone 3 covered.** More than 4 products (the explore page, and how a full grid behaves: it scrolls sideways, see Open questions 7).
+**Inputs for milestone 3 covered.** More than 4 products, tracked as issue #8 (the explore page, paging, sideways-scrolling product components; see Open questions 7).
 
 **Depends on.** 1 (cartridge content), 3 (new strings go into both bundles).
 
 **Exit criteria.**
 - Every new component has a Vitest test with fixture data. Express fixtures for a guide, a product page and an explore page compile and pass the validator.
-- A scripted-model run for "five laptops" builds one explore page (a `ProductGrid` of at most 8 tiles, each with a reason); the page prompt says so; checked by eye on a live run, with the user's go-ahead.
+- A scripted-model run for "five laptops" builds one explore page (a `ProductGrid`, each tile with a reason) whose grid pages when it holds more tiles than one page shows; the page prompt says so; checked by eye on a live run, with the user's go-ahead.
+- The product components that scroll sideways accept more products than fit on screen; every count limit left in the catalog has a stated reason (readability or correctness), recorded in spec §7; wide sections have a defined mobile behaviour.
+- Issue #8 is closed by the slice's PR.
 - `Diagram` names are checked against the cartridge's diagram set; the set and its drawings live in the Halden cartridge.
 - The product modal and the spec explainer open in the browser with no request to `POST /api/runs`.
 - Swapping one product in a `RadarChart` redraws only that series (test).
@@ -265,7 +269,7 @@ Each item lands in exactly one slice. "M2" means milestone 2 already built it; i
 
 | Input for milestone 3 (ROADMAP) | Slice |
 |---|---|
-| More than 4 products | 4 |
+| More than 4 products ([issue #8](https://github.com/javierdilitia/obsidian-live-chat/issues/8)) | 4 |
 | Placement | 1 |
 | Runs (cancel the run in flight) | 5 |
 | Validator | 1 |
@@ -290,7 +294,7 @@ Each was decided so the work could go on; each can be reversed before its slice 
 4. **One deployment per client.** A running Obsidian serves one cartridge, picked at start. No runtime switching between clients, no multi-tenant store.
 5. **Spec metadata without a contract change.** The spec's default for intake question D (`list_spec_definitions`, `SpecDefinition` with unit, kind and better direction) waits for the Haier intake. Until then: whether a spec is numeric comes from the data (its `value` is a number); "known" means at least one of the shown products has the key; labels, explanations and which way is better come from the cartridge glossary. The brief's pre-fetch (§3.3) uses these instead of `list_spec_definitions`, and `GET /api/catalog/specs/{category_id}` (slice 4) is built from the category's products.
 6. **Halden specifics inside the core contract.** `RenderLook` (a required `look` with Halden's `glyph`, `finish` and `screen` values) and `currency: Literal["EUR"]` are in `obsidian_data_contract`. They are not on the ARCHITECTURE list of seams. Changing them is intake question G (and the currency, a new point), so I left them for milestone H and recorded them in ARCHITECTURE as known seams. In slice 1 the web product render comes from the cartridge, and a cartridge without renders shows an empty plate.
-7. **A full explore grid scrolls sideways; it does not page.** §2.1 leaves the choice to this milestone. A `ProductGrid` holds at most 8 tiles; on a wide screen they wrap into rows of four, on a narrow one they form one row that scrolls sideways with snap points. It needs no page-local state and no extra fetch; paging would need both. To see more than 8, the shopper narrows or asks for more, which is an edit.
+7. **Decided by the user (2026-11-12), with issue #8:** five or more products open an explore page; the explore grid pages; product components that can scroll sideways are not tied to 2–4 products. My earlier choice (sideways scroll only, no paging, at most 8 tiles) is withdrawn. Slice 4's plan settles the details listed under Slice 4.
 8. **How strict the new page checks are.** Section-level components (`Verdict`, `ProductShelf`, `SpecTable`, `ChartGrid`) may sit only in `Page.children`, and a `BarChart` only in a `ChartGrid`. A chart key passes when at least one of the chart's products has it as a number and none has it as text; a missing value is allowed and renders "—" (the spec's default for intake question E). These may cost a few more retries; slice 1 keeps the feedback specific (it lists the keys that would pass).
 9. **The events log comes in slice 8, so the home page's history ideas start empty.** Cheaper since you looked and Back in stock need events that only exist once slice 8 logs them. For the demo, slice 8 seeds a few past events for `demo-user` and `ana`. The alternative, logging events from slice 2 on, spreads one feature across six slices.
 10. **Postgres needs Docker locally.** Slice 2 runs Postgres 17 through `docker compose`, as the spec says, so the machine that runs the demo needs Docker. `MemoryStore` keeps unit tests free of it; the `PostgresStore` contract run needs it (and CI gets a service container).
