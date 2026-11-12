@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Data contract rules we own (spec §11.1), each with contract tests: `ProductQuery` trims and lowercases `category`, trims attributes, drops blank values and rejects blank keys; search text matches every word against the name, category ID, category name and spec displays; a cancelled order's steps are all done and end with a terminal `Cancelled` step; `ProductQuery.sort` (`rating`, `price_asc`, `price_desc`), applied before the limit. `FakeCatalogSource` implements them.
 - ROADMAP milestone H, the Haier cartridge: after milestone 3, an adapter connects the teammate's SQL agent for retrieval only; the Haier intake opens it. Milestone 3 is built cartridge-ready.
+- Product spec approved (milestone 1 done), with the first demo's results and feedback added: 5 or more products open an explore page (it pages or scrolls sideways when full); new sections go where they fit on an edit; stricter page checks (numeric chart specs, known table specs, no repeated products); actions check their surface and button; the search tool offers multi-word text and sorting. The finished specs and plans in `docs/superpowers/` are marked done and kept as history.
 
 ### Changed
 

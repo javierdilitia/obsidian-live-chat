@@ -1,7 +1,7 @@
 # Sub-project 0 — Repo foundation: design
 
-**Date:** 2026-11-11 · **Status:** approved in conversation, awaiting written-spec review
-**Branch:** `chore/repo-foundation`
+**Date:** 2026-11-11 · **Status:** done (milestone 0). Kept as history; the current state lives in `ROADMAP.md` and `docs/ARCHITECTURE.md`. Package names are from before the `halden_*` → `obsidian_*` rename.
+**Branch:** `chore/repo-foundation` (merged)
 
 ## 1. Why
 
