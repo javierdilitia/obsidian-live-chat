@@ -18,6 +18,7 @@ import {
   type SubmitEvent,
 } from "react";
 import { formatPrice, shopCatalog } from "./a2ui/catalog";
+import { cartridge } from "./cartridge";
 import { dispatchAction, type CartLine } from "./lib/actions";
 import { cart, landFlight, useCart } from "./lib/cart";
 import { streamRun, type RunEnd } from "./lib/sse";
@@ -512,7 +513,7 @@ export default function App() {
       <Sprite />
       <header className="shell">
         <div className="wordmark">
-          <b className="store">Halden</b>
+          <b className="store">{cartridge.storeName}</b>
           <span className="by">
             <Shard size={14} />
             assistant by Obsidian
@@ -631,9 +632,7 @@ export default function App() {
         </section>
 
         {/* the one disclaimer, where a store keeps its small print */}
-        <footer className="col demo-note">
-          Concept demo · every product, price, rating and order is fictional
-        </footer>
+        <footer className="col demo-note">{cartridge.disclaimer.shell}</footer>
       </main>
 
       <CartDrawer onNotice={notify} />

@@ -4,9 +4,11 @@ import { createRoot } from "react-dom/client";
 import "./styles/fonts.css";
 import "./styles/tokens.css";
 import App from "./App";
+import { cartridge } from "./cartridge";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html is missing #root");
+document.title = cartridge.storeName;
 
 createRoot(root).render(
   <StrictMode>

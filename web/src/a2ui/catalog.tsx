@@ -18,11 +18,12 @@ import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "rea
 import { z } from "zod";
 import { cart, expectFlight, useCart } from "../lib/cart";
 import type { Product, ProductMap } from "../lib/products";
-import { useProducts } from "../lib/products";
+import { useProducts, type Look } from "../lib/products";
+import { cartridge, specInfo } from "../cartridge";
 import "../styles/page.css";
 import { seriesColour, useRise } from "./motion";
 import { probeEnabled, useMountCounts, useMountProbe } from "./probe";
-import { installMaterials, renderMarkup, type Look } from "./renders";
+import { installMaterials, renderMarkup } from "./renders";
 
 export const SHOP_CATALOG_ID = "https://obsidian.example/catalogs/shop/v1/catalog.json";
 
@@ -98,52 +99,11 @@ type ViewProps<Api extends ComponentApi> = ReactA2uiComponentProps<
 >;
 type BuildChild = ReactA2uiComponentProps<unknown>["buildChild"];
 
-/* ——— fixed strings, and the spec glossary until web/src/i18n/specs.*.json exists ——— */
+/* ——— fixed strings (the spec glossary and the disclaimer come from the cartridge) ——— */
 
 const DASH = "—";
 const GONE = "No longer available";
 const FAILED = "Couldn't load";
-const FOOTER = ["concept demo", "fictional products, prices & ratings"];
-
-interface SpecInfo {
-  label: string;
-  /** Which way is better, for numeric specs; the best value in a row is marked. */
-  better?: "higher" | "lower";
-}
-
-const SPECS: Record<string, SpecInfo> = {
-  display: { label: "Display" },
-  hz: { label: "Refresh rate", better: "higher" },
-  cpu: { label: "Processor" },
-  gpu: { label: "Graphics" },
-  ram: { label: "Memory" },
-  ssd: { label: "Storage" },
-  batt: { label: "Battery", better: "higher" },
-  weight: { label: "Weight" },
-  ports: { label: "Ports" },
-  p3: { label: "Colour range", better: "higher" },
-  de: { label: "Colour error", better: "lower" },
-  panel: { label: "Panel" },
-  refresh_rate: { label: "Refresh rate" },
-  colour: { label: "Colour" },
-  inputs: { label: "Inputs" },
-  stand: { label: "Stand" },
-  noise_cancelling: { label: "Noise cancelling" },
-  battery: { label: "Battery" },
-  codecs: { label: "Codecs" },
-  water: { label: "Water resistance" },
-  switches: { label: "Switches" },
-  layout: { label: "Layout" },
-  connection: { label: "Connection" },
-  capacity: { label: "Capacity" },
-  speed: { label: "Speed" },
-  power_pass_through: { label: "Power pass-through" },
-  cable: { label: "Cable" },
-};
-
-function specInfo(key: string): SpecInfo {
-  return SPECS[key] ?? { label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ") };
-}
 
 const euro = new Intl.NumberFormat("en-IE", {
   style: "currency",
@@ -398,7 +358,7 @@ function PageView({ props, buildChild, context }: ViewProps<typeof PageApi>) {
         </Room>
       ))}
       <footer className="art-foot rise">
-        {FOOTER.map((part) => (
+        {cartridge.disclaimer.footer.map((part) => (
           <span key={part}>{part}</span>
         ))}
       </footer>

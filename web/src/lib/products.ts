@@ -39,6 +39,8 @@ const ProductsResponseSchema = z.object({
 
 export type SpecValue = z.infer<typeof SpecValueSchema>;
 export type Product = z.infer<typeof ProductSchema>;
+/** How a product is drawn; mirrors the contract's `RenderLook`. */
+export type Look = Product["look"];
 
 /** By product ID: the product, `null` when the catalog no longer has it, absent while loading. */
 export type ProductMap = ReadonlyMap<string, Product | null>;

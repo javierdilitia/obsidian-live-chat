@@ -6,6 +6,8 @@
    look picks among them (unknown names fall back to a laptop, silver, dusk) and is never written
    into the SVG as it came. All products are fictional. */
 
+import type { Look } from "../lib/products";
+
 interface Finish {
   hi: string;
   mid: string;
@@ -270,12 +272,6 @@ const BODIES: Record<string, Body> = {
     <path d="M56 112 246 124" stroke="${F.line}" stroke-width=".8" opacity=".6"/>`,
   },
 };
-
-export interface Look {
-  glyph: string;
-  finish: string;
-  screen?: string | null;
-}
 
 /** The inner markup of a product's 320×230 render (the `<svg>` element is the caller's). */
 export function renderMarkup(look: Look): string {
