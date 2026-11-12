@@ -1,6 +1,6 @@
 # Milestone 3 — Build, slice by slice
 
-**Date:** 2026-11-12 · **Status:** in progress. Slice 1 is built per its task plan, [`2026-11-12-slice-1-cartridge-boundary.md`](2026-11-12-slice-1-cartridge-boundary.md); its placement rules are still to be checked by eye on the next live run. Each later slice gets its own plan (writing-plans skill) when it starts, from this document and the spec.
+**Date:** 2026-11-12 · **Tracking:** [milestone 3 on GitHub](https://github.com/javierdilitia/obsidian-live-chat/milestone/4), one issue per slice (table below). **Status:** in progress. Slice 1 is built per its task plan, [`2026-11-12-slice-1-cartridge-boundary.md`](2026-11-12-slice-1-cartridge-boundary.md); its placement rules are still to be checked by eye on the next live run. Each later slice gets its own plan (writing-plans skill) when it starts, from this document and the spec.
 
 **Sources:** the approved product spec [`../specs/2026-11-11-product-spec-design.md`](../specs/2026-11-11-product-spec-design.md) (cited below as §n), [`ROADMAP.md`](../../../ROADMAP.md) milestone 3 (its goal and "Inputs for milestone 3"), and [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) ("Obsidian core vs cartridge", "Known cartridge seams").
 
@@ -18,16 +18,16 @@ Milestone 2 left a working single-tab demo: one comparison page built and edited
 
 ## The slices, in build order
 
-| # | Slice | Depends on | What the user sees at the end |
-|---|---|---|---|
-| 1 | Cartridge boundary and page fixes | — (milestone 2) | The same demo, now loaded as the Halden cartridge; better pages after edits |
-| 2 | Store, session and the action mechanism | 1 | State survives a restart; three seeded shoppers, each with their own tab and cart |
-| 3 | Language: English and Spanish | 2 | A language menu; pages and the shell in EN or ES |
-| 4 | The rest of the generated catalog | 1, 3 | Guide, product and explore pages; the product modal and spec explainers |
-| 5 | Tabs and the router | 2, 3, 4 | Several tabs; the agent decides where each answer goes; a new command cancels the old one |
-| 6 | History and restore | 5 | Closed tabs come back from the History drawer instantly; "the one I saw yesterday" works |
-| 7 | Saved items, checkout and orders | 2, 3, 5 | Save for later, check out, the orders drawer and tracking pages |
-| 8 | Signals, home page and For you | 3, 5, 6, 7 | A home page that knows the shopper, and the agent-built For you section |
+| # | Slice | Issue | Depends on | What the user sees at the end |
+|---|---|---|---|---|
+| 1 | Cartridge boundary and page fixes | [#14](https://github.com/javierdilitia/obsidian-live-chat/issues/14) | — (milestone 2) | The same demo, now loaded as the Halden cartridge; better pages after edits |
+| 2 | Store, session and the action mechanism | [#15](https://github.com/javierdilitia/obsidian-live-chat/issues/15) | 1 | State survives a restart; three seeded shoppers, each with their own tab and cart |
+| 3 | Language: English and Spanish | [#16](https://github.com/javierdilitia/obsidian-live-chat/issues/16) | 2 | A language menu; pages and the shell in EN or ES |
+| 4 | The rest of the generated catalog | [#17](https://github.com/javierdilitia/obsidian-live-chat/issues/17) | 1, 3 | Guide, product and explore pages; the product modal and spec explainers |
+| 5 | Tabs and the router | [#18](https://github.com/javierdilitia/obsidian-live-chat/issues/18) | 2, 3, 4 | Several tabs; the agent decides where each answer goes; a new command cancels the old one |
+| 6 | History and restore | [#19](https://github.com/javierdilitia/obsidian-live-chat/issues/19) | 5 | Closed tabs come back from the History drawer instantly; "the one I saw yesterday" works |
+| 7 | Saved items, checkout and orders | [#20](https://github.com/javierdilitia/obsidian-live-chat/issues/20) | 2, 3, 5 | Save for later, check out, the orders drawer and tracking pages |
+| 8 | Signals, home page and For you | [#21](https://github.com/javierdilitia/obsidian-live-chat/issues/21) | 3, 5, 6, 7 | A home page that knows the shopper, and the agent-built For you section |
 
 Why this order:
 

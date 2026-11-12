@@ -1,16 +1,18 @@
 # Roadmap
 
-Six milestones. Each one ends with its spec or plan committed under `docs/superpowers/`, and the next one starts from those files.
+Seven milestones. Each one ends with its spec or plan committed under `docs/superpowers/`, and the next one starts from those files.
 
-| # | Milestone | Depends on | Status |
-|---|---|---|---|
-| 0 | Repo foundation | — | done |
-| 1 | Product spec | 0 | done |
-| 2 | First working demo | 0 (runs alongside 1) | done |
-| 3 | Build, slice by slice | 1, 2 | planned |
-| 4 | Analytics and observability | 2, 3 | planned |
-| 5 | CD to Azure, then subagents | 3 | planned |
-| H | Haier cartridge | 3, the teammate's data agent | planned |
+**Tracked on GitHub.** Each milestone here is a [GitHub milestone](https://github.com/javierdilitia/obsidian-live-chat/milestones?state=all) with the same name. Milestone 3's slices are issues labelled [`slice`](https://github.com/javierdilitia/obsidian-live-chat/labels/slice), one per slice; a slice's PR says `Closes #<issue>`, and its exit criteria are the issue's checkboxes. This file stays the source of truth for goals and exit criteria; GitHub tracks what is open and done.
+
+| # | Milestone | Depends on | Status | GitHub |
+|---|---|---|---|---|
+| 0 | Repo foundation | — | done | [milestone](https://github.com/javierdilitia/obsidian-live-chat/milestone/1?closed=1) |
+| 1 | Product spec | 0 | done | [milestone](https://github.com/javierdilitia/obsidian-live-chat/milestone/2?closed=1) |
+| 2 | First working demo | 0 (runs alongside 1) | done | [milestone](https://github.com/javierdilitia/obsidian-live-chat/milestone/3?closed=1) |
+| 3 | Build, slice by slice | 1, 2 | in progress | [milestone](https://github.com/javierdilitia/obsidian-live-chat/milestone/4) |
+| 4 | Analytics and observability | 2, 3 | planned | [milestone](https://github.com/javierdilitia/obsidian-live-chat/milestone/5) |
+| 5 | CD to Azure, then subagents | 3 | planned | [milestone](https://github.com/javierdilitia/obsidian-live-chat/milestone/6) |
+| H | Haier cartridge | 3, the teammate's data agent | planned | [milestone](https://github.com/javierdilitia/obsidian-live-chat/milestone/7) |
 
 ---
 
