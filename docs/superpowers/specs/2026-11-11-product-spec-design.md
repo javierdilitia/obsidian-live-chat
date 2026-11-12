@@ -242,7 +242,7 @@ Two surfaces, side by side in the mockup's home layout.
 - **Semantic section IDs.** Every section-level component gets an ID chosen by the model (`verdict`, `shelf`, `specs`, `colour`, `charts`). Edits target those IDs; the card's `sections` lists them. Adding a section means rewriting `Page.children` (A2UI has no per-component delete or insert). A new section goes where it fits in reading order, next to the section it extends (a colour-accuracy section after the spec table), not last by default.
 - **Post-compile validation** (backend, before anything reaches the browser): every product and order ID exists; every button's ID is one the page shows; text fields respect their limits; `Page` is the root of a tab and section-level components sit only under `Page`; chart spec keys are numeric specs and table spec keys are known spec keys; no product ID repeats within one component. A failure triggers the one retry (§13).
 - **Fixed strings** (button labels, "The pick", "In stock", the footer disclaimer, empty states) come from our EN/ES bundle, not from the model.
-- **Spec labels and explainer copy** come from our spec glossary (`web/src/i18n/specs.{en,es}.json`, keyed by spec key), not from the model or the data agent. **[Halden cartridge]** The glossary's contents are Halden's; the lookup mechanism is core.
+- **Spec labels and explainer copy** come from our spec glossary (the cartridge's `web/src/cartridges/<id>/specs.{en,es}.json`, keyed by spec key; moved there in milestone 3 slice 1), not from the model or the data agent. **[Halden cartridge]** The glossary's contents are Halden's; the lookup mechanism is core.
 - Series colours are assigned by position (frost, steel, deep), never by the model.
 
 ### 7.2 Page and layout
@@ -355,8 +355,8 @@ colour = ChartGrid([BarChart(title="Colour range — share of DCI-P3", ..., spec
 
 - The client reads each action's kind from a registry generated from the catalog; the server checks the kind again and rejects a mismatch.
 - Every event's `context` carries only IDs plus a `requestId` (UUID per click). Repeating a `requestId` returns the stored result (idempotency, §10).
-- **Shell buttons** (the cart drawer, the user menu) are not on an A2UI surface. They send `surfaceId: "shell"` and a fixed `sourceComponentId` per place (`cart-drawer`, `user-menu`); the action registry lists which sources may send each action, and the server accepts a `shell` source only for those actions.
-- Direct handlers always check the session user, that the IDs exist, stock and current prices, and that the event's `surfaceId` is one of the session's open surfaces and its `sourceComponentId` is a button on that surface. They return `{ok, cart?, saved?, toast?, tab?, error?: {code, message}}`.
+- **Shell buttons** (the cart drawer, the user menu, the language menu) are not on an A2UI surface. They send `surfaceId: "shell"` and a fixed `sourceComponentId` per place (`cart-drawer`, `user-menu`, `language-menu`); the action registry lists which sources may send each action, and the server accepts a `shell` source only for those actions.
+- Direct handlers always check the session user, that the IDs exist, stock and current prices, and that the event's `surfaceId` is one of the session's open surfaces and its `sourceComponentId` is a button on that surface. They return `{ok, cart?, saved?, toast?, tab?, error?: {code, message, params?}}`. `message` is English, for logs; the shopper sees the bundle's copy for `code` (§12), filled from `params` (for `out_of_stock`: `reason`, `name`, `count`).
 
 ### 8.2 Every trigger
 
@@ -483,10 +483,11 @@ Questions to answer from their dataset. "Our default" is what we build if the an
 
 ## 12. Language
 
-- Fixed strings: `web/src/i18n/{en,es}.json`, plus the spec glossary (§7.1). The language menu switches them at once.
+- Fixed strings: `web/src/i18n/{en,es}.json`, plus the cartridge's spec glossary and disclaimer in both languages (§7.1). The language menu switches them at once, without a reload. The server sends codes for run and action errors; the web takes their words from the bundle.
+- Spanish is Spain's Spanish (es-ES), addressing the shopper as *tú*; "cart" is *cesta* (decided by the user, 2026-11-12). The same rule is in the page prompt.
 - The router and UI model get the shopper's language; the router's `reason` and chips, and the UI model's prose, are written in it.
-- Templates use the bundle. Money and dates format with `Intl` for the language (`€1.899` in ES, `€1,899` in EN).
-- A tab keeps its `language` until it is edited; an edit rewrites the page in the current language. For you is cached per language.
+- Templates use the bundle. Money and dates format with `Intl` for the language: `1.899 €` and `18,50 €` in ES (Spain's order, with grouping forced on: plain `es-ES` would print `1899 €`), `€1,899` and `€18.50` in EN; dates `12 nov` / `12 Nov` (decided 2026-11-12, replacing `€1.899`).
+- A tab keeps its `language` until it is edited; an edit rewrites the page in the current language: when the language changed, the edit must redefine every section (the page agent rejects one that does not). For you is cached per language.
 
 ## 13. Errors
 
