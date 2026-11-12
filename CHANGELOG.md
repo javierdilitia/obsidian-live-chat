@@ -29,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `scripts/dev.py`: starts the agent and the web dev server together from one command; Ctrl+C stops both, and if one exits the other is stopped too.
 
+- Data contract rules we own (spec §11.1), each with contract tests: `ProductQuery` trims and lowercases `category`, trims attributes, drops blank values and rejects blank keys; search text matches every word against the name, category ID, category name and spec displays; a cancelled order's steps are all done and end with a terminal `Cancelled` step; `ProductQuery.sort` (`rating`, `price_asc`, `price_desc`), applied before the limit. `FakeCatalogSource` implements them.
+
 ### Changed
 
 - The concept mockup moved to `mockup/`, unchanged.

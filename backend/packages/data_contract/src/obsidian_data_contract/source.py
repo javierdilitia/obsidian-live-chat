@@ -27,13 +27,16 @@ class CatalogSource(Protocol):
     async def search_products(self, query: ProductQuery) -> list[ProductSummary]:
         """Products matching every filter that is set, at most `query.limit` of them.
 
-        - `text`: case-insensitive substring of the product name or its category id.
+        - `text`: split on whitespace; every word is a case-insensitive substring of at least
+          one of the product name, its category id, its category name or any spec `display`.
         - `category`: exact match on `category_id`; an unknown category gives `[]`.
         - `attributes`: keys are spec keys; each value is a case-insensitive substring of
           that spec's `display`.
         - `max_price_cents`: inclusive upper bound on `price_cents`.
 
-        Order is deterministic: rating descending (no rating last), then id ascending.
+        Order is deterministic and applied before `limit`. `sort="rating"` (the default):
+        rating descending, no rating last, then id. `price_asc` / `price_desc`: price
+        ascending / descending, then id ascending.
         """
         ...
 
@@ -59,6 +62,8 @@ class CatalogSource(Protocol):
     async def get_order_status(self, order_id: str) -> OrderTracking:
         """Tracking steps for an order. Raises `NotFoundError(kind="order")` if unknown.
 
-        Exactly one step is `current`, unless the order is delivered (then all are `done`).
+        Delivered or cancelled: every step is `done`, and a cancelled order ends with a
+        terminal `Cancelled` step after the steps it reached. Otherwise exactly one step is
+        `current`.
         """
         ...

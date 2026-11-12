@@ -118,7 +118,7 @@ backend/packages/
 
 - `CatalogSource` is an async, **read-only** protocol: `list_categories`, `search_products`, `get_product`, `get_products`, `get_orders`, `get_order`, `get_order_status`. The only error is `NotFoundError(kind, ids)`.
 - Cart, saved-for-later, checkout and refunds are **our** commerce services (sub-project 3), not the data agent's job.
-- Models are frozen and reject unknown fields. Search is deterministic: rating descending, then id.
+- Models are frozen and reject unknown fields. Search matches every word of the text and is deterministic: rating descending by default, or price ascending/descending, ties by id.
 - `obsidian_data_contract.contract_tests.CatalogSourceContract` is a reusable pytest suite. The fake runs it in CI. The teammate's adapter will run the same suite, which is how we know it's a drop-in replacement.
 - The contract is v0. It gets reviewed with the data-agent teammate during sub-project 1, before anything beyond the fake depends on it.
 

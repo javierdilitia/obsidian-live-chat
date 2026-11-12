@@ -15,6 +15,7 @@ from obsidian_data_contract import (
     OrderTracking,
     Product,
     ProductQuery,
+    ProductSort,
     ProductSummary,
     TrackingStep,
 )
@@ -35,15 +36,22 @@ class _SeedOrder(Order):
     tracking: _SeedTracking
 
 
-def _matches(product: Product, query: ProductQuery) -> bool:
+def _matches(product: Product, query: ProductQuery, category_names: dict[str, str]) -> bool:
     if query.category is not None and product.category_id != query.category:
         return False
     if query.max_price_cents is not None and product.price_cents > query.max_price_cents:
         return False
     if query.text is not None:
-        text = query.text.casefold()
-        if text not in product.name.casefold() and text not in product.category_id.casefold():
-            return False
+        fields = [
+            product.name,
+            product.category_id,
+            category_names.get(product.category_id, ""),
+            *(spec.display for spec in product.specs.values()),
+        ]
+        haystack = [field.casefold() for field in fields]
+        for word in query.text.casefold().split():
+            if not any(word in field for field in haystack):
+                return False
     for key, wanted in query.attributes.items():
         spec = product.specs.get(key)
         if spec is None or wanted.casefold() not in spec.display.casefold():
@@ -54,6 +62,15 @@ def _matches(product: Product, query: ProductQuery) -> bool:
 def _rank(product: ProductSummary) -> tuple[bool, float, str]:
     """Rating descending, products without a rating last, then id ascending."""
     return (product.rating is None, -(product.rating or 0.0), product.id)
+
+
+def _sorted(found: list[ProductSummary], sort: ProductSort) -> list[ProductSummary]:
+    """`found` is already in rating order; the price sorts re-sort it, ties by id."""
+    if sort == "price_asc":
+        return sorted(found, key=lambda p: (p.price_cents, p.id))
+    if sort == "price_desc":
+        return sorted(found, key=lambda p: (-p.price_cents, p.id))
+    return found
 
 
 class FakeCatalogSource:
@@ -72,6 +89,7 @@ class FakeCatalogSource:
         seed_orders = TypeAdapter(list[_SeedOrder]).validate_json(read("orders.json"))
 
         self._categories = categories
+        self._category_names = {c.id: c.name for c in categories}
         self._products = {p.id: p for p in products}
         self._ranked = sorted(products, key=_rank)
         self._orders: dict[str, Order] = {}
@@ -86,8 +104,8 @@ class FakeCatalogSource:
         return list(self._categories)
 
     async def search_products(self, query: ProductQuery) -> list[ProductSummary]:
-        found = [p.summary() for p in self._ranked if _matches(p, query)]
-        return found[: query.limit]
+        found = [p.summary() for p in self._ranked if _matches(p, query, self._category_names)]
+        return _sorted(found, query.sort)[: query.limit]
 
     async def get_product(self, product_id: str) -> Product:
         product = self._products.get(product_id)

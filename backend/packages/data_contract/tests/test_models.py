@@ -8,10 +8,13 @@ from obsidian_data_contract import (
     NotFoundError,
     Order,
     OrderLine,
+    OrderTracking,
     ProductQuery,
     ProductSummary,
     RenderLook,
+    TrackingStep,
 )
+from obsidian_data_contract.contract_tests import tracking_problem
 
 LOOK = RenderLook(glyph="laptop", finish="silver", screen="dusk")
 
@@ -60,6 +63,49 @@ def test_query_limit_bounds_and_text_normalised():
     assert ProductQuery().limit == 20
     assert ProductQuery(text="  OLED ").text == "OLED"
     assert ProductQuery(text="   ").text is None
+
+
+def test_query_category_and_attributes_normalised():
+    assert ProductQuery(category=" Laptops ").category == "laptops"
+    assert ProductQuery(category="  ").category is None
+    query = ProductQuery(attributes={" display ": " OLED ", "hz": "  "})
+    assert query.attributes == {"display": "OLED"}
+    with pytest.raises(ValidationError):
+        ProductQuery(attributes={" ": "OLED"})
+
+
+def test_query_sort_defaults_to_rating():
+    assert ProductQuery().sort == "rating"
+    assert ProductQuery(sort="price_desc").sort == "price_desc"
+    with pytest.raises(ValidationError):
+        ProductQuery(sort="newest")  # type: ignore[arg-type]
+
+
+def tracking(*steps: tuple[str, str]) -> OrderTracking:
+    return OrderTracking(
+        order_id="OB-1",
+        steps=[TrackingStep(name=n, at=None, state=st) for n, st in steps],  # type: ignore[arg-type]
+        carrier=None,
+        tracking_number=None,
+        eta=None,
+    )
+
+
+def test_tracking_rule_for_cancelled_orders():
+    good = tracking(("Ordered", "done"), ("Packed", "done"), ("Cancelled", "done"))
+    assert tracking_problem("cancelled", good) is None
+    with_current = tracking(("Ordered", "done"), ("Cancelled", "current"))
+    assert tracking_problem("cancelled", with_current) is not None
+    no_terminal = tracking(("Ordered", "done"), ("Packed", "done"))
+    assert tracking_problem("cancelled", no_terminal) is not None
+
+
+def test_tracking_rule_for_open_and_delivered_orders():
+    shipped = tracking(("Ordered", "done"), ("Shipped", "current"), ("Delivered", "pending"))
+    assert tracking_problem("shipped", shipped) is None
+    assert tracking_problem("shipped", tracking(("Ordered", "done"))) is not None
+    assert tracking_problem("delivered", tracking(("Delivered", "done"))) is None
+    assert tracking_problem("delivered", shipped) is not None
 
 
 def test_order_totals_must_match_lines():

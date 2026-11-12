@@ -453,14 +453,14 @@ Obsidian owns the data contract; each cartridge implements it. Some points are o
 
 ### 11.1 Decisions we own
 
-Decided. Each one lands in the contract with its contract tests in a separate PR before milestone 3 starts.
+Decided and in the contract (`obsidian_data_contract`), each with contract tests that every cartridge's adapter runs.
 
 | # | Point | Today | Decision | Status |
 |---|---|---|---|---|
-| A | Empty or space-padded `category` and `attributes` | `text` is stripped and blank becomes `None`, but `category=" laptops "` returns `[]`, `attributes={"display": ""}` matches every product that has the key, and `{" display": "OLED"}` matches nothing | Normalise in `ProductQuery` validators so every implementation agrees: `category` stripped and lowercased, blank → `None`; attribute keys and values stripped; a blank value drops that entry; a blank key is a `ValidationError`. Contract tests for each case. | decided — to be encoded in the contract with tests before milestone 3 |
-| B | Search text: one phrase or all words | `text` is one case-insensitive substring of the name or category ID, so "OLED laptop" finds nothing | Split on whitespace; **every word** must match (case-insensitive substring) at least one of: name, category ID, category name, any spec `display`. Ranking unchanged (rating descending, then ID). | decided — to be encoded in the contract with tests before milestone 3 |
-| C | Tracking steps for cancelled orders | "Exactly one step is `current`, unless delivered", so a cancelled order needs a fake current step | Cancelled: the steps reached are `done`, followed by a terminal `Cancelled` step, also `done`; no `current`, no `pending`. Rule becomes: delivered or cancelled → all steps `done` and the last one is terminal; otherwise exactly one `current`. | decided — to be encoded in the contract with tests before milestone 3 |
-| F | Sorting | Rating only | `ProductQuery.sort: rating \| price_asc \| price_desc`, default `rating` ("cheapest OLED laptop"). | decided — to be encoded in the contract with tests before milestone 3 |
+| A | Empty or space-padded `category` and `attributes` | `text` is stripped and blank becomes `None`, but `category=" laptops "` returns `[]`, `attributes={"display": ""}` matches every product that has the key, and `{" display": "OLED"}` matches nothing | Normalise in `ProductQuery` validators so every implementation agrees: `category` stripped and lowercased, blank → `None`; attribute keys and values stripped; a blank value drops that entry; a blank key is a `ValidationError`. Contract tests for each case. | done — in the contract with contract tests |
+| B | Search text: one phrase or all words | `text` is one case-insensitive substring of the name or category ID, so "OLED laptop" finds nothing | Split on whitespace; **every word** must match (case-insensitive substring) at least one of: name, category ID, category name, any spec `display`. Ranking unchanged (rating descending, then ID). | done — in the contract with contract tests |
+| C | Tracking steps for cancelled orders | "Exactly one step is `current`, unless delivered", so a cancelled order needs a fake current step | Cancelled: the steps reached are `done`, followed by a terminal `Cancelled` step, also `done`; no `current`, no `pending`. Rule becomes: delivered or cancelled → all steps `done` and the last one is terminal; otherwise exactly one `current`. | done — in the contract with contract tests |
+| F | Sorting | Rating only | `ProductQuery.sort: rating \| price_asc \| price_desc`, default `rating` ("cheapest OLED laptop"). | done — in the contract with contract tests |
 
 ### 11.2 Haier intake
 

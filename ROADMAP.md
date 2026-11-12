@@ -28,7 +28,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 1 — Product spec
 
-**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; the contract decisions we own are recorded (spec §11.1); waits on the Haier intake meeting with the data-agent teammate (§11.2)
+**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; the contract decisions we own are recorded and in the contract with tests (spec §11.1); waits on the Haier intake meeting with the data-agent teammate (§11.2)
 
 **Goal:** detail every idea into a real product: tabs as A2UI surfaces and the agent's tab tools (open, edit, create, switch, close), the component catalog with every field, the action catalog with each action's kind (local / direct / agent), the data contract, persistence, and other places surfaces fit besides tabs.
 
@@ -63,6 +63,7 @@ The detailed measurements once planned here (OpenUI comparison, 20-run accuracy,
 - Placement: on an edit the model put the new section last instead of where it fits (after the shelf); the build's charts can already cover what a later edit adds.
 - Runs: a new command should cancel the one in flight (spec §3.5); today it waits, with the command bar disabled.
 - Validator: section placement under `Page` (spec §7.1), numeric spec keys for charts, known spec keys for tables, duplicate product IDs.
+- Search tool: the agent's `search_products` tool still describes `text` as one word and doesn't offer `sort`; offer multi-word text and `sort` ("cheapest OLED laptop") now that the contract supports them.
 - Actions: check `surfaceId` and `sourceComponentId` (spec §8.1); in `cart.add`, read the quantity after the catalog call before the real data source arrives.
 
 ## 4 — Analytics and observability
