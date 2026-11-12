@@ -8,7 +8,7 @@ Where this spec and `docs/ARCHITECTURE.md` disagree, this spec wins (ARCHITECTUR
 
 ## 1. Why
 
-The mockup proves the concept: no transcript, a command bar, and an agent that files every answer into a tab and edits it in place. The architecture picks the tools (A2UI v1.0, a Python backend, Azure Foundry models). This spec turns both into a product the first working demo (milestone 2) starts from and the build (milestone 3) completes: what the agent can do with tabs, what it can draw, what every button does, what persists, and what we need from the data-agent teammate.
+The mockup proves the concept: no transcript, a command bar, and an agent that files every answer into a tab and edits it in place. The architecture picks the tools (A2UI v1.0, a Python backend, Azure Foundry models). This spec turns both into a product the first working demo (milestone 2) starts from and the build (milestone 3) completes: what the agent can do with tabs, what it can draw, what every button does, what persists, and what we need from the data-agent teammate. The product is Obsidian, a client- and domain-agnostic framework; each store plugs in as a cartridge (its data, data model and presentation config): Halden, the fictional electronics store in this spec's examples, is the first, and Haier, with real data, is the next.
 
 The mockup's visuals and motion are kept and extended, not redesigned. `DESIGN.md` stays the visual source of truth; UI work uses the `impeccable` skill and UX work the `intent` skills.
 
@@ -32,10 +32,10 @@ Every surface has an ID of the form `<owner>:<uuid>` and one catalog. The backen
 
 | Place | Surface? | Owner prefix | Built by | Catalog |
 |---|---|---|---|---|
-| Tab page | Yes, one per tab | `shop:` | The UI model, or a template (below) | `halden.shop` |
-| Home page | Yes | `home:` | Plain code, no model; rebuilt on every load | `halden.shop` + home components |
-| For you section on the home page | Yes | `foryou:` | The For-you agent (UI model), cached | `halden.shop` |
-| Support and refund pages (milestone 5) | Yes, in their own tab | `support:` | The refund subagent | `halden.support` |
+| Tab page | Yes, one per tab | `shop:` | The UI model, or a template (below) | `obsidian.shop` |
+| Home page | Yes | `home:` | Plain code, no model; rebuilt on every load | `obsidian.shop` + home components |
+| For you section on the home page | Yes | `foryou:` | The For-you agent (UI model), cached | `obsidian.shop` |
+| Support and refund pages (milestone 5) | Yes, in their own tab | `support:` | The refund subagent | `obsidian.support` |
 | Product modal, spec explainer popover | No. A local action opens our React overlay with a product ID or spec key | — | — | — |
 | Cart drawer, orders drawer, history drawer, user and language menus, toasts | No. App chrome | — | — | — |
 
@@ -222,6 +222,8 @@ Two surfaces, side by side in the mockup's home layout.
 - Cache: rebuilt only when older than 24 h, or after a significant event (`order_placed`, `tab_built` of kind `compare`), or when the language changes. The rebuild runs in the background after a run finishes; `GET /api/home` returns the cached section with `foryou_stale: true` and the client streams the new one in with the build motion. It never blocks the home page.
 - A first-time shopper (no signals) gets a code-built "Popular right now" section instead, with no model call.
 
+**[Halden cartridge]** The category-pairing rule (laptop → docks, storage; …) and the merchandising config behind the week's offer are Halden's; the mechanisms (code-built candidates, the offer card) are Obsidian core.
+
 **Router memory** (idea 4) is §3.1: history cards are in the router's input, so "compare it with the one I saw yesterday" resolves to product IDs and `open_tab` can reopen old pages.
 
 ### 6.3 Later ideas (not in milestone 3)
@@ -229,7 +231,7 @@ Two surfaces, side by side in the mockup's home layout.
 - **Learned defaults**: budget, use and panel preferences learned from earlier briefs pre-fill new briefs, always shown ("Because you looked at OLED laptops") and clearable.
 - **Negative signals**: products dropped from a comparison are not suggested again for 30 days.
 
-## 7. Component catalog — `halden.shop` v1
+## 7. Component catalog — `obsidian.shop` v1
 
 ### 7.1 Rules
 
@@ -237,7 +239,7 @@ Two surfaces, side by side in the mockup's home layout.
 - **Semantic section IDs.** Every section-level component gets an ID chosen by the model (`verdict`, `shelf`, `specs`, `colour`, `charts`). Edits target those IDs; the card's `sections` lists them. Adding a section means rewriting `Page.children` (A2UI has no per-component delete or insert).
 - **Post-compile validation** (backend, before anything reaches the browser): every product and order ID exists; every button's ID is one the page shows; text fields respect their limits; `Page` is the root of a tab and section-level components sit only under `Page`. A failure triggers the one retry (§13).
 - **Fixed strings** (button labels, "The pick", "In stock", the footer disclaimer, empty states) come from our EN/ES bundle, not from the model.
-- **Spec labels and explainer copy** come from our spec glossary (`web/src/i18n/specs.{en,es}.json`, keyed by spec key), not from the model or the data agent.
+- **Spec labels and explainer copy** come from our spec glossary (`web/src/i18n/specs.{en,es}.json`, keyed by spec key), not from the model or the data agent. **[Halden cartridge]** The glossary's contents are Halden's; the lookup mechanism is core.
 - Series colours are assigned by position (frost, steel, deep), never by the model.
 
 ### 7.2 Page and layout
@@ -256,7 +258,7 @@ Two surfaces, side by side in the mockup's home layout.
 | `Verdict` | `lead?` (≤ 40, bold), `text` (≤ 200), `button?: id` | One primary button per page, usually an `AddToCartButton`. |
 | `Prose` | `text` (≤ 900; inline `**bold**` only), `variant: lede \| body \| note` | |
 | `Callout` | `heading` (≤ 60), `text` (≤ 400) | "What it means for you". |
-| `Diagram` | `name` | From our authored set: `oled-burn-in`, `panel-types`, `refresh-rate`, `colour-gamut`, `ports`, `battery-life`. The model cannot draw; the set grows by code. |
+| `Diagram` | `name` | From our authored set: `oled-burn-in`, `panel-types`, `refresh-rate`, `colour-gamut`, `ports`, `battery-life`. The model cannot draw; the set grows by code. **[Halden cartridge]** The set is Halden's; the `Diagram` component is core. |
 
 ### 7.4 Products
 
@@ -304,7 +306,7 @@ Each button builds its own action from its type and ID prop (§8). The model nev
 | `RecentList` | `items: [{type: command \| tab, label, when, command? , tabId?}]` |
 | `CategoryGrid` | — (reads `list_categories`) |
 
-### 7.8 `halden.support` (milestone 5, listed only)
+### 7.8 `obsidian.support` (milestone 5, listed only)
 
 `RefundForm(orderId, lineIds)`, `TicketStatus(ticketId)`. Owned by the refund subagent, rendered in `support:` tabs.
 
@@ -445,22 +447,33 @@ Postgres 17 runs locally through `docker compose`, in CI as a service container,
 | `GET /api/session`, `GET /api/users` | Current shopper, seeded shoppers |
 | `POST /api/events/beacon` | Local actions that log signals (`product_viewed`) |
 
-## 11. Data contract review (with the data-agent teammate)
+## 11. Data contract: our decisions and the Haier intake
 
-Each point is a proposal from our side. Status starts as **to agree**; after the review, each row records the agreed outcome and this section is updated in the same PR or a follow-up. Agreed changes to `halden_data_contract` land as one small PR before the build starts, with contract tests for each.
+Obsidian owns the data contract; each cartridge implements it. Some points are ours to decide (§11.1). The rest depend on what Haier's real dataset holds, so they are questions for the intake meeting with the data-agent teammate (§11.2). The meeting is an intake of their data, not an approval of our fake catalog. Answers are recorded here, in the same PR as the meeting notes or a follow-up.
 
-| # | Point | Today | Proposal | Status |
+### 11.1 Decisions we own
+
+Decided. Each one lands in the contract with its contract tests in a separate PR before milestone 3 starts.
+
+| # | Point | Today | Decision | Status |
 |---|---|---|---|---|
-| A | Empty or space-padded `category` and `attributes` | `text` is stripped and blank becomes `None`, but `category=" laptops "` returns `[]`, `attributes={"display": ""}` matches every product that has the key, and `{" display": "OLED"}` matches nothing | Normalise in `ProductQuery` validators so every implementation agrees: `category` stripped and lowercased, blank → `None`; attribute keys and values stripped; a blank value drops that entry; a blank key is a `ValidationError`. Contract tests for each case. | to agree |
-| B | Search text: one phrase or all words | `text` is one case-insensitive substring of the name or category ID, so "OLED laptop" finds nothing | Split on whitespace; **every word** must match (case-insensitive substring) at least one of: name, category ID, category name, any spec `display`. Ranking unchanged (rating descending, then ID). | to agree |
-| C | Tracking steps for cancelled orders | "Exactly one step is `current`, unless delivered", so a cancelled order needs a fake current step | Cancelled: the steps reached are `done`, followed by a terminal `Cancelled` step, also `done`; no `current`, no `pending`. Rule becomes: delivered or cancelled → all steps `done` and the last one is terminal; otherwise exactly one `current`. | to agree |
-| D | Spec metadata | No labels, units or direction; `weight` is the string `"1.74 kg"`, `ram` is `"32 GB LPDDR5"` | Comparable specs carry a numeric `value` and a `unit`. New method `list_spec_definitions(category_id) → list[SpecDefinition]`, `SpecDefinition{key, unit, kind: number \| text, better: higher \| lower \| None}`. Labels and explanations stay ours. | to agree |
-| E | Spec vocabulary | Laptops use `hz` and `batt`, monitors `refresh_rate`, audio `battery`; some laptops lack `p3` | One fixed key vocabulary per category, owned by the data side and returned by `list_spec_definitions`. A missing key means unknown and renders "—". | to agree |
-| F | Sorting | Rating only | `ProductQuery.sort: rating \| price_asc \| price_desc`, default `rating` ("cheapest OLED laptop"). | to agree |
-| G | `look` is required | A real catalog will not have glyph or finish | `look` optional, plus optional `image_url`. With neither, the UI uses a glyph per category. | to agree |
-| H | Orders | Read-only contract; orders keyed by `user_id` | Agree: who allocates order IDs; whether in-app orders flow back to their system (a write API, or they stay ours); how their user IDs map to ours; statuses `returned` and `refunded` for milestone 5. | to agree |
-| I | Serving and speed | In-process Python package | Agree: in-process, HTTP or MCP; a p95 latency target per call (the pre-fetch is on the critical path; proposal: ≤ 150 ms); how long we may cache (proposal: 60 s for display, checkout always re-reads). | to agree |
-| J | Language | English data | Are names and spec displays available in Spanish? We assume not: EN data, EN/ES UI. | to agree |
+| A | Empty or space-padded `category` and `attributes` | `text` is stripped and blank becomes `None`, but `category=" laptops "` returns `[]`, `attributes={"display": ""}` matches every product that has the key, and `{" display": "OLED"}` matches nothing | Normalise in `ProductQuery` validators so every implementation agrees: `category` stripped and lowercased, blank → `None`; attribute keys and values stripped; a blank value drops that entry; a blank key is a `ValidationError`. Contract tests for each case. | decided — to be encoded in the contract with tests before milestone 3 |
+| B | Search text: one phrase or all words | `text` is one case-insensitive substring of the name or category ID, so "OLED laptop" finds nothing | Split on whitespace; **every word** must match (case-insensitive substring) at least one of: name, category ID, category name, any spec `display`. Ranking unchanged (rating descending, then ID). | decided — to be encoded in the contract with tests before milestone 3 |
+| C | Tracking steps for cancelled orders | "Exactly one step is `current`, unless delivered", so a cancelled order needs a fake current step | Cancelled: the steps reached are `done`, followed by a terminal `Cancelled` step, also `done`; no `current`, no `pending`. Rule becomes: delivered or cancelled → all steps `done` and the last one is terminal; otherwise exactly one `current`. | decided — to be encoded in the contract with tests before milestone 3 |
+| F | Sorting | Rating only | `ProductQuery.sort: rating \| price_asc \| price_desc`, default `rating` ("cheapest OLED laptop"). | decided — to be encoded in the contract with tests before milestone 3 |
+
+### 11.2 Haier intake
+
+Questions to answer from their dataset. "Our default" is what we build if the answer leaves the point open.
+
+| # | Topic | Today (Halden fake) | Question for their dataset | Answer |
+|---|---|---|---|---|
+| D | Spec metadata | No labels, units or direction; `weight` is the string `"1.74 kg"`, `ram` is `"32 GB LPDDR5"` | Do comparable specs come with a numeric value and a unit? Is there per-category spec metadata (unit, number or text, whether higher or lower is better)? Our default: `list_spec_definitions(category_id) → list[SpecDefinition]`, `SpecDefinition{key, unit, kind: number \| text, better: higher \| lower \| None}`; labels and explanations stay in the cartridge's glossary. | to ask |
+| E | Spec vocabulary | Laptops use `hz` and `batt`, monitors `refresh_rate`, audio `battery`; some laptops lack `p3` | Is there one fixed spec key vocabulary per category, and who owns it? How often are values missing? Our default: a missing key means unknown and renders "—". | to ask |
+| G | Look and images | `look` (glyph, finish) is required; a real catalog will not have it | What product images does their dataset have (URLs, sizes, the right to show them)? Our default: `look` optional, plus optional `image_url`; with neither, the UI uses a glyph per category. | to ask |
+| H | Orders | Read-only contract; orders keyed by `user_id` | Does their dataset hold orders? Who allocates order IDs? Do in-app orders flow back to their system (a write API) or stay ours? How do their user IDs map to ours? Do they have `returned` and `refunded` statuses (milestone 5)? | to ask |
+| I | Serving and speed | In-process Python package | In-process, HTTP or MCP? What p95 latency per call can they hold (the pre-fetch is on the critical path; we'd like ≤ 150 ms)? How long may we cache (we'd like 60 s for display; checkout always re-reads)? | to ask |
+| J | Language | English data | Are names and spec displays available in Spanish? Our default: EN data, EN/ES UI. | to ask |
 
 ## 12. Language
 
@@ -509,7 +522,7 @@ Real authentication; payments (checkout takes no payment, as in the mockup); ref
 ## 17. How we know milestone 1 is done
 
 1. This spec is reviewed and approved by the user.
-2. §11 is reviewed with the data-agent teammate; every row has an agreed outcome recorded.
+2. (a) The contract semantics we own (§11.1) are decided and recorded; (b) the Haier intake meeting with the data-agent teammate is held and its answers recorded (§11.2).
 3. `PRODUCT.md` Users and Operating Context reflect this spec.
 4. Milestone 3's plans can be written from this spec and milestone 2's results without reopening any decision in §1.
 
@@ -521,6 +534,6 @@ Real authentication; payments (checkout takes no payment, as in the mockup); ref
 | The For-you section invents reasons | Reasons must cite input signals; product IDs outside the candidates are rejected; first-run shoppers get a code-built section |
 | Express details differ from the docs (IDs, list props) | The first demo checks them (§15) before the rest of the build; the catalog design does not depend on Express beyond named assignments |
 | Snapshots grow with edits | 256 KB limit; snapshots are compacted single `createSurface` messages, not message logs |
-| The data agent's real catalog lacks what components need (numeric specs, images) | §11 D, E and G, agreed before the build |
+| The data agent's real catalog lacks what components need (numeric specs, images) | §11.2 D, E and G, answered at the Haier intake before the build |
 | History feels creepy | First-party signals only, visible reasons, one-click Clear history |
 | Live demos stall on model latency | Replay mode; template pages; instant home page |

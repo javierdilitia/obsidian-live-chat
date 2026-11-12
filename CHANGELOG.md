@@ -32,6 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The concept mockup moved to `mockup/`, unchanged.
 - Research documents moved to `docs/research/`.
 - `PRODUCT.md` rewritten for the product (real models and backend) instead of the mockup.
+- Docs reframed around Obsidian as the product: a client- and domain-agnostic framework, with Halden as its first cartridge (fictional store, dev dataset) and Haier as the next (real data, final demo). Covers README, `PRODUCT.md`, `docs/ARCHITECTURE.md` (core vs cartridge, known cartridge seams), ROADMAP and the product spec.
+- Product spec §11 split into the contract decisions we own (A, B, C, F: decided, to be encoded with tests before milestone 3) and the Haier intake questions (D, E, G, H, I, J); milestone 1's exit criterion follows. The catalog names become `obsidian.shop` and `obsidian.support`.
 
 ## [0.1.0] – 2026-11-10
 

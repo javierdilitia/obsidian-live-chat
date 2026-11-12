@@ -28,13 +28,13 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 1 — Product spec
 
-**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; data contract review pending
+**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; the contract decisions we own are recorded (spec §11.1); waits on the Haier intake meeting with the data-agent teammate (§11.2)
 
 **Goal:** detail every idea into a real product: tabs as A2UI surfaces and the agent's tab tools (open, edit, create, switch, close), the component catalog with every field, the action catalog with each action's kind (local / direct / agent), the data contract, persistence, and other places surfaces fit besides tabs.
 
 **Exit criteria:**
 - A written spec covering catalog, actions, tab tools, tab cards, saved tabs and persistence.
-- Review the data contract with the data-agent teammate; changes agreed and recorded.
+- (a) Contract semantics we own (§11.1) decided and recorded; (b) Haier intake meeting with the data-agent teammate held, answers recorded (§11.2).
 
 ## 2 — First working demo
 
@@ -77,6 +77,6 @@ The detailed measurements once planned here (OpenUI comparison, 20-run accuracy,
 
 **Status:** planned
 
-**Goal:** continuous deployment to Azure with environments; then subagents for refunds and support, each with its own surfaces and catalog.
+**Goal:** continuous deployment to Azure with environments; then subagents for refunds and support, each with its own surfaces and catalog. The Haier cartridge replaces the synthetic Halden data when the teammate's data agent connects.
 
 **Exit criteria:** to be set when milestone 3 is planned.
