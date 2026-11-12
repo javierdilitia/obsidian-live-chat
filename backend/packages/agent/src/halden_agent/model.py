@@ -101,6 +101,16 @@ def stop_from_response(response: Any, *, has_tool_calls: bool) -> Stop:
     return "tool_calls" if has_tool_calls else "stop"
 
 
+def _parse_tool_call(item: Any) -> ToolCall:
+    try:
+        arguments = json.loads(item.arguments)
+    except json.JSONDecodeError as exc:
+        raise ModelFailed(f"tool {item.name} sent unparseable arguments") from exc
+    if not isinstance(arguments, dict):
+        raise ModelFailed(f"tool {item.name} arguments are not a JSON object")
+    return ToolCall(item.call_id, item.name, arguments)  # pyright: ignore[reportUnknownArgumentType]
+
+
 def result_from_response(response: Any, *, latency_ms: int) -> ModelResult:
     if response.status == "failed":
         message = response.error.message if response.error else "no detail"
@@ -114,12 +124,11 @@ def result_from_response(response: Any, *, latency_ms: int) -> ModelResult:
             text.extend(p.text for p in item.content if p.type == "output_text")
         elif item.type == "function_call":
             try:
-                arguments = json.loads(item.arguments)
-            except json.JSONDecodeError as exc:
-                raise ModelFailed(f"tool {item.name} sent unparseable arguments") from exc
-            if not isinstance(arguments, dict):
-                raise ModelFailed(f"tool {item.name} arguments are not a JSON object")
-            calls.append(ToolCall(item.call_id, item.name, arguments))  # pyright: ignore[reportUnknownArgumentType]
+                calls.append(_parse_tool_call(item))
+            except ModelFailed:
+                # A call cut off by the output cap is expected; the `length` stop reports it.
+                if stop_from_response(response, has_tool_calls=False) != "length":
+                    raise
     usage = response.usage
     return ModelResult(
         text="".join(text),

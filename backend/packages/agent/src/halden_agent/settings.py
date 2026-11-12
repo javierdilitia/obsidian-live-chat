@@ -11,6 +11,7 @@ API_KEY = "AZURE_FOUNDRY_API_KEY"
 UI_DEPLOYMENT = "MODEL_UI_DEPLOYMENT"
 API_VERSION = "AZURE_OPENAI_API_VERSION"
 UI_REASONING_EFFORT = "MODEL_UI_REASONING_EFFORT"
+DEFAULT_API_VERSION = "2025-04-01-preview"
 
 
 class MissingSettings(Exception):
@@ -38,13 +39,13 @@ class Settings:
             return os.environ.get(name) or values.get(name) or None
 
         endpoint, api_key = get(ENDPOINT), get(API_KEY)
-        deployment, api_version = get(UI_DEPLOYMENT), get(API_VERSION)
-        if not (endpoint and api_key and deployment and api_version):
+        deployment = get(UI_DEPLOYMENT)
+        api_version = get(API_VERSION) or DEFAULT_API_VERSION
+        if not (endpoint and api_key and deployment):
             required = [
                 (ENDPOINT, endpoint),
                 (API_KEY, api_key),
                 (UI_DEPLOYMENT, deployment),
-                (API_VERSION, api_version),
             ]
             raise MissingSettings([name for name, value in required if not value])
         return cls(endpoint, api_key, api_version, deployment, get(UI_REASONING_EFFORT))

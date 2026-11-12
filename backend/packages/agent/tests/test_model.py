@@ -157,6 +157,28 @@ def test_failed_response_raises_with_the_api_message():
         result_from_response(_response(status="failed"), latency_ms=1)
 
 
+def test_truncated_tool_call_maps_to_length_stop_without_raising():
+    cut = _function_call("c1", "t", '{"id": "p')
+    whole = _function_call("c2", "t", '{"id": "p2"}')
+    response = _response(status="incomplete", reason="max_output_tokens", output=[whole, cut])
+    result = result_from_response(response, latency_ms=1)
+    assert result.stop == "length"
+    assert result.tool_calls == [ToolCall(call_id="c2", name="t", arguments={"id": "p2"})]
+    assert len(result.output_items) == 2
+
+
+def test_api_version_defaults_when_unset_or_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    for name in ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    env = tmp_path / ".env"
+    env.write_text(
+        "AZURE_FOUNDRY_ENDPOINT=https://a.invalid/\nAZURE_FOUNDRY_API_KEY=k\n"
+        "MODEL_UI_DEPLOYMENT=d\nAZURE_OPENAI_API_VERSION=\n",
+        encoding="utf-8",
+    )
+    assert Settings.from_env(env).api_version == "2025-04-01-preview"
+
+
 def test_unparseable_tool_arguments_raise():
     bad = _function_call("c", "t", "{not json")
     with pytest.raises(ModelFailed, match="arguments"):
@@ -229,7 +251,6 @@ def test_missing_settings_lists_every_empty_name(tmp_path: Path, monkeypatch: py
     assert caught.value.names == [
         "AZURE_FOUNDRY_API_KEY",
         "MODEL_UI_DEPLOYMENT",
-        "AZURE_OPENAI_API_VERSION",
     ]
     assert "MODEL_UI_DEPLOYMENT" in str(caught.value)
 
