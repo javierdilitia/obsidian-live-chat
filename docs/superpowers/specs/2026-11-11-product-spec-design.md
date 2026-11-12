@@ -8,7 +8,7 @@ Where this spec and `docs/ARCHITECTURE.md` disagree, this spec wins (ARCHITECTUR
 
 ## 1. Why
 
-The mockup proves the concept: no transcript, a command bar, and an agent that files every answer into a tab and edits it in place. The architecture picks the tools (A2UI v1.0, a Python backend, Azure Foundry models). This spec turns both into a product the build (milestone 3) can implement and the PoC (milestone 2) can test against: what the agent can do with tabs, what it can draw, what every button does, what persists, and what we need from the data-agent teammate.
+The mockup proves the concept: no transcript, a command bar, and an agent that files every answer into a tab and edits it in place. The architecture picks the tools (A2UI v1.0, a Python backend, Azure Foundry models). This spec turns both into a product the first working demo (milestone 2) starts from and the build (milestone 3) completes: what the agent can do with tabs, what it can draw, what every button does, what persists, and what we need from the data-agent teammate.
 
 The mockup's visuals and motion are kept and extended, not redesigned. `DESIGN.md` stays the visual source of truth; UI work uses the `impeccable` skill and UX work the `intent` skills.
 
@@ -235,7 +235,7 @@ Two surfaces, side by side in the mockup's home layout.
 
 - **IDs, never values.** Components take product IDs, order IDs and spec keys. The model writes only prose: titles, verdicts, tags, reasons, headings. Prices, specs, stock and images come from the catalog at render time.
 - **Semantic section IDs.** Every section-level component gets an ID chosen by the model (`verdict`, `shelf`, `specs`, `colour`, `charts`). Edits target those IDs; the card's `sections` lists them. Adding a section means rewriting `Page.children` (A2UI has no per-component delete or insert).
-- **Post-compile validation** (backend, before anything reaches the browser): every product and order ID exists; every button's ID is one the page shows (PoC Q8); text fields respect their limits; `Page` is the root of a tab and section-level components sit only under `Page`. A failure triggers the one retry (§13).
+- **Post-compile validation** (backend, before anything reaches the browser): every product and order ID exists; every button's ID is one the page shows; text fields respect their limits; `Page` is the root of a tab and section-level components sit only under `Page`. A failure triggers the one retry (§13).
 - **Fixed strings** (button labels, "The pick", "In stock", the footer disclaimer, empty states) come from our EN/ES bundle, not from the model.
 - **Spec labels and explainer copy** come from our spec glossary (`web/src/i18n/specs.{en,es}.json`, keyed by spec key), not from the model or the data agent.
 - Series colours are assigned by position (frost, steel, deep), never by the model.
@@ -308,7 +308,7 @@ Each button builds its own action from its type and ID prop (§8). The model nev
 
 `RefundForm(orderId, lineIds)`, `TicketStatus(ticketId)`. Owned by the refund subagent, rendered in `support:` tabs.
 
-### 7.9 Example (illustrative; the PoC confirms the exact Express syntax)
+### 7.9 Example (illustrative; the first demo confirms the exact Express syntax)
 
 A build:
 
@@ -490,19 +490,17 @@ No browser screenshots or headless-browser tests (the user's rule); UI is verifi
 - **Unit tests:** router tool-schema and brief validation; brief → pre-fetch; card derivation from a surface; the post-compile validator (unknown IDs, button safety, text limits, parent rules); every direct action handler, including `price_changed` and idempotency; template builders against golden A2UI messages; the history signal queries (cheaper since you looked, back in stock, still deciding, cart left behind).
 - **Web:** Vitest per catalog component with fixture data; the action registry (every action has exactly one kind).
 - **Replay mode:** `MODEL_MODE=live|replay`. In `replay`, the router and UI model are replaced by recorded outputs keyed by the command plus a hash of the relevant cards. Live demos in meetings cannot stall or vary, and backend tests run full runs deterministically. Recording happens in `live` mode with `MODEL_RECORD=1`.
-- **Model quality** (edit accuracy, blank rate, consistency, button safety): milestone 2 measures it; milestone 4 tracks it.
+- **Model quality** (edit accuracy, blank rate, consistency, button safety): the first demo checks button safety by test and edits by test and by eye; milestone 4 tracks all four.
 
-## 15. What the PoC (milestone 2) must also confirm
-
-Beyond the ten questions in `ROADMAP.md`:
+## 15. What the first demo (milestone 2) must confirm
 
 1. Express variable names become component IDs, so the model can name sections (`colour = …`).
 2. Rewriting `root` with a new child list re-renders `Page` but does not remount unchanged children.
 3. Express syntax for list-of-object props (`ProductShelf.items`).
 4. A custom React component can dispatch an A2UI action it builds itself (the button rule in §7.6).
 5. The decompiler round-trips our catalog, so edits can show the model its current page.
-6. Typical snapshot size for a comparison (the 256 KB limit is a guess).
-7. How often the one extra data-tool round fires (§3.3).
+
+Two questions wait for the milestone 3 slices that need them: typical snapshot size for a comparison (the 256 KB limit is a guess), with saved tabs; and how often the one extra data-tool round fires (§3.3), with the router.
 
 ## 16. Out of scope
 
@@ -519,9 +517,9 @@ Real authentication; payments (checkout takes no payment, as in the mockup); ref
 
 | Risk | Mitigation |
 |---|---|
-| The router misplaces answers (edits the wrong tab, rebuilds instead of switching) | Placement rules in the prompt; tab cards with `sections` and `last_change`; PoC Q5; telemetry per decision in `runs` |
+| The router misplaces answers (edits the wrong tab, rebuilds instead of switching) | Placement rules in the prompt; tab cards with `sections` and `last_change`; placement tests when the router slice is built; telemetry per decision in `runs` |
 | The For-you section invents reasons | Reasons must cite input signals; product IDs outside the candidates are rejected; first-run shoppers get a code-built section |
-| Express details differ from the docs (IDs, list props) | §15 checks them before the build; the catalog design does not depend on Express beyond named assignments |
+| Express details differ from the docs (IDs, list props) | The first demo checks them (§15) before the rest of the build; the catalog design does not depend on Express beyond named assignments |
 | Snapshots grow with edits | 256 KB limit; snapshots are compacted single `createSurface` messages, not message logs |
 | The data agent's real catalog lacks what components need (numeric specs, images) | §11 D, E and G, agreed before the build |
 | History feels creepy | First-party signals only, visible reasons, one-click Clear history |

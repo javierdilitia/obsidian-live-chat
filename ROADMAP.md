@@ -6,8 +6,8 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 |---|---|---|---|
 | 0 | Repo foundation | — | done |
 | 1 | Product spec | 0 | in progress |
-| 2 | A2UI PoC | 0 (runs alongside 1) | planned |
-| 3 | Build | 1, 2 | planned |
+| 2 | First working demo | 0 (runs alongside 1) | planned |
+| 3 | Build, slice by slice | 1, 2 | planned |
 | 4 | Analytics and observability | 2, 3 | planned |
 | 5 | CD to Azure, then subagents | 3 | planned |
 
@@ -36,33 +36,27 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 - A written spec covering catalog, actions, tab tools, tab cards, saved tabs and persistence.
 - Review the data contract with the data-agent teammate; changes agreed and recorded.
 
-## 2 — A2UI PoC
+## 2 — First working demo
+
+**Status:** planned — plan in `docs/superpowers/plans/2026-11-11-first-demo.md`
+
+**Goal:** the first slice of the real build, in the real packages (it stays). Instead of a separate measured PoC, we learn whether A2UI holds up by building on it. You type "Compare 3 laptops for video editing under €2,000", a tab opens and the Azure model builds the comparison with A2UI; "Add colour accuracy" edits it in place; "Add to cart" works with the price read on the server.
+
+**Exit criteria:**
+- The demo flow works end to end on our Azure deployment.
+- An edit changes only what was asked, and the untouched parts don't remount or replay their animation (a test, plus a check by eye).
+- The model never writes a price or an action; a page with an unknown product, an unnamed section or a misaimed button is rejected and retried once.
+- The fake dataset has 50 products.
+
+The detailed measurements once planned here (OpenUI comparison, 20-run accuracy, routing, consistency, grammar) are dropped. Each comes back only if building shows we need it.
+
+## 3 — Build, slice by slice
 
 **Status:** planned
 
-**Goal:** prove A2UI Express on our Azure Foundry models before building on it, with token and latency telemetry built in.
+**Goal:** the rest of the product spec, one slice at a time on top of the demo: several tabs and the router, saved tabs and history, the home page and For you, cart, checkout and orders, the language switch, the rest of the catalog.
 
-**Exit criteria:** answers, with numbers, to the ten PoC questions from [A2UI-DECISION §10](docs/research/A2UI-DECISION.md):
-1. Output tokens and wall-clock time per build and per edit, prompt cached, compared against an OpenUI run of the same tasks.
-2. Edit accuracy: "compare 3 laptops" → "add colour accuracy" → "only OLED" → "drop this one", 20 runs each; count wrong or extra changes, including the removal edit.
-3. Mount test: inserting a section mid-page remounts nothing else and replays no other animation.
-4. Blank-screen rate, and validation/repair behaviour with compiler errors fed back.
-5. Multi-tab routing: with two tabs open, "make the second one OLED only" edits the right surface via tab cards.
-6. Mock refund subagent: opens its own surface with a support catalog; an action from it round-trips to the backend.
-7. Saved-tab restore: card + snapshot costs no model calls; "buy" from a tab saved yesterday re-reads the current price server-side.
-8. Button safety: every generated button's action targets the product or order it displays.
-9. Consistency: same request + same tab gives the same page across runs.
-10. Optional: a Lark grammar from the catalog on GPT-5-series custom tools; does it cut invalid outputs?
-
-Also: extend the fake dataset to ~50 products.
-
-## 3 — Build
-
-**Status:** planned
-
-**Goal:** the real product. React port of the mockup (shell, catalog components, motion); Python backend (SSE transport, router, UI agent, Foundry client, action handler, validate-and-retry); commerce services (cart, saved items, checkout).
-
-**Exit criteria:** to be set by milestone 1's spec and milestone 2's results. Likely several plans (web, backend, commerce).
+**Exit criteria:** set per slice, each with its own plan.
 
 ## 4 — Analytics and observability
 
