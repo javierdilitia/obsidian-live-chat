@@ -6,7 +6,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 |---|---|---|---|
 | 0 | Repo foundation | — | done |
 | 1 | Product spec | 0 | in progress |
-| 2 | First working demo | 0 (runs alongside 1) | planned |
+| 2 | First working demo | 0 (runs alongside 1) | in progress — awaiting by-eye check |
 | 3 | Build, slice by slice | 1, 2 | planned |
 | 4 | Analytics and observability | 2, 3 | planned |
 | 5 | CD to Azure, then subagents | 3 | planned |
@@ -38,7 +38,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 2 — First working demo
 
-**Status:** planned — plan in `docs/superpowers/plans/2026-11-11-first-demo.md`
+**Status:** in progress — awaiting by-eye check. Built per `docs/superpowers/plans/2026-11-11-first-demo.md`; the last step is the four checks by eye in that plan's Task 6. How to run it: [README.md](README.md#run-the-demo).
 
 **Goal:** the first slice of the real build, in the real packages (it stays). Instead of a separate measured PoC, we learn whether A2UI holds up by building on it. You type "Compare 3 laptops for video editing under €2,000", a tab opens and the Azure model builds the comparison with A2UI; "Add colour accuracy" edits it in place; "Add to cart" works with the price read on the server.
 

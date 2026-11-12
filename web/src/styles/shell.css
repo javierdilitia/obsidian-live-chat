@@ -1,0 +1,566 @@
+/* OBSIDIAN · the demo shell, from mockup/css/chrome.css, hero.css, artifacts.css, overlays.css and
+   base.css: the shell bar and its seam, one tab, the command bar, the workspace, toasts and the one
+   disclaimer. The mockup's `body.tabs-on` is `.app.tabs-on` here. */
+
+.sprite {
+  position: absolute;
+}
+
+.col {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.caret {
+  caret-color: var(--steel);
+}
+
+/* ——— shell: the wordmark, the cart, and the agent's line under them ——— */
+.shell {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 56px;
+  z-index: 60;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  padding-left: 20px;
+  background: rgba(10, 10, 11, 0.82);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  user-select: none;
+  min-width: 0;
+}
+.wordmark .store {
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.wordmark .by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+  height: 20px;
+  font-size: 12px;
+  color: var(--tx-3);
+  white-space: nowrap;
+}
+
+.ledger {
+  display: flex;
+  align-items: stretch;
+}
+.cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 18px;
+  border-left: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tx);
+  white-space: nowrap;
+}
+.cell:last-child {
+  padding-right: 20px;
+}
+.cell .ico {
+  display: none;
+  color: var(--tx-2);
+  flex: none;
+}
+.fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--tx-3);
+}
+.fact b {
+  font-weight: 500;
+  color: var(--tx);
+}
+
+/* the cart value rises in when it changes */
+.roll {
+  position: relative;
+  overflow: hidden;
+}
+.roll > span {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+}
+.roll > .in {
+  animation: roll-in 0.42s var(--spring) both;
+}
+@keyframes roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(70%);
+    filter: blur(2px);
+  }
+}
+
+/* the agent's line: a hairline at rest; while a page builds a steel line fills it left to right */
+.seam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--line);
+}
+.seam::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--deep), var(--steel) 70%, var(--frost));
+  transform: scaleX(var(--p, 0));
+  opacity: var(--on, 0);
+  transition:
+    transform 0.9s var(--ease),
+    opacity 0.5s var(--ease);
+}
+/* at rest the fill fades out first, then empties unseen */
+.seam.rest::after {
+  transition:
+    opacity 0.5s var(--ease),
+    transform 0s linear 0.52s;
+}
+
+/* ——— stage ——— */
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-top: 56px;
+  min-height: 100vh;
+}
+.stage::before {
+  /* one quiet light source, top-left: the black glass sheen */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(1100px 520px at 18% -8%, rgba(156, 190, 224, 0.055), transparent 62%);
+}
+
+/* ——— browser chrome: the tab over the command bar. It sticks once the tab exists ——— */
+.chrome {
+  position: relative;
+  z-index: 40;
+}
+.tabs-on .chrome {
+  position: sticky;
+  top: 56px;
+}
+.collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.55s var(--ease);
+}
+.collapse.closed {
+  grid-template-rows: 0fr;
+}
+.collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* the line under the band is painted by the band, so the active tab can cover it */
+.tabband {
+  background:
+    linear-gradient(var(--line), var(--line)) bottom / 100% 1px no-repeat,
+    rgba(10, 10, 11, 0.92);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.tabbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 46px;
+  padding-top: 10px;
+}
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+}
+.tab {
+  position: relative;
+  flex: 0 1 214px;
+  min-width: 104px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  color: var(--tx-3);
+  animation: tab-in 0.55s var(--spring) both;
+}
+.tab.active {
+  background: var(--bg-panel);
+  border-color: var(--line);
+  color: var(--tx);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+@keyframes tab-in {
+  from {
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    min-width: 104px;
+    max-width: 214px;
+  }
+}
+.tab-main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  border-radius: 8px;
+  cursor: default;
+}
+.tab-main:focus-visible {
+  outline-offset: -2px;
+}
+.tab-t {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-ico {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--tx-3);
+}
+.tab.active .tab-ico {
+  color: var(--steel);
+}
+.tload {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(156, 190, 224, 0.22);
+  border-top-color: var(--steel);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ——— the landing line: folds away when the tab opens ——— */
+.hero-fold {
+  transition:
+    grid-template-rows 0.55s var(--ease),
+    opacity 0.4s var(--ease);
+}
+.tabs-on .hero-fold {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+.hero {
+  padding-bottom: 32px;
+}
+.hero h1 {
+  font-size: clamp(32px, 4vw, 50px);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.hero h1 span {
+  display: block;
+  color: var(--tx-3);
+}
+
+/* ——— command bar: the address bar of this browser ——— */
+.toolbar {
+  padding: var(--lift) 0 0;
+  border-bottom: 1px solid transparent;
+  transition:
+    padding 0.55s var(--ease),
+    background 0.45s var(--ease),
+    border-color 0.45s var(--ease);
+}
+.tabs-on .toolbar {
+  padding: 10px 0;
+  background: var(--bg-panel);
+  border-bottom-color: var(--line);
+}
+.capsule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 58px;
+  padding: 0 10px 0 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  transition:
+    height 0.55s var(--ease),
+    border-color 0.25s var(--ease),
+    box-shadow 0.25s var(--ease),
+    background 0.25s var(--ease);
+}
+.tabs-on .capsule {
+  height: 48px;
+  padding-left: 18px;
+  padding-right: 6px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+.capsule:focus-within {
+  border-color: rgba(156, 190, 224, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 0 0 4px rgba(156, 190, 224, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 18px 40px -28px rgba(0, 0, 0, 0.9);
+}
+.capsule .spark {
+  color: var(--steel);
+  flex: none;
+}
+.capsule input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: var(--tx);
+  height: 100%;
+  text-overflow: ellipsis;
+}
+.capsule input:disabled {
+  color: var(--tx-2);
+}
+.tabs-on .capsule input {
+  font-size: 15px;
+}
+.capsule input::placeholder {
+  color: var(--tx-3);
+}
+/* the state field: what the agent is doing, or why it couldn't */
+.cap-state {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tx-3);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(6px);
+  transition:
+    opacity 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.cap-state.on {
+  opacity: 1;
+  transform: none;
+}
+.cap-state b {
+  font-weight: 400;
+  color: var(--steel);
+}
+.cap-state .err {
+  color: var(--tx-2);
+}
+.send {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--tx-3);
+  border: 1px solid var(--line);
+  transition: all 0.25s var(--ease);
+}
+.tabs-on .send {
+  width: 36px;
+  height: 36px;
+}
+.send:disabled {
+  cursor: default;
+}
+.send.ready {
+  background: var(--steel);
+  border-color: var(--steel);
+  color: var(--ink);
+}
+.send.ready:hover {
+  background: var(--frost);
+  border-color: var(--frost);
+}
+.send:not(.ready, :disabled):hover {
+  border-color: var(--line-strong);
+  color: var(--tx);
+}
+
+/* ——— the workspace that holds the page ——— */
+.workspace {
+  flex: 1;
+  position: relative;
+  padding-top: 28px;
+  padding-bottom: 72px;
+}
+.tabs-on .workspace {
+  padding-top: 22px;
+  min-height: calc(100vh - 220px);
+}
+
+/* ——— the one disclaimer: the store's small print, under everything ——— */
+.demo-note {
+  padding-bottom: 28px;
+  margin-top: -44px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--tx-3);
+  text-align: center;
+}
+
+/* ——— toasts ——— */
+.toasts {
+  position: fixed;
+  z-index: 120;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: var(--bg-raise);
+  border: 1px solid var(--line-strong);
+  font-size: 13.5px;
+  color: var(--tx);
+  box-shadow: var(--shadow-modal);
+  animation: toast-in 0.45s var(--spring) both;
+  white-space: nowrap;
+  max-width: 92vw;
+}
+.toast svg {
+  flex: none;
+}
+.toast.out {
+  animation: toast-out 0.3s var(--ease) both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.95);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@media (max-width: 860px) {
+  :root {
+    --lift: 28px;
+  }
+  .shell {
+    padding-left: 14px;
+  }
+  .cell {
+    padding: 0 13px;
+    gap: 7px;
+  }
+  .cell:last-child {
+    padding-right: 14px;
+  }
+  .cell .lbl,
+  .fact .wide,
+  .wordmark .by {
+    display: none;
+  }
+  .cell .ico {
+    display: block;
+  }
+  .tab {
+    flex: 0 0 156px;
+    min-width: 0;
+  }
+  @keyframes tab-in {
+    from {
+      max-width: 0;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      max-width: 156px;
+    }
+  }
+}
+@media (max-width: 520px) {
+  .col {
+    padding: 0 16px;
+  }
+  .cell {
+    padding: 0 11px;
+  }
+  .cap-state {
+    max-width: 40%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tload {
+    animation: none;
+    border-color: var(--steel);
+  }
+}

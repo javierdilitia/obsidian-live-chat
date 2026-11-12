@@ -78,11 +78,48 @@ export const LAPTOPS: Product[] = [
 ];
 
 /**
- * Stubs `fetch` with the two endpoints the components call; `products` is the catalog. The first
- * `failProducts` product requests answer 503.
+ * A `POST /api/runs` answer: each event as one `data:` frame, cut into `chunkSize`-byte pieces so
+ * frames (and the bytes of a "€") split across reads, as they can on the wire.
  */
-export function mockApi(products: Product[] = LAPTOPS, { failProducts = 0 } = {}) {
+export function sseResponse(events: readonly unknown[], chunkSize = 61): Response {
+  const bytes = new TextEncoder().encode(
+    events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+  );
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (let at = 0; at < bytes.length; at += chunkSize) {
+        controller.enqueue(bytes.slice(at, at + chunkSize));
+      }
+      controller.close();
+    },
+  });
+  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+}
+
+interface MockApiOptions {
+  /** The first `failProducts` product requests answer 503. */
+  failProducts?: number;
+  /** One event list per `POST /api/runs`, in order; a run past the list answers 503. */
+  runs?: readonly (readonly unknown[])[];
+}
+
+/**
+ * Stubs `fetch` with the endpoints the app calls; `products` is the catalog. `cart.add` adds one of
+ * a product to an in-memory cart and answers with the cart, as the server does.
+ */
+export function mockApi(
+  products: Product[] = LAPTOPS,
+  { failProducts = 0, runs = [] }: MockApiOptions = {},
+) {
   let failures = failProducts;
+  const pendingRuns = [...runs];
+  const cart = new Map<string, number>();
+  const cartLines = () =>
+    [...cart].flatMap(([productId, qty]) =>
+      products
+        .filter((p) => p.id === productId)
+        .map((p) => ({ productId, name: p.name, qty, price_cents: p.price_cents })),
+    );
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input), "http://halden.test");
     if (url.pathname === "/api/catalog/products") {
@@ -95,8 +132,20 @@ export function mockApi(products: Product[] = LAPTOPS, { failProducts = 0 } = {}
       const missing = ids.filter((id) => !products.some((p) => p.id === id));
       return Promise.resolve(Response.json({ products: found, missing }));
     }
+    if (url.pathname === "/api/runs" && init?.method === "POST") {
+      const events = pendingRuns.shift();
+      return Promise.resolve(events ? sseResponse(events) : new Response(null, { status: 503 }));
+    }
     if (url.pathname === "/api/actions" && init?.method === "POST") {
-      return Promise.resolve(Response.json({ ok: true, cart: [] }));
+      const body = typeof init.body === "string" ? init.body : "{}";
+      const action = JSON.parse(body) as { context: { productId?: string } };
+      const product = products.find((p) => p.id === action.context.productId);
+      if (!product) {
+        const error = { code: "not_found", message: "This product is no longer available." };
+        return Promise.resolve(Response.json({ ok: false, cart: cartLines(), error }));
+      }
+      cart.set(product.id, (cart.get(product.id) ?? 0) + 1);
+      return Promise.resolve(Response.json({ ok: true, cart: cartLines() }));
     }
     return Promise.resolve(new Response(null, { status: 404 }));
   });

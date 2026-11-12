@@ -18,8 +18,6 @@ import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "rea
 import { z } from "zod";
 import type { Product, ProductMap } from "../lib/products";
 import { useProducts } from "../lib/products";
-import "../styles/fonts.css";
-import "../styles/tokens.css";
 import "../styles/page.css";
 import { seriesColour, useGlow, useRise } from "./motion";
 import { probeEnabled, useMountCounts, useMountProbe } from "./probe";
@@ -154,7 +152,7 @@ const euro = new Intl.NumberFormat("en-IE", {
 const euroCents = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" });
 const count = new Intl.NumberFormat("en-IE");
 
-function formatPrice(cents: number): string {
+export function formatPrice(cents: number): string {
   return cents % 100 === 0 ? euro.format(cents / 100) : euroCents.format(cents / 100);
 }
 
