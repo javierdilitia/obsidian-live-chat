@@ -53,19 +53,21 @@ The detailed measurements once planned here (OpenUI comparison, 20-run accuracy,
 
 ## 3 — Build, slice by slice
 
-**Status:** planned
+**Status:** planned — split into eight slices in [`docs/superpowers/plans/2026-11-12-milestone-3-slices.md`](docs/superpowers/plans/2026-11-12-milestone-3-slices.md), which also lists the open questions for the user. Slice 1 has its task plan: [`2026-11-12-slice-1-cartridge-boundary.md`](docs/superpowers/plans/2026-11-12-slice-1-cartridge-boundary.md).
 
 **Goal:** the rest of the product spec, one slice at a time on top of the demo: several tabs and the router, saved tabs and history, the home page and For you, cart, checkout and orders, the language switch, the rest of the catalog. Built cartridge-ready: Obsidian core holds no Halden specifics (the seams listed in `docs/ARCHITECTURE.md` move into the Halden cartridge), so Haier and later clients plug in without core changes.
 
-**Exit criteria:** set per slice, each with its own plan.
+**Slices, in build order:** 1 cartridge boundary and page fixes · 2 store, session and the action mechanism · 3 language (EN and ES) · 4 the rest of the generated catalog · 5 tabs and the router · 6 history and restore · 7 saved items, checkout and orders · 8 signals, home page and For you.
 
-**Inputs for milestone 3** (from trying the demo and from its reviews; each goes to a slice when milestone 3 is split):
-- More than 4 products: a shelf and a spec table hold 2–4, so "show 5 laptops" builds two stacked comparisons (3 + 2). Decide between an explore page (`ProductGrid`, 2–8 tiles) and wider comparisons that scroll sideways.
-- Placement: on an edit the model put the new section last instead of where it fits (after the shelf); the build's charts can already cover what a later edit adds.
-- Runs: a new command should cancel the one in flight (spec §3.5); today it waits, with the command bar disabled.
-- Validator: section placement under `Page` (spec §7.1), numeric spec keys for charts, known spec keys for tables, duplicate product IDs.
-- Search tool: the agent's `search_products` tool still describes `text` as one word and doesn't offer `sort`; offer multi-word text and `sort` ("cheapest OLED laptop") now that the contract supports them.
-- Actions: check `surfaceId` and `sourceComponentId` (spec §8.1); in `cart.add`, read the quantity after the catalog call before the real data source arrives.
+**Exit criteria:** set per slice in the slices document; each slice gets its own task plan when it starts.
+
+**Inputs for milestone 3** (from trying the demo and from its reviews; the slice that takes each is in brackets):
+- [Slice 4, [issue #8](https://github.com/javierdilitia/obsidian-live-chat/issues/8), closed by slice 4's PR] More than 4 products: a shelf and a spec table hold 2–4, so "show 5 laptops" builds two stacked comparisons (3 + 2). Decided (2026-11-12): five or more products open an explore page whose grid pages; product components that can scroll sideways are not tied to 2–4 products; slice 4's plan settles which limits stay and the mobile behaviour.
+- [Slice 1] Placement: on an edit the model put the new section last instead of where it fits (after the shelf); the build's charts can already cover what a later edit adds.
+- [Slice 5] Runs: a new command should cancel the one in flight (spec §3.5); today it waits, with the command bar disabled.
+- [Slice 1] Validator: section placement under `Page` (spec §7.1), numeric spec keys for charts, known spec keys for tables, duplicate product IDs.
+- [Slice 1] Search tool: the agent's `search_products` tool still describes `text` as one word and doesn't offer `sort`; offer multi-word text and `sort` ("cheapest OLED laptop") now that the contract supports them.
+- [Slice 2] Actions: check `surfaceId` and `sourceComponentId` (spec §8.1); in `cart.add`, read the quantity after the catalog call before the real data source arrives.
 
 ## 4 — Analytics and observability
 
