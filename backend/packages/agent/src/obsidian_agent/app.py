@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, cast
 
+import anyio
 from fastapi import Depends, FastAPI, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from openai import AsyncAzureOpenAI
@@ -64,6 +65,8 @@ RUN_TIMEOUT_S = 150.0
 MAX_OUTPUT_TOKENS = 16_000
 TITLE_LIMIT = 60
 DATABASE_SETTING = "OBSIDIAN_DATABASE_URL"
+# The most of one product a cart line takes; also keeps a quantity inside a database integer.
+MAX_CART_QTY = 999
 
 
 def azure_model(settings: Settings) -> AzureModel:
@@ -187,6 +190,8 @@ def create_app(
     catalog: CatalogSource = cartridge.make_source()
     # One run at a time per shopper: a second command waits for the first to finish.
     run_locks: dict[str, asyncio.Lock] = {}
+    # One action at a time per request ID (idempotency inside this process).
+    request_locks: dict[str, asyncio.Lock] = {}
     models: list[ModelClient] = [model] if model is not None else []
     # The model's name for the `runs` row: the deployment, or a test model's class name.
     model_names: list[str] = [type(model).__name__] if model is not None else []
@@ -273,10 +278,13 @@ def create_app(
                     started_at=started_at,
                     finished_at=datetime.now(UTC),
                 )
-                try:
-                    await the_store.record_run(run)
-                except Exception:
-                    log.exception("run %s: could not record the run", run_id)
+                # Shielded: when the client goes away the stream is cancelled, and an unshielded
+                # write would be cancelled with it, losing the run's row.
+                with anyio.CancelScope(shield=True):
+                    try:
+                        await the_store.record_run(run)
+                    except Exception:
+                        log.exception("run %s: could not record the run", run_id)
 
     async def run_steps(
         command: str, user: User, run_id: str, state: _RunState
@@ -398,7 +406,6 @@ def create_app(
         """Direct actions, checked in order: a known name, of kind `direct`, a `requestId`, a
         stored answer for that ID (returned as it was), a source allowed to send it. Then the
         handler runs and its answer is stored. Rejections before the handler are not stored."""
-        the_store = await ready()
         name = request.name
         spec = ACTIONS.get(name)
         if spec is None:
@@ -409,6 +416,24 @@ def create_app(
         request_id = request.context.get("requestId")
         if not isinstance(request_id, str) or not request_id:
             return await action_error(user.id, "invalid", f"{name} needs a requestId.")
+        # One request ID at a time: a duplicate sent while the first is running waits for its
+        # stored answer instead of running the handler again.
+        lock = request_locks.setdefault(request_id, asyncio.Lock())
+        try:
+            async with lock:
+                return await run_once(request, response, user, request_id)
+        finally:
+            if not lock.locked() and request_locks.get(request_id) is lock:
+                del request_locks[request_id]
+
+    async def run_once(
+        request: ActionRequest, response: Response, user: User, request_id: str
+    ) -> dict[str, Any]:
+        """The stored answer for `request_id`, or the source check, the handler and its answer
+        stored."""
+        the_store = await ready()
+        spec = ACTIONS[request.name]
+        name = request.name
         now = datetime.now(UTC)
         stored = await the_store.action_result(request_id, since=now - ACTION_RESULT_TTL)
         if stored is not None:
@@ -458,8 +483,9 @@ def create_app(
         if name != "cart.set_qty":
             return await action_error(user.id, "invalid", f"{name} has no handler.")
         qty = context.get("qty")
-        if isinstance(qty, bool) or not isinstance(qty, int) or qty < 0:
-            return await action_error(user.id, "invalid", "cart.set_qty needs a qty of 0 or more.")
+        if isinstance(qty, bool) or not isinstance(qty, int) or not 0 <= qty <= MAX_CART_QTY:
+            message = f"cart.set_qty needs a qty from 0 to {MAX_CART_QTY}."
+            return await action_error(user.id, "invalid", message)
         if qty == 0:
             await the_store.remove_from_cart(user.id, product_id)
             return {"ok": True, "cart": await cart_lines(user.id)}

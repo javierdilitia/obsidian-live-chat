@@ -178,6 +178,41 @@ async def test_interleaved_adds_take_the_last_item_once() -> None:
     assert [(line.product_id, line.qty) for line in lines] == [("aeris-studio-16", 1)]
 
 
+class _SlowRead(FakeCatalogSource):
+    """Each product read takes a moment, so a second request arrives while the first is in it."""
+
+    async def get_product(self, product_id: str) -> Product:
+        await asyncio.sleep(0.05)
+        return await super().get_product(product_id)
+
+
+async def test_the_same_request_twice_at_once_runs_once() -> None:
+    store = MemoryStore()
+    app = _app(store, source=_SlowRead())
+    tab = await store.create_tab(
+        "demo-user", surface_id="shop:1", kind="compare", card={}, language="en"
+    )
+    button = {"id": "buy", "component": "AddToCartButton", "productId": "aeris-studio-16"}
+    page = {"createSurface": {"surfaceId": "shop:1", "components": [button]}}
+    await store.save_tab(tab.id, card={}, snapshot=page, product_facts={}, run_id="r")
+    body = {
+        "name": "cart.add",
+        "surfaceId": "shop:1",
+        "sourceComponentId": "buy",
+        "context": {"productId": "aeris-studio-16", "requestId": "same"},
+    }
+
+    transport = httpx2.ASGITransport(app=app)
+    async with httpx2.AsyncClient(transport=transport, base_url="http://test") as client:
+        first, second = await asyncio.gather(
+            client.post("/api/actions", json=body), client.post("/api/actions", json=body)
+        )
+
+    assert first.json() == second.json()
+    lines = await store.cart("demo-user")
+    assert [(line.product_id, line.qty) for line in lines] == [("aeris-studio-16", 1)]
+
+
 def test_vanished_product_leaves_the_stored_cart() -> None:
     store = MemoryStore()
     asyncio.run(store.add_to_cart("demo-user", "ghost-laptop-99", stock=5))

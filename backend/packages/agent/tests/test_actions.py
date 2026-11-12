@@ -466,6 +466,9 @@ def test_remove_and_zero_qty() -> None:
         ("cart.set_qty", {"productId": "aeris-studio-16", "qty": -1}, "invalid"),
         ("cart.set_qty", {"productId": "aeris-studio-16", "qty": "2"}, "invalid"),
         ("cart.set_qty", {"productId": "aeris-studio-16", "qty": True}, "invalid"),
+        # past any real cart and past a database integer: refused before the store sees it
+        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": 10**10}, "invalid"),
+        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": 1000}, "invalid"),
         ("cart.set_qty", {"productId": "ghost-laptop-99", "qty": 1}, "not_found"),
         ("cart.remove", {}, "invalid"),
     ],

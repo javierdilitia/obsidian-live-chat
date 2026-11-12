@@ -1,8 +1,11 @@
 """Every run, whatever its end, writes one `runs` row: outcome, tokens, timing, retries."""
 
 import asyncio
+import contextlib
 from pathlib import Path
+from typing import Any
 
+import httpx2
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -105,3 +108,38 @@ def test_a_tool_round_is_recorded() -> None:
     assert run.outcome == "ok"
     assert run.tool_round_used is True
     assert run.tokens_in == 200
+
+
+class _SlowStore(MemoryStore):
+    """A store whose writes take a moment, as a database's do."""
+
+    async def record_run(self, run: RunRecord) -> None:
+        await asyncio.sleep(0.01)
+        await super().record_run(run)
+
+
+class _Hangs:
+    """A model that never answers."""
+
+    async def call(self, **_kwargs: Any) -> ModelResult:
+        await asyncio.sleep(30)
+        raise AssertionError("the client should have gone")
+
+
+async def test_a_dropped_stream_still_records_a_cancelled_run() -> None:
+    store = _SlowStore()
+    app = _app(store, _Hangs())
+    transport = httpx2.ASGITransport(app=app)
+    async with httpx2.AsyncClient(transport=transport, base_url="http://test") as client:
+        request = asyncio.create_task(client.post("/api/runs", json={"command": "Compare"}))
+        await asyncio.sleep(0.2)
+        request.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await request
+    for _ in range(50):
+        if await store.runs("demo-user"):
+            break
+        await asyncio.sleep(0.02)
+    (run,) = await store.runs("demo-user")
+    assert run.outcome == "cancelled"
+    assert run.tab_id is not None
