@@ -1,23 +1,30 @@
 """The shopper's language: stored per user, set from the shell's language menu through the
 checked action path, kept across a restart, and carried into every run."""
 
+import asyncio
+import copy
+import json
 import uuid
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import obsidian_agent.app as app_module
 from halden_data_fake import FakeCatalogSource
 from obsidian_agent.app import create_app
 from obsidian_agent.model import ModelResult, ScriptedModel, Usage
 from obsidian_agent.session import SESSION_COOKIE, sign
 from obsidian_data_contract import Cartridge
-from obsidian_store import MemoryStore
+from obsidian_store import MemoryStore, TabRecord
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BUILD = (FIXTURES / "build.a2ui").read_text(encoding="utf-8")
 EDIT = (FIXTURES / "edit_add_colour.a2ui").read_text(encoding="utf-8")
+# The build block as an edit: it defines every section again.
+REWRITE = BUILD.replace("<a2ui>\n", "<a2ui>\nsurface(update=true)\n", 1)
 KEY = b"test-session-key"
 
 
@@ -31,10 +38,10 @@ def _reply(text: str) -> ModelResult:
     )
 
 
-def _app(store: MemoryStore, *texts: str) -> FastAPI:
+def _app(store: MemoryStore, *texts: str, model: Any = None) -> FastAPI:
     catalog = FakeCatalogSource()
     return create_app(
-        model=ScriptedModel([_reply(text) for text in texts]),
+        model=model or ScriptedModel([_reply(text) for text in texts]),
         cartridge=Cartridge("halden", "Halden", lambda: catalog),
         store=store,
         session_key=KEY,
@@ -135,3 +142,99 @@ def test_chosen_language_survives_a_restart() -> None:
     after = _as(TestClient(_app(store)), "ana")
 
     assert _language(after) == "en"
+
+
+# Runs
+
+
+def _run(client: TestClient, command: str) -> str:
+    response = client.post("/api/runs", json={"command": command})
+    assert response.status_code == 200
+    return response.text
+
+
+def _tab(store: MemoryStore, user_id: str) -> TabRecord:
+    (tab,) = asyncio.run(store.open_tabs(user_id))
+    return tab
+
+
+def _inputs(model: ScriptedModel) -> list[str]:
+    return [json.dumps(call["input"], ensure_ascii=False) for call in model.calls]
+
+
+def test_a_run_writes_in_the_shoppers_language() -> None:
+    store = MemoryStore()
+    model = ScriptedModel([_reply(BUILD)])
+    client = _as(TestClient(_app(store, model=model)), "ana")
+
+    assert '"RUN_FINISHED"' in _run(client, "Compara portátiles")
+
+    assert "Write every text on the page in Spanish." in _inputs(model)[0]
+    assert _tab(store, "ana").language == "es"
+
+
+def test_switching_language_leaves_the_tab_alone() -> None:
+    store = MemoryStore()
+    client = _as(TestClient(_app(store, BUILD)), "demo-user")
+    assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
+    before = copy.deepcopy(_tab(store, "demo-user"))
+
+    assert _set_language(client, "es")["ok"]
+
+    after = _tab(store, "demo-user")
+    assert after.language == "en"
+    assert after.snapshot == before.snapshot
+
+
+def test_an_edit_takes_the_current_language() -> None:
+    store = MemoryStore()
+    model = ScriptedModel([_reply(BUILD), _reply(REWRITE)])
+    client = _as(TestClient(_app(store, model=model)), "demo-user")
+    assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
+    assert _set_language(client, "es")["ok"]
+
+    assert '"RUN_FINISHED"' in _run(client, "Añade la precisión de color")
+
+    assert _tab(store, "demo-user").language == "es"
+    assert "Define every section" in _inputs(model)[1]
+
+
+def test_a_failed_edit_keeps_the_tab_language() -> None:
+    store = MemoryStore()
+    client = _as(TestClient(_app(store, BUILD, "no block", "still no block")), "demo-user")
+    assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
+    built = copy.deepcopy(_tab(store, "demo-user").snapshot)
+    assert _set_language(client, "es")["ok"]
+
+    assert '"edit_failed"' in _run(client, "Añade la precisión de color")
+
+    tab = _tab(store, "demo-user")
+    assert tab.language == "en" and tab.snapshot == built
+
+
+class _SlowEdit:
+    """Builds the page at once, then takes forever over the edit."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def call(self, **_kwargs: Any) -> ModelResult:
+        self.calls += 1
+        if self.calls == 1:
+            return _reply(BUILD)
+        await asyncio.sleep(30)
+        raise AssertionError("the run should have timed out")
+
+
+def test_a_timed_out_edit_keeps_the_tab_language(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(app_module, "RUN_TIMEOUT_S", 0.05)
+    store = MemoryStore()
+    client = _as(TestClient(_app(store, model=_SlowEdit())), "demo-user")
+    assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
+    built = copy.deepcopy(_tab(store, "demo-user").snapshot)
+    assert _set_language(client, "es")["ok"]
+
+    assert '"timeout"' in _run(client, "Añade la precisión de color")
+
+    tab = _tab(store, "demo-user")
+    assert tab.language == "en" and tab.snapshot == built

@@ -62,7 +62,14 @@ async def test_build_ok() -> None:
     model = ScriptedModel([_reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     assert result.ok and result.error is None and result.attempts == 1
@@ -82,6 +89,8 @@ async def test_edit_shows_the_current_page_and_sends_only_the_change() -> None:
         surface_id=SURFACE,
         command=EDIT_COMMAND,
         current=current,
+        language="en",
+        page_language="en",
     )
 
     assert result.ok
@@ -96,7 +105,14 @@ async def test_unknown_product_retries_with_feedback() -> None:
     model = ScriptedModel([_reply(ghost), _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     assert result.ok and result.attempts == 2
@@ -110,7 +126,14 @@ async def test_length_stop_is_a_failure() -> None:
     model = ScriptedModel([_reply(_block("build.a2ui"), stop="length")] * 2)
 
     result = await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     assert not result.ok and result.attempts == 2
@@ -137,7 +160,14 @@ async def test_length_stop_does_not_echo_cut_off_items() -> None:
     model = ScriptedModel([cut_off, _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     assert result.ok and result.attempts == 2
@@ -157,6 +187,8 @@ async def test_failed_edit_returns_the_current_page() -> None:
         surface_id=SURFACE,
         command=EDIT_COMMAND,
         current=current,
+        language="en",
+        page_language="en",
     )
 
     assert not result.ok and result.attempts == 2 and result.messages == []
@@ -172,7 +204,14 @@ item = Verdict(text="hi")
     model = ScriptedModel([_reply(template), _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     assert result.ok and result.attempts == 2
@@ -185,7 +224,14 @@ async def test_tool_round_then_page() -> None:
     model = ScriptedModel([_tool_round(search, fetch), _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     assert result.ok and result.attempts == 1
@@ -222,7 +268,14 @@ async def test_tool_rounds_are_capped_at_two() -> None:
     )
 
     result = await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     # Tools stay on offer (the history holds tool calls), but a third round is refused unrun.
@@ -264,7 +317,14 @@ async def test_search_with_words_and_price_sort() -> None:
     model = ScriptedModel([_tool_round(search), _reply(_block("build.a2ui"))])
 
     await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     found = _outputs(model.calls[1])["call-1"]["products"]
@@ -277,7 +337,14 @@ async def test_search_rejects_an_unknown_sort() -> None:
     model = ScriptedModel([_tool_round(search), _reply(_block("build.a2ui"))])
 
     await build_page(
-        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
 
     assert _outputs(model.calls[1])["call-1"]["error"].startswith("Invalid arguments: sort")
@@ -294,10 +361,24 @@ async def test_system_prompt_is_fixed() -> None:
     source = FakeCatalogSource()
 
     built = await build_page(
-        model, source, tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        source,
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
     await build_page(
-        model, source, tools=TOOLS, surface_id=SURFACE, command=EDIT_COMMAND, current=built.snapshot
+        model,
+        source,
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=EDIT_COMMAND,
+        current=built.snapshot,
+        language="en",
+        page_language="en",
     )
 
     assert {call["system"] for call in model.calls} == {SYSTEM_PROMPT}
@@ -346,7 +427,14 @@ async def test_live_build_then_edit() -> None:
 
     started = time.perf_counter()
     built = await build_page(
-        model, source, tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+        model,
+        source,
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="en",
+        page_language=None,
     )
     print(model.report(f"build (attempts {built.attempts})", time.perf_counter() - started))
     assert built.ok, built.error
@@ -354,7 +442,14 @@ async def test_live_build_then_edit() -> None:
 
     started = time.perf_counter()
     edited = await build_page(
-        model, source, tools=TOOLS, surface_id=SURFACE, command=EDIT_COMMAND, current=built.snapshot
+        model,
+        source,
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=EDIT_COMMAND,
+        current=built.snapshot,
+        language="en",
+        page_language="en",
     )
     print(model.report(f"edit (attempts {edited.attempts})", time.perf_counter() - started))
     assert edited.ok, edited.error
@@ -367,3 +462,90 @@ async def test_live_build_then_edit() -> None:
 def _sections(snapshot: Snapshot) -> list[str]:
     root = next(c for c in snapshot["createSurface"]["components"] if c["id"] == "root")
     return root["children"]
+
+
+# Language
+
+
+def _rewritten() -> str:
+    """The build block as an edit: it defines every section again."""
+    return _block("build.a2ui").replace("<a2ui>\n", "<a2ui>\nsurface(update=true)\n", 1)
+
+
+async def test_build_names_the_language() -> None:
+    model = ScriptedModel([_reply(_block("build.a2ui"))])
+
+    await build_page(
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=COMMAND,
+        current=None,
+        language="es",
+        page_language=None,
+    )
+
+    first = model.calls[0]
+    assert first["input"][0]["content"].endswith("Write every text on the page in Spanish.")
+    assert first["system"] == SYSTEM_PROMPT
+
+
+async def test_edit_in_the_same_language_asks_only_for_the_change() -> None:
+    model = ScriptedModel([_reply(_block("edit_add_colour.a2ui"))])
+
+    result = await build_page(
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=EDIT_COMMAND,
+        current=_built(),
+        language="en",
+        page_language="en",
+    )
+
+    assert result.ok
+    assert "Define every section" not in json.dumps(model.calls[0]["input"], ensure_ascii=False)
+
+
+async def test_edit_in_a_new_language_must_redefine_every_section() -> None:
+    model = ScriptedModel([_reply(_block("edit_add_colour.a2ui")), _reply(_rewritten())])
+
+    result = await build_page(
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=EDIT_COMMAND,
+        current=_built(),
+        language="es",
+        page_language="en",
+    )
+
+    assert result.ok and result.attempts == 2
+    first = json.dumps(model.calls[0]["input"], ensure_ascii=False)
+    assert "This page is written in English; the shopper now reads Spanish." in first
+    retry = json.dumps(model.calls[1]["input"], ensure_ascii=False)
+    assert "these were left out: verdict, shelf, specs, charts" in retry
+
+
+async def test_language_change_that_never_redefines_fails() -> None:
+    model = ScriptedModel(
+        [_reply(_block("edit_add_colour.a2ui")), _reply(_block("edit_add_colour.a2ui"))]
+    )
+    current = _built()
+
+    result = await build_page(
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=EDIT_COMMAND,
+        current=current,
+        language="es",
+        page_language="en",
+    )
+
+    assert result.ok is False
+    assert result.snapshot == current

@@ -315,6 +315,8 @@ def create_app(
             yield {"type": "CUSTOM", "name": "tab_opened", "value": value}
         state.tab_id = tab.id
         current = tab.snapshot
+        # The run writes in the language the shopper reads as it starts; saving stamps the tab.
+        language = user.language
         failed = ("build_failed", "Couldn't build this page.")
         if current is not None:
             failed = ("edit_failed", "Couldn't change this page.")
@@ -327,6 +329,8 @@ def create_app(
                     surface_id=tab.surface_id,
                     command=command,
                     current=current,
+                    language=language,
+                    page_language=tab.language if current is not None else None,
                 )
         except ModelFailed as error:
             log.warning("run %s: unusable model response: %s", run_id, error)
@@ -362,7 +366,7 @@ def create_app(
             snapshot=result.snapshot,
             product_facts=facts,
             run_id=run_id,
-            language=tab.language,
+            language=language,
         )
         log.info("run %s: saved a page of %d bytes", run_id, page_size_bytes(result.snapshot))
         state.outcome = "ok"

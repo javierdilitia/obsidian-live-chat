@@ -32,7 +32,16 @@ page, or that changes the page the shopper already has.
 - A good comparison: a `Verdict` naming the pick with one primary `AddToCartButton` for it, a
   `ProductShelf` of two to four products with a tag each, a `SpecTable`, and a `ChartGrid` of one
   or two `BarChart`s on the specs that matter for the shopper's need.
-- Write short, plain English. Stay inside every text limit in the signatures.
+- Stay inside every text limit in the signatures.
+
+## Language
+
+- Write all text (titles, kickers, verdicts, tags, chart titles, notes), short and plain, in
+  the language the request names.
+- Spanish is Spain's Spanish: address the shopper as *tú*, and use Spain's number style in
+  prose. Never write a price: prices come from the catalog.
+- When the request says the page's language changed, define every section in `root`'s children
+  again, in the new language. That is the one time an unchanged section is repeated.
 
 ## Change a page
 
@@ -41,7 +50,8 @@ When the input shows the current page, the shopper wants that page changed:
 - Start the block with `surface(update=true)`.
 - Write `root = Page(...)` again with its full new `children` list.
 - Define only the sections that are new or changed. Leave out every section that stays as it is:
-  naming it in `root`'s children keeps it. Never repeat an unchanged section.
+  naming it in `root`'s children keeps it. Never repeat an unchanged section,
+  unless the request says the page's language changed.
 - Keep the existing section names. A changed section keeps its name; a new one gets a new name.
 - To remove a section, leave it out of `root`'s children.
 - Put a new section where it fits in reading order, right after the section it extends (a chart

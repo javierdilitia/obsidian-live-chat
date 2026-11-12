@@ -26,6 +26,7 @@ from obsidian_agent.a2ui_adapter import (
     decompile,
     prompt_snippet,
 )
+from obsidian_agent.language import LANGUAGES
 from obsidian_agent.model import ModelClient, ModelResult, ToolCall
 from obsidian_agent.validate import (
     issues_for_model,
@@ -153,15 +154,21 @@ async def build_page(
     surface_id: str,
     command: str,
     current: Snapshot | None,
+    language: str,
+    page_language: str | None,
 ) -> BuildResult:
     """Builds the page for `command`, or edits `current` when there is one.
 
     `tools` is `page_tools(...)`, built once per app so every call offers the same tools.
+    `language` is the shopper's; `page_language` is the language `current` is written in (`None`
+    for a new page). An edit into another language must define every section again.
 
     Raises whatever the model client raises (`ModelFailed`, network errors): the caller reports
     those as a run error.
     """
-    history: list[dict[str, Any]] = [{"role": "user", "content": _request(command, current)}]
+    rewrite_all = current is not None and page_language != language
+    request = _request(command, current, language=language, page_language=page_language)
+    history: list[dict[str, Any]] = [{"role": "user", "content": request}]
     tool_rounds = MAX_TOOL_ROUNDS
     feedback = ""
     for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -170,7 +177,12 @@ async def build_page(
         reply, tool_rounds = await _reply(model, source, tools, history, tool_rounds)
         try:
             messages, snapshot, products = await _accept(
-                reply, source, surface_id=surface_id, current=current
+                reply,
+                source,
+                surface_id=surface_id,
+                current=current,
+                rewrite_all=rewrite_all,
+                language=language,
             )
         except _Rejected as rejected:
             feedback = rejected.feedback
@@ -180,12 +192,24 @@ async def build_page(
     return BuildResult(False, [], current, MAX_ATTEMPTS, feedback)
 
 
-def _request(command: str, current: Snapshot | None) -> str:
+def _request(
+    command: str, current: Snapshot | None, *, language: str, page_language: str | None
+) -> str:
+    name = LANGUAGES[language]
+    write_in = f"Write every text on the page in {name}."
     if current is None:
-        return f"Build a page for this command:\n{command}"
-    return (
+        return f"Build a page for this command:\n{command}\n\n{write_in}"
+    request = (
         f"This is the current page:\n{decompile(current)}\n\nChange it for this command:\n{command}"
     )
+    if page_language != language:
+        written_in = LANGUAGES.get(page_language or "", "another language")
+        request += (
+            f"\n\nThis page is written in {written_in}; the shopper now reads {name}. Define "
+            f"every section in root's children again, with its text in {name}, as well as "
+            "making the change."
+        )
+    return f"{request}\n\n{write_in}"
 
 
 async def _reply(
@@ -235,10 +259,17 @@ async def _reply(
 
 
 async def _accept(
-    reply: ModelResult, source: CatalogSource, *, surface_id: str, current: Snapshot | None
+    reply: ModelResult,
+    source: CatalogSource,
+    *,
+    surface_id: str,
+    current: Snapshot | None,
+    rewrite_all: bool,
+    language: str,
 ) -> tuple[list[Message], Snapshot, dict[str, Product]]:
     """The reply's messages, the page after them and its products, or `_Rejected` with what to
-    fix."""
+    fix. With `rewrite_all` (an edit into another language), every section of the new page must
+    be defined in the reply."""
     if reply.stop == "length":
         raise _Rejected(
             "Your reply was cut off by the output limit. Send the whole block again, shorter: "
@@ -251,11 +282,34 @@ async def _accept(
         raise _Rejected(_compile_feedback(error.errors)) from error
     except ValueError as error:
         raise _Rejected(_compile_feedback([str(error)])) from error
+    if rewrite_all:
+        left_out = _sections_left_out(messages, snapshot)
+        if left_out:
+            raise _Rejected(
+                f"Define every section again in {LANGUAGES[language]}; these were left out: "
+                f"{', '.join(left_out)}."
+            )
     products = await _page_products(source, snapshot)
     issues = validate_page(snapshot, products=products)
     if issues:
         raise _Rejected(issues_for_model(issues))
     return messages, snapshot, products
+
+
+def _sections_left_out(messages: list[Message], snapshot: Snapshot) -> list[str]:
+    """The IDs in the new page's `Page.children` that the reply did not define, in page
+    order."""
+    defined = {
+        component.get("id")
+        for message in messages
+        for kind in ("createSurface", "updateComponents")
+        for component in cast(list[dict[str, Any]], message.get(kind, {}).get("components", []))
+    }
+    surface = cast(dict[str, Any], snapshot.get("createSurface", {}))
+    components = cast(list[dict[str, Any]], surface.get("components", []))
+    root = next((c for c in components if c.get("component") == "Page"), None)
+    children = cast(list[Any], root.get("children", [])) if root is not None else []
+    return [child for child in children if isinstance(child, str) and child not in defined]
 
 
 def _compile_feedback(errors: list[str]) -> str:
