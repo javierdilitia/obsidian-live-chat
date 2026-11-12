@@ -1,0 +1,298 @@
+# Milestone 3 — Build, slice by slice
+
+**Date:** 2026-11-12 · **Status:** planned. Slice 1 has its task plan: [`2026-11-12-slice-1-cartridge-boundary.md`](2026-11-12-slice-1-cartridge-boundary.md). Each later slice gets its own plan (writing-plans skill) when it starts, from this document and the spec.
+
+**Sources:** the approved product spec [`../specs/2026-11-11-product-spec-design.md`](../specs/2026-11-11-product-spec-design.md) (cited below as §n), [`ROADMAP.md`](../../../ROADMAP.md) milestone 3 (its goal and "Inputs for milestone 3"), and [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) ("Obsidian core vs cartridge", "Known cartridge seams").
+
+## How milestone 3 is cut
+
+Milestone 2 left a working single-tab demo: one comparison page built and edited by the Azure model, a cart in memory, reload restore and the mockup's motion. Milestone 3 builds the rest of the spec on top of it in eight slices. Each slice:
+
+- ends with working software the user can check by eye, on one short-lived branch and one PR to `main` (trunk-based, no stacking);
+- gets its own task plan when it starts, so it can use what the slices before it taught us;
+- leaves Obsidian core free of client specifics. **Core** is `obsidian_data_contract`, `obsidian_agent`, the future `obsidian_store`, and everything in `web/src/` outside `web/src/cartridges/`. **A cartridge** is one client: its data (a `CatalogSource`), and its presentation config (brand, spec glossary, product renders, diagrams, category pairings, merchandising). Halden is the first cartridge; Haier (milestone H) and later clients plug in by adding a cartridge, never by editing core. Slice 1 builds that boundary and adds guard tests that every later slice keeps green.
+
+**Haier.** Haier arrives in milestone H, after this milestone, through the teammate's SQL agent, for retrieval only. Nothing here waits on it. Where the spec leaves a Haier-dependent point open (the intake questions in §11.2: spec metadata, spec vocabulary, images, orders, serving, language of the data), milestone 3 builds only what today's data contract allows and keeps the spec's stated default. Those points are listed under "Not in milestone 3" below.
+
+**Live model calls.** The Azure Foundry deployment is shared. No slice's tests call it; every slice's tests use the scripted model, and from slice 5 on, replay mode. Any by-eye check that needs a live run happens only after asking the user.
+
+## The slices, in build order
+
+| # | Slice | Depends on | What the user sees at the end |
+|---|---|---|---|
+| 1 | Cartridge boundary and page fixes | — (milestone 2) | The same demo, now loaded as the Halden cartridge; better pages after edits |
+| 2 | Store, session and the action mechanism | 1 | State survives a restart; three seeded shoppers, each with their own tab and cart |
+| 3 | Language: English and Spanish | 2 | A language menu; pages and the shell in EN or ES |
+| 4 | The rest of the generated catalog | 1, 3 | Guide, product and explore pages; the product modal and spec explainers |
+| 5 | Tabs and the router | 2, 3, 4 | Several tabs; the agent decides where each answer goes; a new command cancels the old one |
+| 6 | History and restore | 5 | Closed tabs come back from the History drawer instantly; "the one I saw yesterday" works |
+| 7 | Saved items, checkout and orders | 2, 3, 5 | Save for later, check out, the orders drawer and tracking pages |
+| 8 | Signals, home page and For you | 3, 5, 6, 7 | A home page that knows the shopper, and the agent-built For you section |
+
+Why this order:
+
+- **Boundary first.** Every later slice adds code that could leak Halden into core; with the boundary and its guard tests in place first, each slice lands in the right place from its first commit. Slice 1 also carries the small page-agent fixes from the demo, so the user gets visible value while the boundary is built.
+- **The store before features.** Tabs, history, cart, orders and signals all persist; the action checks need the session's open surfaces. Building `obsidian_store` once, with its contract suite, keeps each later slice small.
+- **Language before new UI.** Every slice from 4 on adds fixed strings. With the EN/ES bundles in place, they go into both languages as they are written, instead of a sweep at the end.
+- **Catalog before the router.** The router chooses between page kinds; with guide, product and explore pages already buildable, its placement rules ("a different kind of page opens its own tab") can be tested on real kinds, not only on comparisons.
+- **Home last.** The home page reads signals from tabs, history, cart and orders, so it comes after all of them.
+
+---
+
+## Slice 1 — Cartridge boundary and page fixes
+
+**Goal.** Obsidian core names no Halden product, category, spec key, brand or render. A cartridge plugs in through one Python entry point and one web folder, chosen by a setting. The page agent gets the demo's fixes: stricter page checks, a search tool with multi-word text and sorting, and placement rules for new sections.
+
+**Spec sections.** §1 (Obsidian and cartridges); §7.1 (the post-compile validation rules; section placement on an edit; the spec glossary as cartridge content); §3.3, last paragraph (the search tool's full query); `docs/ARCHITECTURE.md` "Known cartridge seams" (spec labels and better direction, product renders, the disclaimer, the wordmark and page title).
+
+**Inputs for milestone 3 covered.** Placement; Validator; Search tool.
+
+**Depends on.** Milestone 2 (in `main`).
+
+**Exit criteria.**
+- `obsidian_agent` and `obsidian_data_contract` import no cartridge package, and `obsidian-agent` no longer depends on `halden-data-fake` (guard test).
+- The agent loads its cartridge through the `obsidian.cartridges` entry point. `OBSIDIAN_CARTRIDGE` picks one when several are installed; an unknown or missing choice fails at start with the installed IDs.
+- The page prompt, the tool descriptions and the catalog's descriptions name no Halden product, category or spec key (guard test); the category list the search tool offers comes from the cartridge's data.
+- In the web app, the store name, the page title, the disclaimer, the spec glossary and the product renders come from `web/src/cartridges/halden/`; no core web file imports a cartridge folder or names its store (guard test).
+- The validator rejects, with feedback for the one retry: a section-level component outside `Page.children`, a `BarChart` outside a `ChartGrid`, a chart spec key that is not numeric, a table spec key none of its products has, and a product ID repeated within one component.
+- `search_products` accepts several words and `sort` (`rating`, `price_asc`, `price_desc`).
+- The page prompt states where a new section goes and to extend an existing section rather than duplicate it; checked by eye on the next live run, with the user's go-ahead.
+- `python scripts/check.py backend web` passes; the demo looks and works as before (checked by eye).
+
+## Slice 2 — Store, session and the action mechanism
+
+**Goal.** State outlives a restart and belongs to a shopper. Every button reaches the backend through one checked, idempotent action path.
+
+**Spec sections.** §10.1 (the `obsidian_store` package: async `Store` protocol, `PostgresStore` on SQLAlchemy 2 async + asyncpg with Alembic, `MemoryStore`, the `StoreContract` suite; Postgres 17 through `docker compose` locally and as a CI service container); §10.2 tables `users` (seeded `demo-user`, `ana`, `sam`), `workspaces`, `tabs`, `tab_revisions` (last 20 kept), `cart_lines` (no price stored), `runs` (telemetry per run), `processed_actions` (24 h); §10.3 the signed `obsidian_session` cookie and the user menu's seeded shoppers; §10.4 `GET /api/session`, `GET /api/users`, and `GET /api/workspace` and `GET /api/cart` served from the store; §5 "Persisted after every successful run" (the tab's snapshot, a revision row; the card column holds the demo's title and commands until slice 5 defines the full card) and the 256 KB snapshot limit; §8.1 all of it (the action-kind registry generated from the catalog, the server's kind check, `requestId` idempotency, the `surfaceId` and `sourceComponentId` checks, the `{ok, cart?, saved?, toast?, tab?, error?}` result); §8.2 `session.switch_user`; §13 "Direct action errors" (`out_of_stock`, `not_found`, `invalid`, with copy); §14 the `StoreContract` suite and the web test that every action has exactly one kind.
+
+**Inputs for milestone 3 covered.** Actions (the surface and button checks; `cart.add` reading the quantity after the catalog call).
+
+**Spec §15 open question answered here.** The typical snapshot size of a comparison, measured on the stored tabs; the 256 KB limit is confirmed or changed in the spec.
+
+**Depends on.** 1.
+
+**Exit criteria.**
+- `StoreContract` passes against `MemoryStore` and `PostgresStore` (local `docker compose`, CI service container).
+- Restarting the agent brings back the tab, its page and the cart; switching between the seeded shoppers shows each one's own workspace and cart (checked by eye).
+- The server rejects a kind mismatch, a surface that is not one of the session's open surfaces, and a source component that is not a button on that surface; a repeated `requestId` returns the stored result without running the handler again (tests).
+- `cart.add` checks stock against the quantity in the cart read after the catalog call (test with an interleaved second add).
+- Every run writes a `runs` row.
+- The snapshot size question is answered in spec §15.
+
+## Slice 3 — Language: English and Spanish
+
+**Goal.** The shopper picks English or Spanish. Fixed strings switch at once; the agent writes new pages and edits in the chosen language; existing tabs keep theirs until edited.
+
+**Spec sections.** §12 all of it; §7.1 "Fixed strings … come from our EN/ES bundle"; §8.2 `prefs.set_language`; `users.language` (§10.2); the cartridge's own strings in both languages (its spec glossary and disclaimer, §7.1).
+
+**Depends on.** 2 (the language is stored per shopper).
+
+**Exit criteria.**
+- `web/src/i18n/en.json` and `es.json` hold every fixed string in core; each cartridge holds its glossary and disclaimer in both languages. A test fails when a key exists in one language and not the other.
+- The language menu switches the shell and every page's fixed strings without a reload; money and dates format with `Intl` per language (`€1.899` in ES, `€1,899` in EN).
+- A run carries the language and the page prompt asks for prose in it; a tab's stored language changes only when it is edited (tests).
+- The seeded shopper `ana` starts in Spanish.
+
+## Slice 4 — The rest of the generated catalog
+
+**Goal.** The UI model can build every generated page kind: comparisons, guides, product pages and explore pages. A request for five or more products opens one explore page, never stacked comparisons.
+
+**Spec sections.** §2.1 the generated kinds (`compare`, `guide`, `product`, `explore`) and "More than 4 products"; §7.2–§7.4 every component not built yet (`Section`, `Split`, `Prose`, `Callout`, `Diagram`, `RadarChart`, `ProductHero`, `ProductGrid`, `ProductTile`, `ProductList`, `ProductRow`) with their limits and child rules in the validator; §7.6 `ProductLink`; §8.2 the local actions `openProduct` (the product modal, rendered with `ProductHero`) and `explainSpec` (the explainer popover from the cartridge glossary); §9 "only swapped radar series redraw, only changed bars refill"; §2.2 `GET /api/catalog/products/{id}` and `GET /api/catalog/specs/{category_id}` (built from the data, see Open questions 5); §7.3 the `Diagram` set (`oled-burn-in`, `panel-types`, `refresh-rate`, `colour-gamut`, `ports`, `battery-life`) as Halden cartridge content behind a core `Diagram` component.
+
+**Inputs for milestone 3 covered.** More than 4 products (the explore page, and how a full grid behaves: it scrolls sideways, see Open questions 7).
+
+**Depends on.** 1 (cartridge content), 3 (new strings go into both bundles).
+
+**Exit criteria.**
+- Every new component has a Vitest test with fixture data. Express fixtures for a guide, a product page and an explore page compile and pass the validator.
+- A scripted-model run for "five laptops" builds one explore page (a `ProductGrid` of at most 8 tiles, each with a reason); the page prompt says so; checked by eye on a live run, with the user's go-ahead.
+- `Diagram` names are checked against the cartridge's diagram set; the set and its drawings live in the Halden cartridge.
+- The product modal and the spec explainer open in the browser with no request to `POST /api/runs`.
+- Swapping one product in a `RadarChart` redraws only that series (test).
+
+## Slice 5 — Tabs and the router
+
+**Goal.** Several tabs, each a surface. The router, a small fast model reading tab cards, decides for every command whether to create, edit, switch, open, close or only suggest, and the backend pre-fetches the data its brief asks for.
+
+**Spec sections.** §2 surface owners (`shop:`, and the backend's owner check on every write); §3.1 router input and placement rules; §3.2 the six tools and `reason`; §3.3 the brief, the pre-fetch, and the one extra data-tool round with its telemetry; §3.4 follow-up chips for generated tabs; §3.5 the SSE events (`tab_decision`, `tab_opened`, `build_phase`, `followups`, `RUN_FINISHED {card}`) and one run per shopper; §4 tab cards; §5 open tabs, tab order and the active tab persisted, the 12-tab cap (the least recently used tab moves to history with a toast), close moves a tab to history, closing the last tab returns to the landing; §7.6 `AskButton`; §8.2 `tab.activate`, `tab.close`, `agent.ask` (follow-up chips, `AskButton`); §9 the state field naming the decision, tabs kept mounted while hidden so switching is instant; §13 router failure (retry, then `suggest` with the starter chips), the catalog source being down, an SSE drop (reconnect, then read the workspace), and cancellation; §14 replay mode (`MODEL_MODE=live|replay`, recording with `MODEL_RECORD=1`).
+
+**Inputs for milestone 3 covered.** Runs (a new command cancels the run in flight).
+
+**Spec §15 open question answered here.** How often the one extra data-tool round fires, read from the `runs` rows of a replay set and a short live session (with the user's go-ahead).
+
+**Depends on.** 2, 3, 4.
+
+**Exit criteria.**
+- Router tests in replay mode: every tool's schema, brief validation with one retry then `suggest`, and placement on a fixed set of card sets and commands (follow-up edits, a different kind opens a new tab, an existing page is switched to).
+- A new command cancels the run in flight with `RUN_ERROR {code: "cancelled"}`; the tab keeps its last good page; the command bar stays usable (test, and by eye).
+- Cards derived by code match their surface: products, orders, sections (test).
+- Replay mode runs the full flow with no Azure call, in CI.
+- Opening a 13th tab moves the least recently used one to history, with a toast.
+- "Check out my cart" returns `suggest` with `open: "cart"`; no typed command places an order (replay test).
+
+## Slice 6 — History and restore
+
+**Goal.** Closed tabs are kept and come back instantly, at today's prices, with no model call; the router remembers them.
+
+**Spec sections.** §3.1 the last 10 history cards in the router's input (router memory, idea 4 of §6.2); §3.2 `open_tab`; §4 the history card (`closed_at`, the short form the router reads); §5 "Restore from history" (the tab springs in, the page fades in, no globe, original language and surface ID), history retention (last 100), "Stale data" (a product that no longer exists shows "no longer available" and flags the card, so the router can offer a rebuild), the History drawer; §8.2 `openHistory`, `tab.restore`; §9 restore motion; §10.4 `GET /api/history`; §13 "Unknown ID while rendering".
+
+**Depends on.** 5.
+
+**Exit criteria.**
+- Closing a tab and reopening it from the History drawer shows the same page at today's prices with zero model calls (test counts model calls).
+- "Compare it with the one I saw yesterday" resolves through the history cards (replay placement test).
+- The 101st history entry drops the oldest (`StoreContract` test).
+- A product removed from the catalog renders "no longer available" in its slot and flags the card (test).
+
+## Slice 7 — Saved items, checkout and orders
+
+**Goal.** The shopper can save products, check out and follow orders. Money is handled only by code, and nothing typed can spend it.
+
+**Spec sections.** §2.1 the template kinds (`orders`, `order`, `confirmation`) and §3.4 their fixed chip lists; §7.5 `OrderTracker`, `OrderList`, `OrderConfirmation`; §7.6 `SaveButton`, `OrdersButton`, `TrackButton`, `CartButton`; §8.2 `saved.toggle`, `checkout.place` (`price_changed`, one transaction), `order.track`, `openOrders` (the orders drawer), `openCart`; §10.2 `saved_items`, `orders`, `order_lines`; §10.3 the `OrderService` merging the data source's orders with ours, our order IDs `OB-` from 90000, tracking generated from `placed_at`, checkout in one transaction; §10.4 `GET /api/saved`, `GET /api/orders`, `/api/orders/{id}`, `/api/orders/{id}/tracking`; §13 `price_changed`.
+
+**Depends on.** 2, 3, 5 (templates open as tabs through the tab tools).
+
+**Exit criteria.**
+- `checkout.place` re-reads prices and stock; a different total returns `price_changed` with the new total and places nothing; otherwise the order, its lines, the emptied cart and the confirmation tab are written in one transaction, and a failure part-way leaves nothing behind (`StoreContract` tests).
+- The orders drawer lists the data source's orders and ours, newest first.
+- Template tabs open with no model call, and the model can still edit them (replay test).
+- Saved items persist per shopper and show on every `SaveButton`.
+
+## Slice 8 — Signals, home page and For you
+
+**Goal.** A home page that knows the shopper: a code-built surface that appears instantly, and an agent-built For you section, cached, that streams in.
+
+**Spec sections.** §6.1 the `events` log (first-party, appended where each event happens, including events from earlier slices: commands, tabs built, edited, closed and restored, products viewed through the `POST /api/events/beacon` beacon, cart adds and removes, products dropped, orders placed) and "Clear history"; §6.2 the `home:` surface (the week's offer, Pick up where you left off, Cheaper since you looked, Back in stock and "Only N left", Still in your cart, Shop the store, On sale this week) and the `foryou:` surface (the code-built profile and candidates: Still deciding?, Goes with what you own; reasons that cite a signal; the cache rules; `foryou_stale`; the background rebuild; Popular right now for a first-time shopper); §7.7 `Home`, `OfferCard`, `RecentList`, `CategoryGrid`; §7.6 `TabLink`; §8.2 `history.clear`, and the home rows, offer button and category tiles as `agent.ask`; §10.2 `events` (180 days) and `foryou_cache`; §10.4 `GET /api/home`, `GET /api/catalog/categories`; the Halden cartridge's category-pairing rule and merchandising config (§6.2, "[Halden cartridge]").
+
+**Depends on.** 3, 5, 6, 7.
+
+**Exit criteria.**
+- Each history query (cheaper since you looked, back in stock, still deciding, cart left behind) has unit tests on fixed event logs.
+- The home page renders with no model call; For you comes from the cache and streams in when stale; `sam` gets Popular right now.
+- For you rejects product IDs outside its candidates, and every reason cites a signal from its input (tests, replay mode).
+- Clear history empties events, tab history and the For-you cache, and keeps open tabs, cart and orders.
+- The pairing rule and the offer live in the Halden cartridge; core runs with a test cartridge that has neither (test).
+
+---
+
+## Coverage: every spec feature, every input
+
+Each item lands in exactly one slice. "M2" means milestone 2 already built it; it is listed so nothing looks forgotten.
+
+| Spec | Feature | Slice |
+|---|---|---|
+| §1 | Obsidian core vs cartridges | 1 |
+| §2 | Surface IDs `<owner>:<uuid>` and the owner check on writes | 5 |
+| §2 | `home:` and `foryou:` surfaces | 8 |
+| §2.1 | `compare` kind | M2 (made explicit by the router in 5) |
+| §2.1 | `guide`, `product`, `explore` kinds; more than 4 products → explore | 4 |
+| §2.1 | Template kinds `orders`, `order`, `confirmation` | 7 |
+| §2.2 | IDs resolve in the browser; one client cache, 60 s | M2 |
+| §2.2 | `GET /api/catalog/products?ids=` | M2 |
+| §2.2 | `GET /api/catalog/products/{id}`, `/api/catalog/specs/{category_id}` | 4 |
+| §2.2 | `GET /api/catalog/categories` | 8 |
+| §3.1 | Router input, placement rules | 5 |
+| §3.1 | History cards in the router's input (router memory) | 6 |
+| §3.2 | `create_tab`, `edit_tab`, `switch_tab`, `close_tab`, `suggest`, `reason` | 5 |
+| §3.2 | `open_tab` | 6 |
+| §3.3 | The brief, the pre-fetch, the one extra round and its telemetry | 5 |
+| §3.3 | Search tool: multi-word text and `sort` | 1 |
+| §3.4 | Follow-up chips for generated tabs | 5 |
+| §3.4 | Fixed chip lists for template tabs | 7 |
+| §3.5 | SSE events; one run per shopper; cancel | 5 |
+| §4 | Tab cards | 5 |
+| §4 | History cards (`closed_at`, short form) | 6 |
+| §5 | Persist snapshot and revision after every run; 256 KB limit | 2 |
+| §5 | Tab order and active tab persisted; reload with several tabs; 12-tab cap; close → history; last tab closed → landing | 5 |
+| §5 | Reload restore of one tab | M2 |
+| §5 | Restore from history; retention 100; stale data; History drawer | 6 |
+| §5 | "Pick up where you left off" on the home page | 8 |
+| §6.1 | Events log, beacon, Clear history | 8 |
+| §6.2 | Home surface and every section on it; For you; cache; Popular right now | 8 |
+| §6.2 | Halden pairing rule and merchandising config | 8 |
+| §7.1 | IDs, never values; semantic section IDs | M2 |
+| §7.1 | Section placement on an edit (prompt) | 1 |
+| §7.1 | Validator: placement under `Page`, numeric chart keys, known table keys, no repeated products | 1 |
+| §7.1 | Validator rules for the components of slice 4 | 4 |
+| §7.1 | Fixed strings from the EN/ES bundle | 3 |
+| §7.1 | Spec glossary as cartridge content (its Spanish text is part of §12, slice 3) | 1 |
+| §7.1 | Series colours by position | M2 |
+| §7.2 | `Page`, `ChartGrid` | M2 |
+| §7.2 | `Section`, `Split` | 4 |
+| §7.3 | `Verdict` | M2 |
+| §7.3 | `Prose`, `Callout`, `Diagram` (+ Halden's diagram set) | 4 |
+| §7.4 | `ProductShelf`, `SpecTable`, `BarChart` | M2 |
+| §7.4 | `RadarChart`, `ProductHero`, `ProductGrid`, `ProductTile`, `ProductList`, `ProductRow` | 4 |
+| §7.5 | `OrderTracker`, `OrderList`, `OrderConfirmation` | 7 |
+| §7.6 | `AddToCartButton` | M2 |
+| §7.6 | `ProductLink` | 4 |
+| §7.6 | `AskButton` | 5 |
+| §7.6 | `SaveButton`, `OrdersButton`, `TrackButton`, `CartButton` | 7 |
+| §7.6 | `TabLink` | 8 |
+| §7.7 | `Home`, `OfferCard`, `RecentList`, `CategoryGrid` | 8 |
+| §8.1 | Action kinds registry, server kind check, idempotency, surface and button checks | 2 |
+| §8.2 | `cart.add`, `cart.set_qty`, `cart.remove`, the cart drawer | M2 (moved onto the store in 2) |
+| §8.2 | `session.switch_user` | 2 |
+| §8.2 | `prefs.set_language` | 3 |
+| §8.2 | `openProduct`, `explainSpec` | 4 |
+| §8.2 | `tab.activate`, `tab.close`, `agent.ask` | 5 |
+| §8.2 | `openHistory`, `tab.restore` | 6 |
+| §8.2 | `saved.toggle`, `checkout.place`, `order.track`, `openOrders`, `openCart` from `CartButton` | 7 |
+| §8.2 | `history.clear`; home rows, offer and category tiles as `agent.ask` | 8 |
+| §9 | Run motion, landing dots, follow-up step-back and glow, new section's room, reduced motion | M2 |
+| §9 | Radar series and bar refill on swap | 4 |
+| §9 | State field names the decision; instant tab switching | 5 |
+| §9 | Restore motion (no globe, fade) | 6 |
+| §10.1 | `obsidian_store`: protocol, Postgres, memory, contract suite, compose, CI | 2 |
+| §10.2 | `users`, `workspaces`, `tabs`, `tab_revisions`, `cart_lines`, `runs`, `processed_actions` | 2 |
+| §10.2 | `saved_items`, `orders`, `order_lines` | 7 |
+| §10.2 | `events`, `foryou_cache` | 8 |
+| §10.3 | Session cookie | 2 |
+| §10.3 | `OrderService`, `OB-` IDs, generated tracking, checkout transaction | 7 |
+| §10.4 | Each endpoint | with the feature that uses it (above) |
+| §11.1 | Contract rules we own (A, B, C, F) | done before milestone 3 |
+| §12 | Language | 3 |
+| §13 | Compile or validation error → one retry; `length` stop | M2 |
+| §13 | Direct action errors | 2 (`price_changed` in 7) |
+| §13 | Router failure, store unavailable, SSE drop, cancelled | 5 |
+| §13 | Unknown ID while rendering | 6 |
+| §14 | `StoreContract`; action registry test | 2 |
+| §14 | Replay mode | 5 |
+| §14 | Unit tests named in §14 | with the feature they test |
+| §15 | Snapshot size question | 2 |
+| §15 | Extra-round frequency question | 5 |
+| ARCH | Known cartridge seams (glossary, renders, disclaimer, wordmark and title) | 1 |
+
+| Input for milestone 3 (ROADMAP) | Slice |
+|---|---|
+| More than 4 products | 4 |
+| Placement | 1 |
+| Runs (cancel the run in flight) | 5 |
+| Validator | 1 |
+| Search tool | 1 |
+| Actions | 2 |
+
+## Not in milestone 3
+
+- **Milestone H (Haier, after this milestone):** the Haier adapter and its contract run; the intake questions of §11.2: D spec metadata (`list_spec_definitions`, `SpecDefinition`), E spec vocabulary, G looks and images (`look` optional, `image_url`, a glyph per category), H orders ownership, I serving and latency, J language of the data. Also the two Halden specifics found inside the core contract while planning (Open questions 6).
+- **Milestone 4:** the dashboards and the model-quality tracking of §14 (edit accuracy, blank rate, consistency, button safety). Milestone 3 writes the `runs` rows they read.
+- **Milestone 5:** real login, Azure Database for PostgreSQL, deployment, and the support and refund subagents (§7.8, the "Ask for a refund" action).
+- **Later ideas (§6.3):** learned defaults and negative signals.
+- **Out of scope (§16):** payments, one-click buy, an undo or revision-history UI, agent-built modals, a mobile app.
+
+## Open questions for the user
+
+Each was decided so the work could go on; each can be reversed before its slice starts.
+
+1. **Slice order: the catalog (4) before the router (5).** The ROADMAP's goal lists "several tabs and the router" first. I put the rest of the catalog first so the router's placement rules can be tested across real page kinds, and so the demo's top complaint (five products) is fixed sooner. Swapping 4 and 5 works too; the router would then route between comparisons only until the catalog lands.
+2. **Where the Python side of a cartridge lives.** The `Cartridge` type is in `obsidian_data_contract` (the only core package a cartridge already depends on); Halden's descriptor goes in `halden_data_fake/cartridge.py`, not in a new package, since that package is already "the Halden cartridge's data". Discovery is a Python entry point (`obsidian.cartridges`); `OBSIDIAN_CARTRIDGE` is needed only when more than one is installed. Haier's adapter will register the same way.
+3. **Where the web side of a cartridge lives.** `web/src/cartridges/<id>/`, chosen at build time with `VITE_OBSIDIAN_CARTRIDGE` (optional while only one exists). This moves the spec glossary from the spec's `web/src/i18n/specs.{en,es}.json` (§7.1) to `web/src/cartridges/halden/specs.{en,es}.json`, because the glossary is cartridge content. The alternative was the backend serving presentation config at `GET /api/cartridge`, which would make a data-only cartridge (like Haier, with images instead of drawn renders) a single Python package; I kept the spec's web-side glossary because renders are web code anyway and it needs no extra request. Worth revisiting at milestone H.
+4. **One deployment per client.** A running Obsidian serves one cartridge, picked at start. No runtime switching between clients, no multi-tenant store.
+5. **Spec metadata without a contract change.** The spec's default for intake question D (`list_spec_definitions`, `SpecDefinition` with unit, kind and better direction) waits for the Haier intake. Until then: whether a spec is numeric comes from the data (its `value` is a number); "known" means at least one of the shown products has the key; labels, explanations and which way is better come from the cartridge glossary. The brief's pre-fetch (§3.3) uses these instead of `list_spec_definitions`, and `GET /api/catalog/specs/{category_id}` (slice 4) is built from the category's products.
+6. **Halden specifics inside the core contract.** `RenderLook` (a required `look` with Halden's `glyph`, `finish` and `screen` values) and `currency: Literal["EUR"]` are in `obsidian_data_contract`. They are not on the ARCHITECTURE list of seams. Changing them is intake question G (and the currency, a new point), so I left them for milestone H and recorded them in ARCHITECTURE as known seams. In slice 1 the web product render comes from the cartridge, and a cartridge without renders shows an empty plate.
+7. **A full explore grid scrolls sideways; it does not page.** §2.1 leaves the choice to this milestone. A `ProductGrid` holds at most 8 tiles; on a wide screen they wrap into rows of four, on a narrow one they form one row that scrolls sideways with snap points. It needs no page-local state and no extra fetch; paging would need both. To see more than 8, the shopper narrows or asks for more, which is an edit.
+8. **How strict the new page checks are.** Section-level components (`Verdict`, `ProductShelf`, `SpecTable`, `ChartGrid`) may sit only in `Page.children`, and a `BarChart` only in a `ChartGrid`. A chart key passes when at least one of the chart's products has it as a number and none has it as text; a missing value is allowed and renders "—" (the spec's default for intake question E). These may cost a few more retries; slice 1 keeps the feedback specific (it lists the keys that would pass).
+9. **The events log comes in slice 8, so the home page's history ideas start empty.** Cheaper since you looked and Back in stock need events that only exist once slice 8 logs them. For the demo, slice 8 seeds a few past events for `demo-user` and `ana`. The alternative, logging events from slice 2 on, spreads one feature across six slices.
+10. **Postgres needs Docker locally.** Slice 2 runs Postgres 17 through `docker compose`, as the spec says, so the machine that runs the demo needs Docker. `MemoryStore` keeps unit tests free of it; the `PostgresStore` contract run needs it (and CI gets a service container).
+11. **The router needs a second Azure deployment.** Slice 5's router is "the small, fast model" (§3.1), a deployment we do not have in `.env` yet (`MODEL_ROUTER_DEPLOYMENT`, by analogy with `MODEL_UI_DEPLOYMENT`). Until it exists, the router can run on the UI deployment.
+12. **Milestones 4 and 5's exit criteria** say "to be set when milestone 3 is planned". I did not set them: that wasn't part of this task, and they read better once slice 2's `runs` rows exist. Say if you want them drafted now.
