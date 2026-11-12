@@ -1,4 +1,9 @@
 import "@testing-library/jest-dom/vitest";
+import { beforeEach } from "vitest";
+import { resetCart } from "./lib/cart";
+
+// The cart is one store for the whole page; every test starts with it empty and its drawer shut.
+beforeEach(resetCart);
 
 // Lit (used by @a2ui/web_core) announces its dev build in every test file. Its documented opt-out
 // is to mark the warning's code as already issued.

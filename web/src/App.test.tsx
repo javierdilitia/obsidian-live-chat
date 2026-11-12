@@ -88,6 +88,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const dot of document.querySelectorAll(".fly-dot")) dot.remove(); // a flight outlives its test
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
@@ -229,7 +230,7 @@ test("add to cart shows a toast and the cart count", async () => {
   render(<App />);
   const shelf = await buildPage();
   await within(shelf).findByText("€1,899");
-  const cart = screen.getByRole("status", { name: /^Cart/ });
+  const cart = screen.getByRole("button", { name: /^Cart/ });
   expect(cart).toHaveTextContent("empty");
 
   const button = screen.getByRole("button", { name: "Add Aeris Studio 16 · €1,899" });
@@ -256,7 +257,7 @@ test("App restores the page after a reload", async () => {
   expect(within(panel).getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
   const shelf = await within(panel).findByRole("list", { name: "Products" });
   await within(shelf).findByText("€1,899");
-  expect(screen.getByRole("status", { name: /^Cart/ })).toHaveAccessibleName(
+  expect(screen.getByRole("button", { name: /^Cart/ })).toHaveAccessibleName(
     "Cart, 1 item, €1,899",
   );
   const runs = () => fetchMock.mock.calls.filter(([url]) => url === "/api/runs");
@@ -302,7 +303,7 @@ test("App re-syncs when a message is rejected", async () => {
   expect(await screen.findByText("Colour range — share of DCI-P3")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
   expect(screen.getAllByRole("tab")).toHaveLength(1);
-  expect(screen.getByRole("status", { name: /^Cart/ })).toHaveAccessibleName(
+  expect(screen.getByRole("button", { name: /^Cart/ })).toHaveAccessibleName(
     "Cart, 1 item, €1,899",
   );
   const reads = fetchMock.mock.calls.filter(([url]) => url === "/api/workspace");
@@ -522,4 +523,66 @@ test("the page boundary shows a page that a run's edit has fixed", async () => {
   expect(screen.getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
   expect(await screen.findAllByRole("listitem")).not.toHaveLength(0);
   quiet.mockRestore();
+});
+
+async function addAeris() {
+  const button = screen.getByRole("button", { name: "Add Aeris Studio 16 · €1,899" });
+  await act(async () => {
+    fireEvent.click(button);
+    await Promise.resolve();
+  });
+  await screen.findByText("Aeris Studio 16 added to your cart");
+}
+
+test("adding launches the series-coloured dot, and the cart value rolls", async () => {
+  mockApi(undefined, { runs: [BUILD_RUN] });
+  render(<App />);
+  const shelf = await buildPage();
+  await within(shelf).findByText("€1,899");
+  reduceMotion(false);
+
+  await addAeris();
+
+  const dot = document.querySelector<HTMLElement>(".fly-dot");
+  expect(dot).not.toBeNull();
+  expect(dot?.style.background).toBe("var(--frost)");
+  // the old value ("empty") lifts away while "1 · €1,899" rises in
+  const value = document.querySelector("[data-cart-fact]");
+  expect(value?.querySelector(".out")).toHaveTextContent("empty");
+  expect(value?.querySelector(".in")).toHaveTextContent("1 · €1,899");
+  await waitFor(() => {
+    expect(value?.querySelector(".out")).toBeNull();
+  });
+});
+
+test("reduced motion: no flight, the value just changes", async () => {
+  mockApi(undefined, { runs: [BUILD_RUN] });
+  render(<App />);
+  const shelf = await buildPage();
+  await within(shelf).findByText("€1,899");
+
+  await addAeris();
+
+  expect(document.querySelector(".fly-dot")).toBeNull();
+  const value = document.querySelector("[data-cart-fact]");
+  expect(value?.querySelector(".out")).toBeNull();
+  expect(value).toHaveTextContent("1 · €1,899");
+});
+
+test("the cart cell opens the drawer", async () => {
+  mockApi(undefined, { runs: [BUILD_RUN] });
+  render(<App />);
+  const cell = screen.getByRole("button", { name: "Cart, empty" });
+  expect(cell).toHaveAttribute("aria-expanded", "false");
+
+  cell.focus();
+  fireEvent.click(cell);
+
+  const drawer = await screen.findByRole("dialog", { name: "Shopping cart" });
+  expect(cell).toHaveAttribute("aria-expanded", "true");
+  expect(drawer).toHaveTextContent("Your cart is empty.");
+  fireEvent.keyDown(document, { key: "Escape" });
+  await waitFor(() => {
+    expect(cell).toHaveFocus();
+  });
 });

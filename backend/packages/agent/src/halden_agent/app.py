@@ -161,25 +161,49 @@ def create_app(model: ModelClient | None = None, source: CatalogSource | None = 
             "missing": missing,
         }
 
+    @app.get("/api/cart")
+    async def get_cart() -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
+        """The cart at today's prices."""
+        return {"cart": await cart_lines()}
+
     @app.post("/api/actions")
     async def actions(request: ActionRequest) -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
-        """Direct actions. Only `cart.add{productId}` so far; it re-reads the product every time."""
-        if request.name != "cart.add":
-            return await action_error("invalid", f"Unknown action: {request.name}.")
+        """Direct actions: `cart.add`, `cart.set_qty` and `cart.remove`. The product is re-read."""
+        name = request.name
+        if name not in ("cart.add", "cart.set_qty", "cart.remove"):
+            return await action_error("invalid", f"Unknown action: {name}.")
         product_id = request.context.get("productId")
         if not isinstance(product_id, str) or not product_id:
-            return await action_error("invalid", "cart.add needs a productId.")
+            return await action_error("invalid", f"{name} needs a productId.")
+        in_cart = workspace.cart.get(product_id, 0)
+        if name == "cart.remove":
+            workspace.cart.pop(product_id, None)
+            return {"ok": True, "cart": await cart_lines()}
+        if name == "cart.add":
+            return await set_quantity(product_id, in_cart + 1, adding=True)
+        qty = request.context.get("qty")
+        if isinstance(qty, bool) or not isinstance(qty, int) or qty < 0:
+            return await action_error("invalid", "cart.set_qty needs a qty of 0 or more.")
+        if qty == 0:
+            workspace.cart.pop(product_id, None)
+            return {"ok": True, "cart": await cart_lines()}
+        return await set_quantity(product_id, qty, adding=False)
+
+    async def set_quantity(product_id: str, qty: int, *, adding: bool) -> dict[str, Any]:
+        """Puts `qty` of a product in the cart if the shelf has that many; else the cart is kept."""
         try:
             product = await catalog.get_product(product_id)
         except NotFoundError:
             return await action_error("not_found", "This product is no longer available.")
         in_cart = workspace.cart.get(product_id, 0)
-        if in_cart >= product.stock:
+        if qty > product.stock and qty > in_cart:
             message = f"{product.name} is out of stock."
             if in_cart:
                 message = f"No more {product.name} in stock: all {in_cart} are in your cart."
+            if not adding and product.stock:
+                message = f"Only {product.stock} {product.name} in stock."
             return await action_error("out_of_stock", message)
-        workspace.cart[product_id] = in_cart + 1
+        workspace.cart[product_id] = qty
         return {"ok": True, "cart": await cart_lines()}
 
     async def action_error(code: str, message: str) -> dict[str, Any]:

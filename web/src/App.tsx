@@ -19,12 +19,15 @@ import {
 } from "react";
 import { formatPrice, shopCatalog } from "./a2ui/catalog";
 import { dispatchAction, type CartLine } from "./lib/actions";
+import { cart, landFlight, useCart } from "./lib/cart";
 import { streamRun, type RunEnd } from "./lib/sse";
 import { readWorkspace, type Workspace } from "./lib/workspace";
 import type { DotGlobe } from "./motion/globe";
 import { IdleGlobe, ThinkingGlobe } from "./motion/GlobeCanvas";
 import { playMessages, startThinking, stopThinking, type Stage } from "./motion/run";
 import { Seam } from "./motion/Seam";
+import { CartDrawer } from "./shell/CartDrawer";
+import { prefersReducedMotion } from "./a2ui/motion";
 import "./styles/shell.css";
 
 type Surface = SurfaceModel<ReactCatalogComponent>;
@@ -136,29 +139,79 @@ const CART =
 
 /* ——— the cart, in the shell's ledger ——— */
 
-function CartCell({ lines }: { lines: readonly CartLine[] }) {
+/** What the cart cell shows: "2 · €1,948", or "empty". */
+interface Shown {
+  key: string;
+  items: number;
+  total: string;
+}
+
+function CartValue({ items, total }: { items: number; total: string }) {
+  const key = items === 0 ? "empty" : `${String(items)}·${total}`;
+  const [shown, setShown] = useState<Shown>({ key, items, total });
+  const [leaving, setLeaving] = useState<Shown | null>(null);
+  // The value changed: the old one lifts away while the new one rises in (the mockup's roll).
+  if (shown.key !== key) {
+    setLeaving(prefersReducedMotion() ? null : shown);
+    setShown({ key, items, total });
+  }
+  useEffect(() => {
+    if (!leaving) return;
+    const gone = setTimeout(() => {
+      setLeaving(null);
+    }, 360);
+    return () => {
+      clearTimeout(gone);
+    };
+  }, [leaving]);
+  const content = (value: Shown) =>
+    value.items === 0 ? (
+      "empty"
+    ) : (
+      <>
+        <b>{value.items}</b>
+        <span className="wide"> · {value.total}</span>
+      </>
+    );
+  return (
+    <span className="fact roll" data-cart-fact>
+      {leaving && (
+        <span key={leaving.key} className="out" aria-hidden="true">
+          {content(leaving)}
+        </span>
+      )}
+      <span key={shown.key} className="in">
+        {content(shown)}
+      </span>
+    </span>
+  );
+}
+
+/** The cart in the shell's ledger: a button that opens the cart drawer. */
+function CartCell({ lines, open }: { lines: readonly CartLine[]; open: boolean }) {
   const items = lines.reduce((sum, line) => sum + line.qty, 0);
   const total = formatPrice(lines.reduce((sum, line) => sum + line.qty * line.price_cents, 0));
   const label =
     items === 0 ? "Cart, empty" : `Cart, ${String(items)} item${items === 1 ? "" : "s"}, ${total}`;
   return (
-    <div className="cell" role="status" aria-label={label}>
+    <button
+      type="button"
+      className="cell"
+      data-cart-cell
+      aria-label={label}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-controls="cart-drawer"
+      onClick={() => {
+        cart.open();
+      }}
+    >
       <span className="ico">
         <Icon size={16} d={CART} />
       </span>
       <span className="lbl">Cart</span>
-      {/* the value rolls in whenever it changes */}
-      <span className="fact roll">
-        {items === 0 ? (
-          <span>empty</span>
-        ) : (
-          <span key={`${String(items)}·${total}`} className="in">
-            <b>{items}</b>
-            <span className="wide"> · {total}</span>
-          </span>
-        )}
-      </span>
-    </div>
+      <CartValue items={items} total={total} />
+    </button>
   );
 }
 
@@ -194,17 +247,20 @@ function ToastPill({ toast, onGone }: { toast: Toast; onGone: (id: number) => vo
 }
 
 /** What adding to cart says: the server's answer, or why it could not be asked. */
-async function sendAction(action: ActionPayload): Promise<{ cart?: CartLine[]; message: string }> {
+async function sendAction(
+  action: ActionPayload,
+): Promise<{ cart?: CartLine[]; message: string; added: boolean }> {
   try {
     const result = await dispatchAction(action);
-    if (result.error) return { cart: result.cart, message: result.error.message };
-    const added = result.cart.find((line) => line.productId === action.context.productId);
+    if (result.error) return { cart: result.cart, message: result.error.message, added: false };
+    const line = result.cart.find((item) => item.productId === action.context.productId);
     return {
       cart: result.cart,
-      message: added ? `${added.name} added to your cart` : "Added to your cart",
+      message: line ? `${line.name} added to your cart` : "Added to your cart",
+      added: true,
     };
   } catch {
-    return { message: "Couldn't add to cart. Try again." };
+    return { message: "Couldn't add to cart. Try again.", added: false };
   }
 }
 
@@ -263,15 +319,21 @@ function StateText({ status }: { status: Status }) {
 /* ——— the app ——— */
 
 export default function App() {
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const { lines, open: cartOpen } = useCart();
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const notify = useCallback((text: string) => {
+    const id = (nextToastId += 1);
+    setToasts((list) => [...list, { id, text }]);
+  }, []);
   const [processor] = useState(
     () =>
       new MessageProcessor<ReactCatalogComponent>([shopCatalog], async (action) => {
-        const { cart: lines, message } = await sendAction(action);
-        if (lines) setCart(lines);
-        const id = (nextToastId += 1);
-        setToasts((list) => [...list, { id, text: message }]);
+        const { cart: saved, message, added } = await sendAction(action);
+        if (saved) cart.setLines(saved);
+        // the dot flies once the server has put the product in the cart
+        const productId = action.context.productId;
+        if (typeof productId === "string") landFlight(productId, added);
+        notify(message);
       }),
   );
   const [page, setPage] = useState<Page | null>(null);
@@ -318,8 +380,8 @@ export default function App() {
 
   /** Shows what the server holds: its cart, its tab and its page, rendered as it is now. */
   const showSaved = useCallback(
-    ({ tab, cart: lines }: Workspace) => {
-      setCart(lines);
+    ({ tab, cart: saved }: Workspace) => {
+      cart.setLines(saved);
       if (!tab) return;
       setInstant(true);
       setTabSettled(true);
@@ -457,7 +519,7 @@ export default function App() {
           </span>
         </div>
         <div className="ledger">
-          <CartCell lines={cart} />
+          <CartCell lines={lines} open={cartOpen} />
         </div>
         {/* the agent's line: breathes with the landing globe, fills while a page builds */}
         <Seam level={seamLevel} ref={seamLine} />
@@ -573,6 +635,8 @@ export default function App() {
           Concept demo · every product, price, rating and order is fictional
         </footer>
       </main>
+
+      <CartDrawer onNotice={notify} />
 
       {/* the thinking globe, over the workspace and under the chrome */}
       <ThinkingGlobe globeRef={globe} />

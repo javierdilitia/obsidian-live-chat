@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import type { z } from "zod";
 import shopJson from "../../../backend/packages/agent/src/halden_agent/catalog/shop.json";
 import { dispatchAction } from "../lib/actions";
+import { cart } from "../lib/cart";
 import { RETRY_BASE_MS, resetProductCache } from "../lib/products";
 import { shopCatalog } from "./catalog";
 import build from "./fixtures/build.json";
@@ -130,4 +131,41 @@ test("a failed product fetch shows a failed state, then retries", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("button flips to In cart · View and opens the drawer", async () => {
+  const fetchMock = mockApi();
+  const sent: string[] = [];
+  await showSurface(build, (action) => {
+    sent.push(action.name);
+  });
+  await screen.findByRole("button", { name: "Add Aeris Studio 16 · €1,899" });
+
+  // the cart takes the product, as the server's answer would put it
+  await act(async () => {
+    cart.setLines([
+      { productId: "aeris-studio-16", name: "Aeris Studio 16", qty: 1, price_cents: 189900 },
+    ]);
+    await Promise.resolve();
+  });
+
+  // the verdict's button and the shelf's both flip
+  const views = await screen.findAllByRole("button", { name: "In cart · View Aeris Studio 16" });
+  expect(views).toHaveLength(2);
+  const view = views[0] as HTMLElement;
+  expect(view).toHaveTextContent("In cart · View");
+  expect(view).toHaveClass("is-in");
+  // the shelf's button for the same product flips too; the others still add
+  const shelf = screen.getByRole("list", { name: "Products" });
+  expect(
+    within(shelf)
+      .getAllByRole("button")
+      .map((b) => b.textContent),
+  ).toEqual(["In cart · View", "Add to cart", "Add to cart"]);
+
+  fireEvent.click(view);
+
+  expect(cart.get().open).toBe(true);
+  expect(sent).toEqual([]);
+  expect(fetchMock.mock.calls.filter(([url]) => url === "/api/actions")).toHaveLength(0);
 });

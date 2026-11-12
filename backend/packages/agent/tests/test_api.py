@@ -341,6 +341,99 @@ def test_add_out_of_stock() -> None:
     ]
 
 
+def _act(client: TestClient, name: str, **context: Any) -> dict[str, Any]:
+    response = client.post(
+        "/api/actions",
+        json={
+            "name": name,
+            "surfaceId": "shell",
+            "sourceComponentId": "cart-drawer",
+            "context": context,
+        },
+    )
+    assert response.status_code == 200
+    body: dict[str, Any] = response.json()
+    return body
+
+
+def _qtys(result: dict[str, Any]) -> dict[str, int]:
+    return {line["productId"]: line["qty"] for line in result["cart"]}
+
+
+def test_set_qty_checks_stock() -> None:
+    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+
+    # Lumen Slate 16 has 3 in stock.
+    up = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=3)
+    too_many = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=4)
+    down = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=1)
+    sold_out = _act(client, "cart.set_qty", productId="kore-forge-17", qty=1)
+
+    assert up["ok"] and _qtys(up) == {"lumen-slate-16": 3}
+    assert too_many["ok"] is False and too_many["error"]["code"] == "out_of_stock"
+    assert _qtys(too_many) == {"lumen-slate-16": 3}
+    assert (
+        down["ok"]
+        and down["cart"][0]["price_cents"] == 179900
+        and _qtys(down) == {"lumen-slate-16": 1}
+    )
+    assert sold_out["error"]["code"] == "out_of_stock" and _qtys(sold_out) == {"lumen-slate-16": 1}
+
+
+def test_remove_and_zero_qty() -> None:
+    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    _act(client, "cart.add", productId="aeris-studio-16")
+    _act(client, "cart.add", productId="kore-zephyr-14")
+
+    zeroed = _act(client, "cart.set_qty", productId="aeris-studio-16", qty=0)
+    removed = _act(client, "cart.remove", productId="kore-zephyr-14")
+    again = _act(client, "cart.remove", productId="kore-zephyr-14")
+
+    assert zeroed["ok"] and _qtys(zeroed) == {"kore-zephyr-14": 1}
+    assert removed["ok"] and removed["cart"] == []
+    assert again["ok"] and again["cart"] == []
+
+
+@pytest.mark.parametrize(
+    ("name", "context", "code"),
+    [
+        ("cart.set_qty", {"productId": "aeris-studio-16"}, "invalid"),
+        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": -1}, "invalid"),
+        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": "2"}, "invalid"),
+        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": True}, "invalid"),
+        ("cart.set_qty", {"productId": "ghost-laptop-99", "qty": 1}, "not_found"),
+        ("cart.remove", {}, "invalid"),
+    ],
+)
+def test_bad_cart_edits_change_nothing(name: str, context: dict[str, Any], code: str) -> None:
+    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    _act(client, "cart.add", productId="aeris-studio-16")
+
+    result = _act(client, name, **context)
+
+    assert result["ok"] is False and result["error"]["code"] == code
+    assert _qtys(result) == {"aeris-studio-16": 1}
+
+
+def test_cart_endpoint() -> None:
+    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    assert client.get("/api/cart").json() == {"cart": []}
+
+    _act(client, "cart.add", productId="aeris-studio-16")
+    _act(client, "cart.set_qty", productId="aeris-studio-16", qty=2)
+
+    assert client.get("/api/cart").json() == {
+        "cart": [
+            {
+                "productId": "aeris-studio-16",
+                "name": "Aeris Studio 16",
+                "qty": 2,
+                "price_cents": 189900,
+            }
+        ]
+    }
+
+
 @pytest.mark.parametrize(
     ("name", "product_id", "code"),
     [

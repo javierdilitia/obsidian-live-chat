@@ -104,22 +104,30 @@ interface MockApiOptions {
   /** One answer per `GET /api/workspace`, in order; the last one repeats. No tab and no cart by
    *  default, as a fresh server answers. */
   workspace?: readonly unknown[];
+  /** What the server's cart already holds, as `productId: qty`. */
+  cart?: Readonly<Record<string, number>>;
 }
 
 const FRESH_WORKSPACE = { tab: null, cart: [] };
 
 /**
  * Stubs `fetch` with the endpoints the app calls; `products` is the catalog. `cart.add` adds one of
- * a product to an in-memory cart and answers with the cart, as the server does.
+ * a product to an in-memory cart, `cart.set_qty` and `cart.remove` change it, and each answers with
+ * the cart, as the server does.
  */
 export function mockApi(
   products: Product[] = LAPTOPS,
-  { failProducts = 0, runs = [], workspace = [FRESH_WORKSPACE] }: MockApiOptions = {},
+  {
+    failProducts = 0,
+    runs = [],
+    workspace = [FRESH_WORKSPACE],
+    cart: held = {},
+  }: MockApiOptions = {},
 ) {
   let failures = failProducts;
   const pendingRuns = [...runs];
   const workspaces = [...workspace];
-  const cart = new Map<string, number>();
+  const cart = new Map<string, number>(Object.entries(held));
   const cartLines = () =>
     [...cart].flatMap(([productId, qty]) =>
       products
@@ -148,7 +156,16 @@ export function mockApi(
     }
     if (url.pathname === "/api/actions" && init?.method === "POST") {
       const body = typeof init.body === "string" ? init.body : "{}";
-      const action = JSON.parse(body) as { context: { productId?: string } };
+      const action = JSON.parse(body) as {
+        name: string;
+        context: { productId?: string; qty?: number };
+      };
+      if (action.name === "cart.remove" || action.name === "cart.set_qty") {
+        const { productId = "", qty = 0 } = action.context;
+        if (action.name === "cart.remove" || qty <= 0) cart.delete(productId);
+        else cart.set(productId, qty);
+        return Promise.resolve(Response.json({ ok: true, cart: cartLines() }));
+      }
       const product = products.find((p) => p.id === action.context.productId);
       if (!product) {
         const error = { code: "not_found", message: "This product is no longer available." };

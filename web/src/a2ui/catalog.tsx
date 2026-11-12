@@ -16,6 +16,7 @@ import {
 } from "@a2ui/web_core/v1_0";
 import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { z } from "zod";
+import { cart, expectFlight, useCart } from "../lib/cart";
 import type { Product, ProductMap } from "../lib/products";
 import { useProducts } from "../lib/products";
 import "../styles/page.css";
@@ -238,7 +239,7 @@ function StarIcon() {
 
 /* ——— shared commerce parts ——— */
 
-function ProductRender({ look }: { look: Look }) {
+export function ProductRender({ look }: { look: Look }) {
   useLayoutEffect(installMaterials, []);
   return (
     <svg
@@ -295,9 +296,26 @@ function Stock({ stock }: { stock: number }) {
   );
 }
 
-/** Sends `cart.add` for one product, through the surface's action handler. */
-function addToCart(context: ComponentContext, productId: string): void {
+/** Where each product stands on the page's shelf: its series colour, for the fly-to-cart dot. */
+const shelfPosition = new Map<string, number>();
+
+/** Sends `cart.add` for one product, through the surface's action handler, and notes the dot's
+ *  flight: from the clicked button, in the product's series colour (steel when it is not on the
+ *  shelf). The dot launches when the server has put the product in the cart. */
+function addToCart(context: ComponentContext, productId: string, from: Element): void {
+  expectFlight(productId, from, seriesColour(shelfPosition.get(productId) ?? 1));
   void context.dispatchAction({ event: { name: "cart.add", context: { productId } } });
+}
+
+/** "In cart · View": a product already in the cart opens the drawer instead of adding again
+ *  (spec §7.6 `openCart`, a local action: nothing is sent). */
+function InCartLabel() {
+  return (
+    <>
+      <CheckIcon size={15} />
+      In cart · View
+    </>
+  );
 }
 
 /* ——— Page ——— */
@@ -417,10 +435,20 @@ interface ShelfItemProps {
   pick: boolean;
   product: Product | null | undefined;
   failed: boolean;
-  onAdd: (productId: string) => void;
+  inCart: boolean;
+  onAdd: (productId: string, from: Element) => void;
 }
 
-function ShelfItem({ productId, tag, index, pick, product, failed, onAdd }: ShelfItemProps) {
+function ShelfItem({
+  productId,
+  tag,
+  index,
+  pick,
+  product,
+  failed,
+  inCart,
+  onAdd,
+}: ShelfItemProps) {
   const tagLine = (
     <div className="swatch-line">
       <i style={{ background: seriesColour(index) }} />
@@ -451,15 +479,22 @@ function ShelfItem({ productId, tag, index, pick, product, failed, onAdd }: Shel
           <div className="prod-actions">
             <button
               type="button"
-              className="btn btn-ghost buy"
-              aria-label={`Add ${product.name} to cart`}
-              disabled={product.stock <= 0}
-              onClick={() => {
-                onAdd(productId);
+              className={inCart ? "btn btn-ghost buy is-in" : "btn btn-ghost buy"}
+              aria-label={inCart ? `In cart · View ${product.name}` : `Add ${product.name} to cart`}
+              disabled={!inCart && product.stock <= 0}
+              onClick={(event) => {
+                if (inCart) cart.open();
+                else onAdd(productId, event.currentTarget);
               }}
             >
-              <CartIcon />
-              Add to cart
+              {inCart ? (
+                <InCartLabel />
+              ) : (
+                <>
+                  <CartIcon />
+                  Add to cart
+                </>
+              )}
             </button>
           </div>
         </>
@@ -474,6 +509,12 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
   const ref = useRef<HTMLUListElement>(null);
   useRise(ref);
   const { products, failed } = useProducts(props.items.map((item) => item.productId));
+  const { lines } = useCart();
+  useLayoutEffect(() => {
+    props.items.forEach((item, i) => {
+      shelfPosition.set(item.productId, i);
+    });
+  }, [props.items]);
   return (
     <ul
       ref={ref}
@@ -492,8 +533,9 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
           pick={item.productId === props.pickId}
           product={products.get(item.productId)}
           failed={failed}
-          onAdd={(productId) => {
-            addToCart(context, productId);
+          inCart={lines.some((line) => line.productId === item.productId)}
+          onAdd={(productId, from) => {
+            addToCart(context, productId, from);
           }}
         />
       ))}
@@ -642,6 +684,23 @@ function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButto
   const { products, failed } = useProducts([props.productId]);
   const product = products.get(props.productId);
   const variant = props.variant ?? "primary";
+  const { lines } = useCart();
+  const inCart = lines.some((line) => line.productId === props.productId);
+  if (inCart) {
+    return (
+      <button
+        type="button"
+        className={`btn btn-${variant} buy is-in`}
+        data-part={id}
+        aria-label={product ? `In cart · View ${product.name}` : undefined}
+        onClick={() => {
+          cart.open();
+        }}
+      >
+        <InCartLabel />
+      </button>
+    );
+  }
   if (product === null || (product === undefined && failed)) {
     return (
       <button type="button" className={`btn btn-${variant} buy`} data-part={id} disabled>
@@ -658,8 +717,8 @@ function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButto
       data-part={id}
       aria-label={named}
       disabled={product !== undefined && product.stock <= 0}
-      onClick={() => {
-        addToCart(context, props.productId);
+      onClick={(event) => {
+        addToCart(context, props.productId, event.currentTarget);
       }}
     >
       <CartIcon />

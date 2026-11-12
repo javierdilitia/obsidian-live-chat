@@ -75,6 +75,26 @@
 .cell:last-child {
   padding-right: 20px;
 }
+/* the cart cell is a button: it opens the cart drawer */
+button.cell {
+  text-align: left;
+}
+.cell:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.cell:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+.cell:focus-visible {
+  outline-offset: -3px;
+  border-radius: 2px;
+}
+.cell[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.04);
+}
+.cell:hover .fact {
+  color: var(--tx-2);
+}
 .cell .ico {
   display: none;
   color: var(--tx-2);
@@ -94,7 +114,7 @@
   color: var(--tx);
 }
 
-/* the cart value rises in when it changes */
+/* the cart value rolls when it changes: the old one lifts away, the new one rises in */
 .roll {
   position: relative;
   overflow: hidden;
@@ -104,8 +124,20 @@
   align-items: center;
   gap: inherit;
 }
+.roll > .out {
+  position: absolute;
+  inset: 0;
+  animation: roll-out 0.34s var(--ease) both;
+}
 .roll > .in {
   animation: roll-in 0.42s var(--spring) both;
+}
+@keyframes roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(-70%);
+    filter: blur(2px);
+  }
 }
 @keyframes roll-in {
   from {

@@ -38,6 +38,19 @@
   color: var(--tx);
   background: rgba(255, 255, 255, 0.04);
 }
+/* a product already in the cart: the button says so and opens the cart (artifacts.css `.is-in`) */
+.btn.buy.is-in {
+  border-color: rgba(156, 190, 224, 0.35);
+  color: var(--steel);
+}
+.btn.buy.is-in svg {
+  color: var(--steel);
+}
+.btn-primary.buy.is-in {
+  background: transparent;
+  border: 1px solid rgba(156, 190, 224, 0.45);
+  color: var(--steel);
+}
 
 /* ——— the mono meta line — items divided by 3px dots ——— */
 .art-meta,

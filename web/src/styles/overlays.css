@@ -1,0 +1,192 @@
+/* The cart drawer, its scrim and the fly-to-cart dot, from mockup/css/overlays.css (values copied). */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(4, 6, 10, 0.62);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s var(--ease);
+}
+.scrim.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* the small round control (mockup/css/chrome.css `.ctl`) */
+.ctl {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 38px;
+  min-width: 38px;
+  padding: 0 10px;
+  border-radius: var(--r-ctl);
+  color: var(--tx-2);
+  transition:
+    background 0.18s var(--ease),
+    color 0.18s var(--ease),
+    transform 0.18s var(--ease);
+}
+.ctl:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--tx);
+}
+.ctl:active {
+  transform: scale(0.96);
+}
+
+.drawer {
+  position: fixed;
+  z-index: 90;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 92vw);
+  background: var(--bg-raise);
+  border-left: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-modal);
+  transform: translateX(100%);
+  transition: transform 0.5s var(--ease);
+  display: flex;
+  flex-direction: column;
+}
+.drawer.on {
+  transform: none;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-head h2 {
+  font-size: 17px;
+  font-weight: 700;
+}
+.drawer-head .close {
+  color: var(--tx-3);
+}
+.drawer-head .close:hover {
+  color: var(--tx);
+}
+.drawer-body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 24px 24px;
+}
+
+/* cart lines */
+.cart-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.cart-line .tile {
+  width: 72px;
+  height: 52px;
+  border-radius: 12px;
+  flex: none;
+  background-color: var(--bg-panel);
+}
+.cart-line .tile .render {
+  width: 72px;
+}
+.cart-line .info {
+  flex: 1;
+  min-width: 0;
+}
+.cart-line .info b {
+  font-size: 13.5px;
+  display: block;
+}
+.cart-line .info span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tx-2);
+  font-variant-numeric: tabular-nums;
+}
+.cart-line .qty {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 2px;
+  flex: none;
+}
+.cart-line .qty button {
+  width: 32px;
+  height: 32px;
+  border-radius: 99px;
+  display: grid;
+  place-items: center;
+  color: var(--tx-2);
+}
+.cart-line .qty button:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--tx);
+}
+.cart-line .qty b {
+  width: 20px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+.cart-line .rm {
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  color: var(--tx-3);
+  flex: none;
+}
+.cart-empty {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--tx-3);
+  font-size: 13.5px;
+}
+.drawer-foot {
+  border-top: 1px solid var(--line);
+  padding: 18px 24px 22px;
+}
+.drawer-foot .sum {
+  font-variant-numeric: tabular-nums;
+}
+.drawer-foot .sum div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--tx-2);
+  padding: 3px 0;
+}
+.drawer-foot .sum .grand {
+  color: var(--tx);
+  font-size: 14px;
+  align-items: baseline;
+}
+.drawer-foot .sum .grand b {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* fly-to-cart dot */
+.fly-dot {
+  position: fixed;
+  z-index: 130;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  pointer-events: none;
+  transition:
+    transform 0.65s cubic-bezier(0.3, 0.6, 0.3, 1),
+    opacity 0.65s var(--ease);
+}
