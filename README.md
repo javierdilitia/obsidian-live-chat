@@ -63,7 +63,24 @@ pnpm --dir web dev
 
 Open <http://localhost:5173/?probe>. `?probe` adds a small panel in the bottom-left corner that counts how many times each part of the page has mounted, so you can see that an edit mounts only the new section (the old ones stay at 1). Leave it off for a clean page.
 
-Try, in order: "Compare 3 laptops for video editing under €2,000", then "Add colour accuracy for grading", then "Only OLED", then "Add to cart" on the pick. The agent keeps one tab and one cart in memory: a reload brings back the page and the cart as they were. To start over, restart the agent (Ctrl+C, run it again) and then reload the page.
+Try, in order: "Compare 3 laptops for video editing under €2,000", then "Add colour accuracy for grading", then "Only OLED", then "Add to cart" on the pick. A reload brings back the page and the cart as they were. The user menu (the last cell of the shell bar) switches between the three seeded shoppers, Javier, Ana and Sam; each has their own tab and cart.
+
+**What survives a restart.** With a database, everything: each shopper's tab, its page and their cart. Postgres runs in Docker:
+
+```bash
+# in .env (see .env.example)
+OBSIDIAN_DATABASE_URL=postgresql+asyncpg://obsidian:obsidian@localhost:5432/obsidian
+OBSIDIAN_SESSION_KEY=<any long random string>
+```
+
+`python scripts/dev.py` then starts Postgres (`docker compose up -d --wait postgres`) before the two servers; Docker must be running. If another Postgres already uses port 5432 on your machine, set `OBSIDIAN_POSTGRES_PORT=5433` when starting compose and use port 5433 in the URL. Without `OBSIDIAN_DATABASE_URL` everything is kept in memory and a restart forgets it (the agent logs a warning); that is how to start over. Without `OBSIDIAN_SESSION_KEY`, a restart signs every browser back in as Javier.
+
+The store's Postgres tests run when `OBSIDIAN_TEST_DATABASE_URL` points at a database they may empty (the compose one is fine), and are skipped otherwise:
+
+```bash
+docker compose up -d --wait postgres
+OBSIDIAN_TEST_DATABASE_URL=postgresql+asyncpg://obsidian:obsidian@localhost:5432/obsidian uv run --directory backend pytest packages/store -q --no-cov
+```
 
 The one live test (a real build and edit against the deployment) is skipped unless `OBSIDIAN_LIVE=1`. Run it alone with `--no-cov`, because a single test falls under the 80 % coverage gate:
 
