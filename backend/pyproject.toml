@@ -28,3 +28,8 @@ pythonVersion = "3.12"
 include = ["packages"]
 venvPath = "."
 venv = ".venv"
+
+[tool.coverage.run]
+# Proven by StoreContract against a real Postgres (CI's service container); the pre-push hook
+# has no database, so they stay out of the 80 % gate.
+omit = ["*/obsidian_store/postgres.py", "*/obsidian_store/migrations/*"]
