@@ -102,18 +102,23 @@ The rest of the backend imports only `obsidian_data_contract`. Nothing else know
 - **Cartridge** (one per client): the data itself, its data model and seed, and per-domain presentation config: brand, spec glossary, product renders, diagrams, category-pairing rules.
 - **Halden** (`data_fake`, a JSON seed) is the first cartridge. **Haier** is the next: the data-agent teammate's real data behind an adapter that runs the same contract suite.
 
-**Known cartridge seams (extract in milestone 3).** Halden presentation config still lives in core code; recorded here, not moved yet:
+**How a cartridge plugs in.** Core never imports a cartridge; it finds one by name, on each side.
 
-- the spec labels (the glossary) and which way is better per spec, in `web/src/a2ui/catalog.tsx`;
-- the product renders, in `web/src/a2ui/renders.ts`;
-- the "concept demo · fictional products" disclaimer (`web/src/a2ui/catalog.tsx` footer and `web/src/App.tsx`);
-- the store wordmark in `web/src/App.tsx` and the page `<title>` in `web/index.html`.
+- **Backend.** A cartridge package registers a `Cartridge` (from `obsidian_data_contract`: `id`, `name`, `make_source`) under the `obsidian.cartridges` entry point; Halden's is `halden = "halden_data_fake.cartridge:CARTRIDGE"`. At start, `obsidian_agent.cartridges.load_cartridge` imports only the chosen entry point: the one `OBSIDIAN_CARTRIDGE` names, or the only one installed. A missing or unknown choice, or a cartridge that fails to import, stops the start with a message naming the installed IDs; a broken cartridge never blocks another one. `GET /health` reports the cartridge's ID. The page agent's search tool lists the cartridge's categories, read from its data on the first run.
+- **Web.** A cartridge is a folder `web/src/cartridges/<id>/` whose `index.ts` exports a `CartridgeUI`: the store name (wordmark and document title), the disclaimer, the spec glossary (`specs.en.json`: label and which way is better) and, optionally, a product renderer. `web/src/cartridge.ts` finds the folders with `import.meta.glob` and picks one by `VITE_OBSIDIAN_CARTRIDGE` (optional while only one exists), with the same errors as the backend. A cartridge without renders shows empty plates.
+- **One ID.** The cartridge's ID is its entry-point name, its web folder name and the value of both settings.
+- **Guard tests.** `backend/packages/agent/tests/test_cartridges.py`: no module in `obsidian_agent` or `obsidian_data_contract` imports a cartridge package, and `obsidian-agent` does not depend on one. `test_prompt.py`: the page prompt, the catalog's descriptions and the tool descriptions name no Halden product, category or spec key. `web/src/boundary.test.ts`: no core web file imports from `cartridges/` or names the cartridge's store or disclaimer.
+
+**Known seams left.**
+
+- In the contract: `RenderLook` (glyph, finish, screen: Halden's drawing vocabulary) and `currency: Literal["EUR"]`. Both wait for the Haier intake (milestone H, intake question G).
+- The fixed strings of the shell and the catalog components are English only; slice 3 adds the language bundles.
 
 ```
 backend/packages/
   data_contract/   obsidian_data_contract  CatalogSource protocol + Pydantic models + contract test suite
-  data_fake/       halden_data_fake      FakeCatalogSource from JSON seed files
-  agent/           obsidian_agent          FastAPI app (GET /health only, for now)
+  data_fake/       halden_data_fake        FakeCatalogSource from JSON seed files; registers the `halden` cartridge
+  agent/           obsidian_agent          FastAPI app: runs over SSE, catalog reads, cart; loads the chosen cartridge
 ```
 
 - `CatalogSource` is an async, **read-only** protocol: `list_categories`, `search_products`, `get_product`, `get_products`, `get_orders`, `get_order`, `get_order_status`. The only error is `NotFoundError(kind, ids)`.

@@ -33,8 +33,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - ROADMAP milestone H, the Haier cartridge: after milestone 3, an adapter connects the teammate's SQL agent for retrieval only; the Haier intake opens it. Milestone 3 is built cartridge-ready.
 - Product spec approved (milestone 1 done), with the first demo's results and feedback added: 5 or more products open an explore page (it pages or scrolls sideways when full); new sections go where they fit on an edit; stricter page checks (numeric chart specs, known table specs, no repeated products); actions check their surface and button; the search tool offers multi-word text and sorting. The finished specs and plans in `docs/superpowers/` are marked done and kept as history.
 
+- Cartridge loading (milestone 3, slice 1, plan `docs/superpowers/plans/2026-11-12-slice-1-cartridge-boundary.md`): the `Cartridge` descriptor in the contract; Halden registers itself under the `obsidian.cartridges` entry point and the agent loads the one `OBSIDIAN_CARTRIDGE` names, or the only one installed, failing at start with the installed IDs otherwise; `GET /health` reports it. On the web, `web/src/cartridges/halden/` holds the store name, the disclaimer, the spec glossary (`specs.en.json`) and the product renders, picked by `VITE_OBSIDIAN_CARTRIDGE`.
+- Guard tests for the cartridge boundary: core Python imports no cartridge and `obsidian-agent` depends on none; the page prompt, catalog and tool descriptions name no Halden data; no core web file imports a cartridge folder or names its store or disclaimer.
+
 ### Changed
 
+- The page agent's `search_products` tool takes several words and a `sort` (`rating`, `price_asc`, `price_desc`), and lists the cartridge's categories.
+- The page validator also rejects a section outside `Page.children`, a `BarChart` outside a `ChartGrid`, a chart on a spec that is not a number, a table row none of its products has, and a product named twice in one component; the feedback lists the keys that would work.
+- The page prompt says where a new section goes (after the section it extends, never last by default) and to change an existing section rather than add a second one; its examples no longer name Halden data.
+- `obsidian-agent` no longer depends on `halden-data-fake`; the browser tab's title comes from the cartridge (`index.html` says "Obsidian").
 - The concept mockup moved to `mockup/`, unchanged.
 - Research documents moved to `docs/research/`.
 - `PRODUCT.md` rewritten for the product (real models and backend) instead of the mockup.
