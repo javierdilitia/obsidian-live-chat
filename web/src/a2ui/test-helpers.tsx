@@ -77,11 +77,19 @@ export const LAPTOPS: Product[] = [
   },
 ];
 
-/** Stubs `fetch` with the two endpoints the components call; `products` is the catalog. */
-export function mockApi(products: Product[] = LAPTOPS) {
+/**
+ * Stubs `fetch` with the two endpoints the components call; `products` is the catalog. The first
+ * `failProducts` product requests answer 503.
+ */
+export function mockApi(products: Product[] = LAPTOPS, { failProducts = 0 } = {}) {
+  let failures = failProducts;
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input), "http://halden.test");
     if (url.pathname === "/api/catalog/products") {
+      if (failures > 0) {
+        failures -= 1;
+        return Promise.resolve(new Response(null, { status: 503 }));
+      }
       const ids = (url.searchParams.get("ids") ?? "").split(",").filter(Boolean);
       const found = ids.flatMap((id) => products.filter((p) => p.id === id));
       const missing = ids.filter((id) => !products.some((p) => p.id === id));

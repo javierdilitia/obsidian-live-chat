@@ -136,27 +136,53 @@ function allFresh(ids: readonly string[]): boolean {
   });
 }
 
-/** The products for `ids`. Renders from the cache at once; fetches what is missing or stale. */
-export function useProducts(ids: readonly string[]): ProductMap {
+/** What `useProducts` returns. */
+export interface ProductsState {
+  products: ProductMap;
+  /** The last request for these IDs failed; it is retried with a back-off until it works. */
+  failed: boolean;
+}
+
+/** Retries after a failed request: 1 s, 2 s, 4 s, 8 s, then the parts keep their failed state. */
+export const RETRY_BASE_MS = 1_000;
+export const MAX_RETRIES = 4;
+
+/**
+ * The products for `ids`. Renders from the cache at once and fetches what is missing or stale.
+ * Sections keep their mount across edits, so a failed request is not left for a later mount to
+ * repeat: the hook retries it itself, with a back-off, and reports `failed` meanwhile.
+ */
+export function useProducts(ids: readonly string[]): ProductsState {
   const key = ids.join("\n");
   const [loaded, setLoaded] = useState<{ key: string; products: ProductMap } | null>(null);
+  const [failure, setFailure] = useState<{ key: string; count: number } | null>(null);
+  const failures = failure?.key === key ? failure.count : 0;
   useEffect(() => {
     const wanted = key ? key.split("\n") : [];
-    if (allFresh(wanted)) return;
+    if (allFresh(wanted) || failures > MAX_RETRIES) return;
     let live = true;
-    fetchProducts(wanted).then(
-      (products) => {
-        if (live) setLoaded({ key, products });
-      },
-      () => {
-        // Left loading; the next mount or ID change asks again.
-      },
-    );
+    const run = () => {
+      fetchProducts(wanted).then(
+        (products) => {
+          if (!live) return;
+          setLoaded({ key, products });
+          setFailure(null);
+        },
+        () => {
+          if (live) setFailure({ key, count: failures + 1 });
+        },
+      );
+    };
+    // The first request goes out in this tick, so it joins the other sections' request.
+    const timer = failures === 0 ? undefined : setTimeout(run, RETRY_BASE_MS * 2 ** (failures - 1));
+    if (timer === undefined) run();
     return () => {
       live = false;
+      clearTimeout(timer);
     };
-  }, [key]);
-  return loaded?.key === key ? loaded.products : peekProducts(ids);
+  }, [key, failures]);
+  const products = loaded?.key === key ? loaded.products : peekProducts(ids);
+  return { products, failed: failures > 0 };
 }
 
 /** Forgets every cached product (tests, and a future "refresh prices"). */

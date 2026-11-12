@@ -103,6 +103,7 @@ type BuildChild = ReactA2uiComponentProps<unknown>["buildChild"];
 
 const DASH = "—";
 const GONE = "No longer available";
+const FAILED = "Couldn't load";
 const FOOTER = ["concept demo", "fictional products, prices & ratings"];
 
 interface SpecInfo {
@@ -172,6 +173,19 @@ function numeric(product: Product | null | undefined, key: string): number | und
 /** For a CSS custom property in a `style` prop. */
 function vars(values: Record<string, string | number>): CSSProperties {
   return values;
+}
+
+/** A product's name; the fixed string when it is gone or failed to load; blank while loading. */
+function nameOf(product: Product | null | undefined, failed: boolean): string {
+  if (product === null) return GONE;
+  if (product) return product.name;
+  return failed ? FAILED : "";
+}
+
+/** A spec as shown: a dash when the product lacks it, is gone or failed to load. */
+function shownSpec(product: Product | null | undefined, key: string, failed: boolean): string {
+  if (product === undefined) return failed ? DASH : "";
+  return product?.specs[key]?.display ?? DASH;
 }
 
 function childRef(child: string | ResolvedChildRef, buildChild: BuildChild): ReactNode {
@@ -368,10 +382,11 @@ interface ShelfItemProps {
   index: number;
   pick: boolean;
   product: Product | null | undefined;
+  failed: boolean;
   onAdd: (productId: string) => void;
 }
 
-function ShelfItem({ productId, tag, index, pick, product, onAdd }: ShelfItemProps) {
+function ShelfItem({ productId, tag, index, pick, product, failed, onAdd }: ShelfItemProps) {
   const tagLine = (
     <div className="swatch-line">
       <i style={{ background: seriesColour(index) }} />
@@ -384,9 +399,9 @@ function ShelfItem({ productId, tag, index, pick, product, onAdd }: ShelfItemPro
         {product && <ProductRender look={product.look} />}
         {pick && product && <span className="pill">The pick</span>}
       </div>
-      {product === null && (
+      {(product === null || (product === undefined && failed)) && (
         <>
-          <p className="prod-gone">{GONE}</p>
+          <p className="prod-gone">{nameOf(product, failed)}</p>
           {tagLine}
         </>
       )}
@@ -425,7 +440,7 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
   const ref = useRef<HTMLUListElement>(null);
   useRise(ref);
   useGlow(ref, JSON.stringify([props.items, props.pickId]));
-  const products = useProducts(props.items.map((item) => item.productId));
+  const { products, failed } = useProducts(props.items.map((item) => item.productId));
   return (
     <ul
       ref={ref}
@@ -442,6 +457,7 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
           index={i}
           pick={item.productId === props.pickId}
           product={products.get(item.productId)}
+          failed={failed}
           onAdd={(productId) => {
             addToCart(context, productId);
           }}
@@ -469,7 +485,7 @@ function SpecTableView({ props, context }: ViewProps<typeof SpecTableApi>) {
   const ref = useRef<HTMLDivElement>(null);
   useRise(ref);
   useGlow(ref, JSON.stringify([props.productIds, props.specKeys, props.highlightBest]));
-  const products = useProducts(props.productIds);
+  const { products, failed } = useProducts(props.productIds);
   const highlight = props.highlightBest ?? true;
   return (
     <div
@@ -489,7 +505,7 @@ function SpecTableView({ props, context }: ViewProps<typeof SpecTableApi>) {
           return (
             <div key={pid} className="spec-val rise" role="columnheader">
               <i style={{ background: seriesColour(i) }} />
-              {product === null ? GONE : (product?.name ?? "")}
+              {nameOf(product, failed)}
             </div>
           );
         })}
@@ -503,7 +519,7 @@ function SpecTableView({ props, context }: ViewProps<typeof SpecTableApi>) {
             </div>
             {props.productIds.map((pid, i) => {
               const product = products.get(pid);
-              const text = product === undefined ? "" : (product?.specs[key]?.display ?? DASH);
+              const text = shownSpec(product, key, failed);
               const isBest = best.has(i);
               return (
                 <div
@@ -542,7 +558,7 @@ function BarChartView({ props, context }: ViewProps<typeof BarChartApi>) {
   const ref = useRef<HTMLDivElement>(null);
   useRise(ref);
   useGlow(ref, JSON.stringify([props.title, props.productIds, props.specKey, props.note]));
-  const products = useProducts(props.productIds);
+  const { products, failed } = useProducts(props.productIds);
   const values = props.productIds.map((pid) => numeric(products.get(pid), props.specKey));
   const max = Math.max(0, ...values.filter((value): value is number => value !== undefined));
   const dim = specInfo(props.specKey).better === "lower";
@@ -552,8 +568,8 @@ function BarChartView({ props, context }: ViewProps<typeof BarChartApi>) {
       {props.productIds.map((pid, i) => {
         const product = products.get(pid);
         const value = values[i];
-        const name = product === null ? GONE : (product?.name ?? "");
-        const shown = product === undefined ? "" : (product?.specs[props.specKey]?.display ?? DASH);
+        const name = nameOf(product, failed);
+        const shown = shownSpec(product, props.specKey, failed);
         const width = value !== undefined && max > 0 ? (value / max) * 100 : 0;
         return (
           <div key={pid} className="bar-row rise" style={vars({ "--row": i })}>
@@ -588,13 +604,13 @@ function cartLabel(product: Product | undefined, withName: boolean, withPrice: b
 
 function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButtonApi>) {
   useMountProbe(context.componentModel.id);
-  const products = useProducts([props.productId]);
+  const { products, failed } = useProducts([props.productId]);
   const product = products.get(props.productId);
   const variant = props.variant ?? "primary";
-  if (product === null) {
+  if (product === null || (product === undefined && failed)) {
     return (
       <button type="button" className={`btn btn-${variant} buy`} disabled>
-        {GONE}
+        {nameOf(product, failed)}
       </button>
     );
   }

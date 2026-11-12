@@ -1,8 +1,8 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { z } from "zod";
 import shopJson from "../../../backend/packages/agent/src/halden_agent/catalog/shop.json";
 import { dispatchAction } from "../lib/actions";
-import { resetProductCache } from "../lib/products";
+import { RETRY_BASE_MS, resetProductCache } from "../lib/products";
 import { shopCatalog } from "./catalog";
 import build from "./fixtures/build.json";
 import { LAPTOPS, SURFACE_ID, mockApi, showSurface } from "./test-helpers";
@@ -99,4 +99,35 @@ test("spec table shows a dash for a missing spec", async () => {
   await within(row).findByText("165 Hz");
   const cells = within(row).getAllByRole("cell");
   expect(cells.map((cell) => cell.textContent)).toEqual(["165 Hz", "—", "144 Hz"]);
+});
+
+test("a failed product fetch shows a failed state, then retries", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    const fetchMock = mockApi(LAPTOPS, { failProducts: 1 });
+    await showSurface(build);
+
+    const shelf = await screen.findByRole("list", { name: "Products" });
+    expect(await within(shelf).findAllByText("Couldn't load")).toHaveLength(3);
+    expect(within(shelf).queryByRole("button")).toBeNull();
+    expect(screen.getByRole("button", { name: "Couldn't load" })).toBeDisabled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RETRY_BASE_MS);
+    });
+    await within(shelf).findByText("€1,899");
+    expect(within(shelf).queryByText("Couldn't load")).toBeNull();
+    expect(screen.getByRole("button", { name: "Add Aeris Studio 16 · €1,899" })).toBeEnabled();
+    // The retry asks for each product once more, whichever sections retried it.
+    const retried = fetchMock.mock.calls
+      .slice(1)
+      .flatMap(([url]) =>
+        typeof url === "string" && url.startsWith("/api/catalog/products?ids=")
+          ? url.slice("/api/catalog/products?ids=".length).split(",")
+          : [],
+      );
+    expect(retried.sort()).toEqual(LAPTOPS.map((product) => product.id).sort());
+  } finally {
+    vi.useRealTimers();
+  }
 });
