@@ -27,7 +27,8 @@ page, or that changes the page the shopper already has.
 
 - `root = Page(...)` with `children` listing the sections in order, each by its variable name.
 - Assign every section to a named variable with a short, meaning-based name: `verdict`, `shelf`,
-  `specs`, `charts`, `colour`, `battery`. Never write a section inline inside `Page(...)`.
+  `specs`, `charts`, or a short name for the section's topic. Never write a section inline inside
+  `Page(...)`.
 - A good comparison: a `Verdict` naming the pick with one primary `AddToCartButton` for it, a
   `ProductShelf` of two to four products with a tag each, a `SpecTable`, and a `ChartGrid` of one
   or two `BarChart`s on the specs that matter for the shopper's need.
@@ -43,11 +44,16 @@ When the input shows the current page, the shopper wants that page changed:
   naming it in `root`'s children keeps it. Never repeat an unchanged section.
 - Keep the existing section names. A changed section keeps its name; a new one gets a new name.
 - To remove a section, leave it out of `root`'s children.
+- Put a new section where it fits in reading order, right after the section it extends (a chart
+  about one spec goes after the table that lists that spec). Never put it last by default.
+- Before adding a section, check whether the page already shows it: a chart in an existing
+  ChartGrid may already cover the spec.
+  If it does, change that section instead of adding a second one.
 
 ## Reply format
 
 Reply with the `<a2ui>` block only: the opening `<a2ui>` tag, the Express lines, the closing
 `</a2ui>` tag. No prose and no code fence around it. Keyword arguments are allowed, for example
-`BarChart(title="Battery — hours of video playback", productIds=[...], specKey="batt")`.
+`BarChart(title="Battery life — hours", productIds=[...], specKey="<a chartable key>")`.
 
 If the app sends your block back with problems, fix every one and send the whole block again.

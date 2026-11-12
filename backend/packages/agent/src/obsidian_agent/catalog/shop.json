@@ -99,7 +99,7 @@
             "required": ["productId", "tag"],
             "additionalProperties": false
           },
-          "description": "Two to four products, for example [{productId: \"aeris-studio-16\", tag: \"most power\"}, ...]."
+          "description": "Two to four products, for example [{productId: \"<a product ID>\", tag: \"most power\"}, ...]."
         },
         "pickId": {
           "type": "string",
@@ -154,7 +154,7 @@
         },
         "specKey": {
           "type": "string",
-          "description": "A numeric spec key, such as batt, hz, p3 or de."
+          "description": "A numeric spec key: one of the products' chartable keys."
         },
         "note": {
           "type": "string",
