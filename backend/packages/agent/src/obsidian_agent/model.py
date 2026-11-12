@@ -22,7 +22,7 @@ from typing import Any, Literal, Protocol
 
 from openai import AsyncAzureOpenAI
 
-from halden_agent.settings import Settings
+from obsidian_agent.settings import Settings
 
 Stop = Literal["stop", "length", "tool_calls"]
 

@@ -6,7 +6,7 @@ Status: sub-project 0 (foundation). Nothing here is implemented yet except the d
 
 ## Paradigm
 
-Halden's assistant, Obsidian, is **not a chatbot**. There is no transcript.
+Obsidian, the agent-UI shopping framework, is **not a chatbot**. There is no transcript. It is demoed on the Halden cartridge, a fictional electronics store.
 
 - A **command bar** at the top takes what the shopper asks.
 - The answer is filed into **tabs** by the agent: it opens new tabs, edits the one you're on, switches between them and closes them. Each tab holds generated UI: comparisons, spec explainers, product pages, order history, tracking, support.
@@ -34,7 +34,7 @@ Python backend (FastAPI)
 | Backend | **Python 3.12**, FastAPI, uv workspace | `a2ui-agent-sdk` is the most mature agent SDK; macros (server-side expansion such as `ProductCard(id)`) and the eval framework are Python-only |
 | Frontend | **React 19.2** + `@a2ui/react`, Vite, TypeScript | Our components, our styling, our motion |
 | Models | **Azure AI Foundry**: a small fast model for routing, a top-tier model for UI generation | Deployments arrive before sub-project 2 |
-| Data | `halden_data_contract` (interface) + `halden_data_fake` (JSON seed) | See [Data contract boundary](#data-contract-boundary) |
+| Data | `obsidian_data_contract` (interface) + `halden_data_fake` (JSON seed) | See [Data contract boundary](#data-contract-boundary) |
 
 A2UI packages are pinned to **exact versions**, never ranges: the spec has broken three times in about a year.
 
@@ -94,19 +94,32 @@ Components take **IDs**, not values: `SpecTable(productIds, keys)`, `OrderTracke
 
 ## Data contract boundary
 
-The rest of the backend imports only `halden_data_contract`. Nothing else knows where the data comes from.
+The rest of the backend imports only `obsidian_data_contract`. Nothing else knows where the data comes from.
+
+**Obsidian core vs cartridge.**
+
+- **Obsidian core** (reusable for any client): the shell, tabs, the A2UI renderer and catalog mechanisms, the motion grammar, the run pipeline, the store and the action mechanism. The data contract is core too: every cartridge implements it.
+- **Cartridge** (one per client): the data itself, its data model and seed, and per-domain presentation config: brand, spec glossary, product renders, diagrams, category-pairing rules.
+- **Halden** (`data_fake`, a JSON seed) is the first cartridge. **Haier** is the next: the data-agent teammate's real data behind an adapter that runs the same contract suite.
+
+**Known cartridge seams (extract in milestone 3).** Halden presentation config still lives in core code; recorded here, not moved yet:
+
+- the spec labels (the glossary) and which way is better per spec, in `web/src/a2ui/catalog.tsx`;
+- the product renders, in `web/src/a2ui/renders.ts`;
+- the "concept demo · fictional products" disclaimer (`web/src/a2ui/catalog.tsx` footer and `web/src/App.tsx`);
+- the store wordmark in `web/src/App.tsx` and the page `<title>` in `web/index.html`.
 
 ```
 backend/packages/
-  data_contract/   halden_data_contract  CatalogSource protocol + Pydantic models + contract test suite
+  data_contract/   obsidian_data_contract  CatalogSource protocol + Pydantic models + contract test suite
   data_fake/       halden_data_fake      FakeCatalogSource from JSON seed files
-  agent/           halden_agent          FastAPI app (GET /health only, for now)
+  agent/           obsidian_agent          FastAPI app (GET /health only, for now)
 ```
 
 - `CatalogSource` is an async, **read-only** protocol: `list_categories`, `search_products`, `get_product`, `get_products`, `get_orders`, `get_order`, `get_order_status`. The only error is `NotFoundError(kind, ids)`.
 - Cart, saved-for-later, checkout and refunds are **our** commerce services (sub-project 3), not the data agent's job.
 - Models are frozen and reject unknown fields. Search is deterministic: rating descending, then id.
-- `halden_data_contract.contract_tests.CatalogSourceContract` is a reusable pytest suite. The fake runs it in CI. The teammate's adapter will run the same suite, which is how we know it's a drop-in replacement.
+- `obsidian_data_contract.contract_tests.CatalogSourceContract` is a reusable pytest suite. The fake runs it in CI. The teammate's adapter will run the same suite, which is how we know it's a drop-in replacement.
 - The contract is v0. It gets reviewed with the data-agent teammate during sub-project 1, before anything beyond the fake depends on it.
 
 ## Transport

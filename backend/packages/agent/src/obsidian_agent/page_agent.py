@@ -17,7 +17,7 @@ from typing import Any, cast
 
 from pydantic import ValidationError
 
-from halden_agent.a2ui_adapter import (
+from obsidian_agent.a2ui_adapter import (
     CompileError,
     Message,
     Snapshot,
@@ -26,13 +26,13 @@ from halden_agent.a2ui_adapter import (
     decompile,
     prompt_snippet,
 )
-from halden_agent.model import ModelClient, ModelResult, ToolCall
-from halden_agent.validate import issues_for_model, page_product_ids, validate_page
-from halden_data_contract import CatalogSource, NotFoundError, Product, ProductQuery
+from obsidian_agent.model import ModelClient, ModelResult, ToolCall
+from obsidian_agent.validate import issues_for_model, page_product_ids, validate_page
+from obsidian_data_contract import CatalogSource, NotFoundError, Product, ProductQuery
 
 log = logging.getLogger(__name__)
 
-PAGE_PROMPT = files("halden_agent").joinpath("prompts", "page.md").read_text(encoding="utf-8")
+PAGE_PROMPT = files("obsidian_agent").joinpath("prompts", "page.md").read_text(encoding="utf-8")
 SYSTEM_PROMPT = prompt_snippet() + "\n\n" + PAGE_PROMPT
 
 MAX_ATTEMPTS = 2

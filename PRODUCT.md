@@ -6,11 +6,15 @@
 
 web
 
+**Obsidian is the product**: a reusable, client- and domain-agnostic framework for agent-built shopping UIs: the no-transcript paradigm (command bar, agent-filed tabs, in-place edits), the router and tab tools, A2UI UI generation, the component and action catalog mechanisms, the motion grammar, and the persistence and run-pipeline patterns. Each client plugs in as a **cartridge**: its data, data model and seed, and its presentation config (brand, spec glossary, product renders, diagrams, category-pairing rules). **Halden**, a fictional electronics retailer, is the first cartridge and exists only to demo Obsidian during development. **Haier** is the next, with real data and backend from the data-agent teammate. More clients may follow.
+
 ## Stack
 
 The product: a React 19.2 + Vite + TypeScript web app (`web/`) rendering A2UI v1.0 surfaces with our own component catalog, and a Python 3.12 backend (`backend/`, FastAPI, uv workspace) that routes requests, generates UI with models on Azure AI Foundry (a small fast router model, a top-tier UI model) and reads catalog data through the `CatalogSource` contract. See `docs/ARCHITECTURE.md`. The original concept mockup (static vanilla HTML/CSS/JS, opens by double-click) is kept unchanged in `mockup/` as the visual and motion reference.
 
 ## Users
+
+*First-cartridge (Halden) content: the shoppers and seeded users below belong to the Halden demo store.*
 
 **Shoppers** making considered electronics purchases: laptops, monitors, audio and accessories. They weigh several options over days rather than minutes, want specs explained in plain words, and come back: to the tabs the assistant built for them (kept automatically, closed ones in their history), to products they looked at, and to their orders.
 
@@ -37,6 +41,7 @@ Conversation is the command layer; documents are the answer. This inverts the ch
 - **English and Spanish**, switched from the shell's language menu. Money is EUR.
 - **No login yet:** seeded shoppers picked from the user menu, until real authentication arrives with deployment to Azure (milestone 5).
 - **Synthetic data** until the teammate's data agent is connected.
+- **The final real demo runs on Haier data**, through the Haier cartridge; Halden's synthetic data is for development.
 - **Reduced motion** is honoured everywhere: at rest, nothing is hidden.
 
 ## Capabilities and Constraints
@@ -49,6 +54,8 @@ Conversation is the command layer; documents are the answer. This inverts the ch
 - Until the teammate's data agent is connected, all product and order data is synthetic demonstration data with invented model names — never real products with fabricated prices.
 
 ## Brand Commitments
+
+*First-cartridge (Halden) content.*
 
 Black, very slick, minimalistic (user-pinned). These bind the visual world.
 

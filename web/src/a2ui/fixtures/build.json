@@ -3,7 +3,7 @@
     "version": "1.0",
     "createSurface": {
       "surfaceId": "shop:00000000000000000000000000000000",
-      "catalogId": "https://halden.example/catalogs/shop/v1/catalog.json",
+      "catalogId": "https://obsidian.example/catalogs/shop/v1/catalog.json",
       "components": [
         {
           "id": "root",

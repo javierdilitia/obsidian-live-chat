@@ -1,6 +1,6 @@
 """Compiles the Express test fixtures into the JSON messages the web tests render.
 
-Run from a source checkout: `uv run --directory backend python -m halden_agent.fixtures`.
+Run from a source checkout: `uv run --directory backend python -m obsidian_agent.fixtures`.
 It reads `backend/packages/agent/tests/fixtures/*.a2ui` and writes `web/src/a2ui/fixtures/`:
 `build.json` (the `createSurface`) and `edit_add_colour.json` (the edit's `updateComponents`,
 compiled against the built page).
@@ -9,7 +9,7 @@ compiled against the built page).
 import json
 from pathlib import Path
 
-from halden_agent.a2ui_adapter import Message, apply_messages, compile_block
+from obsidian_agent.a2ui_adapter import Message, apply_messages, compile_block
 
 # A fixed surface ID in the `shop:<uuid4 hex>` shape the agent uses.
 FIXTURE_SURFACE_ID = "shop:" + "0" * 32

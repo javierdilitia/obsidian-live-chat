@@ -1,8 +1,8 @@
 import pytest
 
-from halden_data_contract import CatalogSource
-from halden_data_contract.contract_tests import CatalogSourceContract
 from halden_data_fake import FakeCatalogSource
+from obsidian_data_contract import CatalogSource
+from obsidian_data_contract.contract_tests import CatalogSourceContract
 
 
 class TestFakeCatalogSource(CatalogSourceContract):

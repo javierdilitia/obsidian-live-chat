@@ -4,9 +4,9 @@ import copy
 from pathlib import Path
 from typing import Any
 
-from halden_agent.a2ui_adapter import Snapshot, apply_messages, compile_block
-from halden_agent.fixtures import FIXTURE_SURFACE_ID
-from halden_agent.validate import Issue, issues_for_model, page_product_ids, validate_page
+from obsidian_agent.a2ui_adapter import Snapshot, apply_messages, compile_block
+from obsidian_agent.fixtures import FIXTURE_SURFACE_ID
+from obsidian_agent.validate import Issue, issues_for_model, page_product_ids, validate_page
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SURFACE = FIXTURE_SURFACE_ID

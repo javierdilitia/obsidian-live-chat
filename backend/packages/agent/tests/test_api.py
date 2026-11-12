@@ -11,13 +11,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import halden_agent.app as app_module
-from halden_agent.a2ui_adapter import apply_messages, compile_block, decompile
-from halden_agent.app import create_app
-from halden_agent.model import ModelFailed, ModelResult, ScriptedModel, Usage
-from halden_agent.settings import API_KEY, ENDPOINT, UI_DEPLOYMENT
-from halden_data_contract import Product
+import obsidian_agent.app as app_module
 from halden_data_fake import FakeCatalogSource
+from obsidian_agent.a2ui_adapter import apply_messages, compile_block, decompile
+from obsidian_agent.app import create_app
+from obsidian_agent.model import ModelFailed, ModelResult, ScriptedModel, Usage
+from obsidian_agent.settings import API_KEY, ENDPOINT, UI_DEPLOYMENT
+from obsidian_data_contract import Product
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BUILD = (FIXTURES / "build.a2ui").read_text(encoding="utf-8")

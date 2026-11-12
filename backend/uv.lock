@@ -3,9 +3,9 @@ requires-python = ">=3.12"
 
 [manifest]
 members = [
-    "halden-agent",
-    "halden-data-contract",
     "halden-data-fake",
+    "obsidian-agent",
+    "obsidian-data-contract",
 ]
 
 [manifest.dependency-groups]
@@ -294,61 +294,15 @@ wheels = [
 ]
 
 [[package]]
-name = "halden-agent"
-version = "0.1.0"
-source = { editable = "packages/agent" }
-dependencies = [
-    { name = "a2ui-agent-sdk" },
-    { name = "fastapi" },
-    { name = "halden-data-contract" },
-    { name = "halden-data-fake" },
-    { name = "openai" },
-    { name = "python-dotenv" },
-    { name = "uvicorn" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "a2ui-agent-sdk", specifier = "==0.11.0" },
-    { name = "fastapi" },
-    { name = "halden-data-contract", editable = "packages/data_contract" },
-    { name = "halden-data-fake", editable = "packages/data_fake" },
-    { name = "openai", specifier = "==3.49.0" },
-    { name = "python-dotenv", specifier = "==1.2.4" },
-    { name = "uvicorn" },
-]
-
-[[package]]
-name = "halden-data-contract"
-version = "0.1.0"
-source = { editable = "packages/data_contract" }
-dependencies = [
-    { name = "pydantic" },
-]
-
-[package.optional-dependencies]
-testing = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pydantic", specifier = ">=2" },
-    { name = "pytest", marker = "extra == 'testing'" },
-    { name = "pytest-asyncio", marker = "extra == 'testing'" },
-]
-
-[[package]]
 name = "halden-data-fake"
 version = "0.1.0"
 source = { editable = "packages/data_fake" }
 dependencies = [
-    { name = "halden-data-contract" },
+    { name = "obsidian-data-contract" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "halden-data-contract", editable = "packages/data_contract" }]
+requires-dist = [{ name = "obsidian-data-contract", editable = "packages/data_contract" }]
 
 [[package]]
 name = "httpcore2"
@@ -541,6 +495,52 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e6/99/d27cfc9518f49e4cbc25c683ec7cf8704a9d31311341c291c0e78ddf791b/nodeenv-1.12.0.tar.gz", hash = "sha256:4ea7f88339310afebc3253f2c7a91b94bacf97d73a36a5c108962abdfaca501e", size = 131292 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2d/6a/8a9ac7d5e2f7cf53c459bfef90ebc17a2f8cd54b665af96799d4c534840e/nodeenv-1.12.0-py3-none-any.whl", hash = "sha256:80644d65c10cc2be12e3e4b54b3367ff288c7ad24ae75c2dcc65454fc7449d4d", size = 39442 },
+]
+
+[[package]]
+name = "obsidian-agent"
+version = "0.1.0"
+source = { editable = "packages/agent" }
+dependencies = [
+    { name = "a2ui-agent-sdk" },
+    { name = "fastapi" },
+    { name = "halden-data-fake" },
+    { name = "obsidian-data-contract" },
+    { name = "openai" },
+    { name = "python-dotenv" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "a2ui-agent-sdk", specifier = "==0.11.0" },
+    { name = "fastapi" },
+    { name = "halden-data-fake", editable = "packages/data_fake" },
+    { name = "obsidian-data-contract", editable = "packages/data_contract" },
+    { name = "openai", specifier = "==3.49.0" },
+    { name = "python-dotenv", specifier = "==1.2.4" },
+    { name = "uvicorn" },
+]
+
+[[package]]
+name = "obsidian-data-contract"
+version = "0.1.0"
+source = { editable = "packages/data_contract" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+testing = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pytest", marker = "extra == 'testing'" },
+    { name = "pytest-asyncio", marker = "extra == 'testing'" },
 ]
 
 [[package]]

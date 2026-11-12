@@ -21,7 +21,7 @@ def test_runtime_is_python_312():
 
 def _gitleaks_rule():
     config = tomllib.loads((ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))
-    rule = next(r for r in config["rules"] if r["id"] == "halden-model-api-key")
+    rule = next(r for r in config["rules"] if r["id"] == "obsidian-model-api-key")
     pattern = re.compile(rule["regex"])
     allow = [re.compile(a) for al in rule.get("allowlists", []) for a in al.get("regexes", [])]
     keywords = rule["keywords"]

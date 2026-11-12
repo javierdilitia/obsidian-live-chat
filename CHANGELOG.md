@@ -27,11 +27,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - The mockup's motion grammar: the breathing landing globe, the thinking globe, dots that land on the page outline, the seam fill, and on follow-ups the step-back, the new section's room, a scroll to the change and a glow you can see.
   - The cart drawer (`cart.set_qty`, `cart.remove`, `GET /api/cart`): lines with steppers and remove, the total, "In cart · View" on every buy button, fly-to-cart and the cart value roll.
 
+- `scripts/dev.py`: starts the agent and the web dev server together from one command; Ctrl+C stops both, and if one exits the other is stopped too.
+
 ### Changed
 
 - The concept mockup moved to `mockup/`, unchanged.
 - Research documents moved to `docs/research/`.
 - `PRODUCT.md` rewritten for the product (real models and backend) instead of the mockup.
+- Docs reframed around Obsidian as the product: a client- and domain-agnostic framework, with Halden as its first cartridge (fictional store, dev dataset) and Haier as the next (real data, final demo). Covers README, `PRODUCT.md`, `docs/ARCHITECTURE.md` (core vs cartridge, known cartridge seams), ROADMAP and the product spec.
+- Product spec §11 split into the contract decisions we own (A, B, C, F: decided, to be encoded with tests before milestone 3) and the Haier intake questions (D, E, G, H, I, J); milestone 1's exit criterion follows. The catalog names become `obsidian.shop` and `obsidian.support`.
+- Core identifiers renamed from Halden to Obsidian: `obsidian_data_contract` (`obsidian-data-contract`), `obsidian_agent` (`obsidian-agent`), `obsidian-web`, the live-test switch `OBSIDIAN_LIVE`, the A2UI catalog ID `https://obsidian.example/catalogs/shop/v1/catalog.json` (backend and web fixtures regenerated), the gitleaks rule `obsidian-model-api-key`, and the spec's planned `obsidian_store` and `obsidian_session` cookie. The page prompt no longer names the store. `halden_data_fake` keeps its name: it is the Halden cartridge's data.
 
 ## [0.1.0] – 2026-11-10
 

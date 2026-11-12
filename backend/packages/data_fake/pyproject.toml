@@ -3,10 +3,10 @@ name = "halden-data-fake"
 version = "0.1.0"
 description = "In-memory CatalogSource built from JSON seed files; stands in for the real data agent."
 requires-python = ">=3.12"
-dependencies = ["halden-data-contract"]
+dependencies = ["obsidian-data-contract"]
 
 [tool.uv.sources]
-halden-data-contract = { workspace = true }
+obsidian-data-contract = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

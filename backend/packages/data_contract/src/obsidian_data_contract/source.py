@@ -2,7 +2,7 @@
 
 from typing import Protocol, runtime_checkable
 
-from halden_data_contract.models import (
+from obsidian_data_contract.models import (
     Category,
     Order,
     OrderSummary,

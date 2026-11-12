@@ -1,1 +1,0 @@
-"""Halden agent service."""
