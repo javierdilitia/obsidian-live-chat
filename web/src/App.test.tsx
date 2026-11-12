@@ -7,6 +7,7 @@ import edit from "./a2ui/fixtures/edit_add_colour.json";
 import { mountCounts, resetMountProbe } from "./a2ui/probe";
 import { LAPTOPS, SURFACE_ID, mockApi } from "./a2ui/test-helpers";
 import { resetProductCache } from "./lib/products";
+import { browser } from "./lib/session";
 
 /** A product look whose render fails (see the mock below). */
 const BROKEN_LOOK = "broken";
@@ -585,4 +586,142 @@ test("the cart cell opens the drawer", async () => {
   await waitFor(() => {
     expect(cell).toHaveFocus();
   });
+});
+
+/* ——— the user menu ——— */
+
+/** Watches the page reload, which jsdom does not implement. */
+function stubReload() {
+  return vi.spyOn(browser, "reload").mockImplementation(() => undefined);
+}
+
+function sentActions(fetchMock: ReturnType<typeof mockApi>) {
+  return fetchMock.mock.calls
+    .filter(([input]) => input === "/api/actions")
+    .map(
+      ([, init]) =>
+        JSON.parse(typeof init?.body === "string" ? init.body : "{}") as {
+          name: string;
+          surfaceId: string;
+          sourceComponentId: string;
+          context: Record<string, unknown>;
+        },
+    );
+}
+
+test("the user cell names the shopper and its menu lists every shopper", async () => {
+  mockApi();
+  render(<App />);
+
+  const cell = await screen.findByRole("button", { name: "Shopper: Javier" });
+  expect(cell).toHaveAttribute("aria-haspopup", "menu");
+  expect(cell).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("menu")).toBeNull();
+
+  fireEvent.click(cell);
+
+  const menu = await screen.findByRole("menu", { name: "Switch shopper" });
+  expect(cell).toHaveAttribute("aria-expanded", "true");
+  const items = within(menu).getAllByRole("menuitemradio");
+  expect(items.map((item) => item.textContent)).toEqual([
+    expect.stringContaining("Ana"),
+    expect.stringContaining("Javier"),
+    expect.stringContaining("Sam"),
+  ]);
+  expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
+    "false",
+    "true",
+    "false",
+  ]);
+  // it opens on the current shopper
+  await waitFor(() => {
+    expect(items[1]).toHaveFocus();
+  });
+});
+
+test("the user menu moves with the arrow keys, Home and End, and Esc closes it", async () => {
+  mockApi();
+  render(<App />);
+  const cell = await screen.findByRole("button", { name: "Shopper: Javier" });
+  fireEvent.click(cell);
+  const menu = await screen.findByRole("menu", { name: "Switch shopper" });
+  const [ana, javier, sam] = within(menu).getAllByRole("menuitemradio");
+  await waitFor(() => {
+    expect(javier).toHaveFocus();
+  });
+
+  fireEvent.keyDown(menu, { key: "ArrowDown" });
+  expect(sam).toHaveFocus();
+  fireEvent.keyDown(menu, { key: "ArrowDown" });
+  expect(ana).toHaveFocus();
+  fireEvent.keyDown(menu, { key: "ArrowUp" });
+  expect(sam).toHaveFocus();
+  fireEvent.keyDown(menu, { key: "Home" });
+  expect(ana).toHaveFocus();
+  fireEvent.keyDown(menu, { key: "End" });
+  expect(sam).toHaveFocus();
+  fireEvent.keyDown(menu, { key: "Escape" });
+
+  await waitFor(() => {
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+  expect(cell).toHaveAttribute("aria-expanded", "false");
+  expect(cell).toHaveFocus();
+});
+
+test("choosing another shopper switches the session and reloads", async () => {
+  const fetchMock = mockApi();
+  const reload = stubReload();
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Shopper: Javier" }));
+  const menu = await screen.findByRole("menu", { name: "Switch shopper" });
+
+  fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Ana/ }));
+
+  await waitFor(() => {
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+  const [switched] = sentActions(fetchMock);
+  expect(switched).toMatchObject({
+    name: "session.switch_user",
+    surfaceId: "shell",
+    sourceComponentId: "user-menu",
+    context: { userId: "ana" },
+  });
+  expect(typeof switched?.context.requestId).toBe("string");
+});
+
+test("choosing the current shopper just closes the menu", async () => {
+  const fetchMock = mockApi();
+  const reload = stubReload();
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Shopper: Javier" }));
+  const menu = await screen.findByRole("menu", { name: "Switch shopper" });
+
+  fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Javier/ }));
+
+  await waitFor(() => {
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+  expect(sentActions(fetchMock)).toEqual([]);
+  expect(reload).not.toHaveBeenCalled();
+});
+
+test("a failed switch shows the error and keeps the menu", async () => {
+  const switchError = { code: "invalid", message: "Couldn't switch shopper." };
+  mockApi(undefined, { switchError });
+  const reload = stubReload();
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Shopper: Javier" }));
+  const menu = await screen.findByRole("menu", { name: "Switch shopper" });
+
+  fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Sam/ }));
+
+  expect(await screen.findByText("Couldn't switch shopper.")).toBeInTheDocument();
+  expect(screen.getByRole("menu", { name: "Switch shopper" })).toBeInTheDocument();
+  expect(within(menu).getByRole("menuitemradio", { name: /Javier/ })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  expect(reload).not.toHaveBeenCalled();
 });

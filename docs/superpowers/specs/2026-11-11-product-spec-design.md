@@ -442,7 +442,7 @@ Postgres 17 runs locally through `docker compose`, in CI as a service container,
 |---|---|
 | `POST /api/runs` | A run (command, agent action, or For-you rebuild); SSE |
 | `POST /api/actions` | Direct actions; JSON |
-| `GET /api/workspace` | Open tabs (cards + snapshots) and the active tab |
+| `GET /api/workspace` | Open tabs (cards + snapshots) and the active tab. Until slice 5 brings several tabs it keeps the demo's shape `{tab, cart}`: the shopper's one open tab and their cart |
 | `GET /api/history` | History entries (cards) |
 | `GET /api/home` | The home surface, the cached For-you section, `foryou_stale` |
 | `GET /api/catalog/products?ids=`, `/api/catalog/products/{id}`, `/api/catalog/categories`, `/api/catalog/specs/{category_id}` | Catalog reads for components |
@@ -521,7 +521,7 @@ No browser screenshots or headless-browser tests (the user's rule); UI is verifi
 
 **Result (milestone 2, 2026-11-12): all five confirmed.** Section names became component IDs; an edit sent only what changed, and the React renderer kept unchanged sections mounted; `ProductShelf.items` compiles from Express; `AddToCartButton` builds and sends its own `cart.add`; edits show the model its page through the decompiler. The demo's feedback (ROADMAP, "Inputs for milestone 3") is folded into §2.1 (more than 4 products), §3.3 (search tool), §7.1 (section placement, stricter validation) and §8.1 (action checks).
 
-Two questions wait for the milestone 3 slices that need them: typical snapshot size for a comparison (the 256 KB limit is a guess), with saved tabs; and how often the one extra data-tool round fires (§3.3), with the router.
+Two questions waited for the milestone 3 slices that need them. **Snapshot size (answered in slice 2, 2026-11-12):** measured as stored, the compact JSON of the snapshot (`json.dumps(snapshot, separators=(",", ":"))`), the build fixture's three-laptop comparison is 1.5 KB (1,553 bytes) and the page after the edit fixture (a colour section added) is 2.0 KB (2,073 bytes). A page holds IDs, not product data (§2.2), so even a full explore page stays far below the limit; **the 256 KB limit is confirmed** as a guard against a runaway reply, not a size a real page reaches. A bigger page fails validation (`page_too_large`) and gets the one retry, and the agent logs every saved page's size. How often the one extra data-tool round fires (§3.3) waits for the router (slice 5); every run's `runs` row already records `tool_round_used`.
 
 ## 16. Out of scope
 

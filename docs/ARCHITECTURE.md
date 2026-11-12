@@ -35,6 +35,7 @@ Python backend (FastAPI)
 | Frontend | **React 19.2** + `@a2ui/react`, Vite, TypeScript | Our components, our styling, our motion |
 | Models | **Azure AI Foundry**: a small fast model for routing, a top-tier model for UI generation | Deployments arrive before sub-project 2 |
 | Data | `obsidian_data_contract` (interface) + `halden_data_fake` (JSON seed) | See [Data contract boundary](#data-contract-boundary) |
+| State | `obsidian_store`: Postgres 17 (SQLAlchemy 2 async + asyncpg, Alembic), or memory | See [The store and the session](#the-store-and-the-session) |
 
 A2UI packages are pinned to **exact versions**, never ranges: the spec has broken three times in about a year.
 
@@ -83,6 +84,8 @@ Surface IDs follow `<agent>:<uuid>`, and the backend enforces which agent may wr
 - Buy and refund are always validated server-side: current price, stock, ownership, refund eligibility.
 - Repeat clicks on direct buttons are instant and cost nothing.
 
+**The action path (slice 2).** `obsidian_agent/catalog/actions.json` is the one registry: every action has one kind (`local`, `direct`, `agent`), and each direct action lists who may send it, a catalog component type (`AddToCartButton`, or `ProductShelf`, whose items carry their own Add to cart) or a shell button (`shell:cart-drawer`, `shell:user-menu`). The server loads it (`obsidian_agent.actions`); the web imports the same file, and a web test checks every action it sends is `direct` there. `POST /api/actions` checks, in order: a known name; kind `direct`; a `requestId` in `context` (the web sends a new UUID per click); a stored answer for that ID from the last 24 h, returned as it was (another shopper's ID is rejected); the source. Shell buttons send `surfaceId: "shell"` and pass only for the `shell:<id>` the action lists; any other surface must be one of the shopper's open tabs, the source a component on that page whose type the action lists, and the product in `context` must be one the component acts on (its `productId`, or one of a shelf's items). Only then does the handler run, and its answer is stored. Rejections are `invalid` and are not stored. The cart changes are atomic in the store, so two quick adds never sell the last item twice.
+
 ## IDs, never values
 
 Components take **IDs**, not values: `SpecTable(productIds, keys)`, `OrderTracker(orderId)`. Prices, specs, images and stock resolve from the catalog at render time.
@@ -118,7 +121,8 @@ The rest of the backend imports only `obsidian_data_contract`. Nothing else know
 backend/packages/
   data_contract/   obsidian_data_contract  CatalogSource protocol + Pydantic models + contract test suite
   data_fake/       halden_data_fake        FakeCatalogSource from JSON seed files; registers the `halden` cartridge
-  agent/           obsidian_agent          FastAPI app: runs over SSE, catalog reads, cart; loads the chosen cartridge
+  store/           obsidian_store          Store protocol, MemoryStore, PostgresStore + migrations, StoreContract suite
+  agent/           obsidian_agent          FastAPI app: runs over SSE, the session, the action path, catalog reads; loads the chosen cartridge
 ```
 
 - `CatalogSource` is an async, **read-only** protocol: `list_categories`, `search_products`, `get_product`, `get_products`, `get_orders`, `get_order`, `get_order_status`. The only error is `NotFoundError(kind, ids)`.
@@ -126,6 +130,15 @@ backend/packages/
 - Models are frozen and reject unknown fields. Search matches every word of the text and is deterministic: rating descending by default, or price ascending/descending, ties by id.
 - `obsidian_data_contract.contract_tests.CatalogSourceContract` is a reusable pytest suite. The fake runs it in CI. The teammate's adapter will run the same suite, which is how we know it's a drop-in replacement.
 - The contract is v0. It gets reviewed with the data-agent teammate during sub-project 1, before anything beyond the fake depends on it.
+
+## The store and the session
+
+Everything Obsidian keeps between requests lives behind one async `Store` protocol (`obsidian_store`, core: it never names a cartridge). Slice 2 holds users, workspaces, tabs and their revisions (the last 20), cart lines (no price: prices are read live), a `runs` row per run, and the answers of direct actions for 24 hours; later slices add their tables in new migrations.
+
+- **Two stores, one contract.** `PostgresStore` (SQLAlchemy 2 async + asyncpg; Alembic migrations run in code on connect, no `alembic.ini`) and `MemoryStore` (dictionaries; tests and a run without a database). `obsidian_store.contract_tests.StoreContract` is the reusable suite both pass, the `CatalogSourceContract` pattern; the Postgres run needs `OBSIDIAN_TEST_DATABASE_URL` and is skipped without it. CI runs it against a `postgres:17` service container. Each cart rule is one conditional SQL statement, so it holds across two requests in two transactions.
+- **Choosing.** `OBSIDIAN_DATABASE_URL` (environment over `.env`) names the database; the agent connects, migrates, seeds the shoppers and purges day-old action answers on the first request, so building the app touches nothing. Unset, the agent runs on `MemoryStore` and logs that nothing survives a restart. `docker compose up -d --wait postgres` starts a local Postgres (`compose.yaml`); `scripts/dev.py` does it when the setting is present. `postgres.py` and the migrations stay out of the 80 % coverage gate: the contract run against a real database proves them.
+- **The session.** A signed `obsidian_session` cookie holds the shopper's ID (`<user_id>.<signature>`, HMAC-SHA256 with `OBSIDIAN_SESSION_KEY`, base64url; `HttpOnly`, `SameSite=Lax`). A missing, tampered or foreign cookie, or one naming a user who does not exist, is the default shopper `demo-user`, never an error. Without the setting a random key per process signs sessions, so a restart signs every browser back in as `demo-user`. `GET /api/session` and `GET /api/users` serve the user menu; `session.switch_user` (a direct action from `shell:user-menu`) sets the new cookie and the page reloads into that shopper's workspace.
+- **What a run saves.** A successful run saves the tab's card (title and commands until slice 5), its snapshot and `product_facts` (each product's price and stock as the page was written, for slice 6's "prices changed" note), and appends a revision. One run at a time per shopper. Every run, whatever its end, writes one `runs` row: outcome, tokens, latency, time to the first message, retries, whether a tool round fired.
 
 ## Transport
 

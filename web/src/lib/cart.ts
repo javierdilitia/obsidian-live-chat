@@ -55,7 +55,8 @@ export function resetCart(): void {
   update(EMPTY);
 }
 
-/** Where the drawer's own actions come from, for the server's log: not a page's surface. */
+/** Where the drawer's own actions come from: the shell, not a page. The server accepts
+ *  `cart.set_qty` and `cart.remove` only from here (the action registry's `shell:cart-drawer`). */
 const SHELL = { surfaceId: "shell", sourceComponentId: "cart-drawer" };
 const FAILED = "Couldn't change your cart. Try again.";
 

@@ -8,6 +8,9 @@ import { ProductRender, shopCatalog } from "./catalog";
 import build from "./fixtures/build.json";
 import { LAPTOPS, SURFACE_ID, mockApi, showSurface } from "./test-helpers";
 
+/** Every action carries its own request ID (a UUID per click). */
+const A_REQUEST_ID: unknown = expect.any(String);
+
 /* `noRenderer.on` makes the cartridge look like one without product renders, for one test. */
 const noRenderer = vi.hoisted(() => ({ on: false }));
 
@@ -100,7 +103,7 @@ test("add to cart sends cart.add with its own product id", async () => {
     name: "cart.add",
     surfaceId: SURFACE_ID,
     sourceComponentId: "verdict_button",
-    context: { productId: "aeris-studio-16" },
+    context: { productId: "aeris-studio-16", requestId: A_REQUEST_ID },
   });
 });
 

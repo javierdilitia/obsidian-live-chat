@@ -7,6 +7,7 @@ import pytest
 
 import obsidian_agent
 import obsidian_data_contract
+import obsidian_store
 from obsidian_agent.cartridges import (
     CARTRIDGE_SETTING,
     ENTRY_POINT_GROUP,
@@ -74,7 +75,7 @@ def _imported_top_names(package_dir: Path) -> set[str]:
 def test_core_imports_no_cartridge() -> None:
     cartridge_modules = {point.module.split(".")[0] for point in installed_cartridges().values()}
     assert cartridge_modules, "no cartridge is installed, so this guard checks nothing"
-    for package in (obsidian_agent, obsidian_data_contract):
+    for package in (obsidian_agent, obsidian_data_contract, obsidian_store):
         package_dir = Path(package.__file__ or "").parent
         assert not _imported_top_names(package_dir) & cartridge_modules, package.__name__
 

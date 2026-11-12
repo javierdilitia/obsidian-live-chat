@@ -95,6 +95,120 @@ button.cell {
 .cell:hover .fact {
   color: var(--tx-2);
 }
+/* the user cell: the shopper's name and a chevron that turns over while the menu is open
+   (mockup/css/chrome.css .cell-user); at phone widths their initial in a ring */
+.cell-user {
+  gap: 7px;
+}
+.cell-user .chev {
+  color: var(--tx-3);
+  transition: transform 0.2s var(--ease);
+}
+.cell-user[aria-expanded="true"] .chev {
+  transform: rotate(180deg);
+}
+.cell-user .initial {
+  display: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+/* ——— menus (mockup/css/overlays.css .menu): raised glass, 8px under their cell ——— */
+.menu {
+  position: fixed;
+  z-index: 95;
+  top: 0;
+  left: 0;
+  min-width: 190px;
+  background: var(--bg-raise);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: var(--shadow-modal);
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity 0.22s var(--ease),
+    transform 0.22s var(--ease);
+}
+.menu.on {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--r-nest);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--tx-2);
+  text-align: left;
+  transition:
+    background 0.15s var(--ease),
+    color 0.15s var(--ease),
+    opacity 0.15s var(--ease);
+}
+.menu button:hover,
+.menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--tx);
+}
+.menu button:focus-visible {
+  outline-offset: -2px;
+}
+.menu button.sel {
+  color: var(--steel);
+}
+.menu .mhead {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+.menu .mhead b {
+  display: block;
+  font-size: 13.5px;
+}
+.menu .mhead span {
+  font-size: 12px;
+  color: var(--tx-3);
+}
+/* the shopper's language, a fact: mono, quiet */
+.menu .lang {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--tx-3);
+}
+.menu .tick {
+  margin-left: auto;
+  flex: none;
+  opacity: 0;
+}
+.menu button.sel .tick {
+  opacity: 1;
+}
+/* a switch is out: the items rest, the one being switched to stays lit */
+.menu[aria-busy="true"] button {
+  cursor: progress;
+  opacity: 0.45;
+}
+.menu[aria-busy="true"] button.busy {
+  opacity: 1;
+  color: var(--tx);
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .cell .ico {
   display: none;
   color: var(--tx-2);
@@ -622,11 +736,15 @@ button.cell {
   }
   .cell .lbl,
   .fact .wide,
+  .cell-user .chev,
   .wordmark .by {
     display: none;
   }
   .cell .ico {
     display: block;
+  }
+  .cell-user .initial {
+    display: grid;
   }
   .tab {
     flex: 0 0 156px;

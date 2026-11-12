@@ -11,7 +11,7 @@ command, the current page) goes in the input.
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import files
 from typing import Any, cast
 
@@ -133,6 +133,8 @@ class BuildResult:
     attempts: int
     # What was wrong with the last reply, for the log; None when the build succeeded.
     error: str | None
+    # The page's products as the validator saw them, by ID; empty when the build failed.
+    products: dict[str, Product] = field(default_factory=lambda: {})
 
 
 class _Rejected(Exception):
@@ -167,14 +169,14 @@ async def build_page(
             history.append({"role": "user", "content": feedback})
         reply, tool_rounds = await _reply(model, source, tools, history, tool_rounds)
         try:
-            messages, snapshot = await _accept(
+            messages, snapshot, products = await _accept(
                 reply, source, surface_id=surface_id, current=current
             )
         except _Rejected as rejected:
             feedback = rejected.feedback
             log.info("page attempt %d rejected: %s", attempt, feedback)
             continue
-        return BuildResult(True, messages, snapshot, attempt, None)
+        return BuildResult(True, messages, snapshot, attempt, None, products)
     return BuildResult(False, [], current, MAX_ATTEMPTS, feedback)
 
 
@@ -234,8 +236,9 @@ async def _reply(
 
 async def _accept(
     reply: ModelResult, source: CatalogSource, *, surface_id: str, current: Snapshot | None
-) -> tuple[list[Message], Snapshot]:
-    """The reply's messages and the page after them, or `_Rejected` with what to fix."""
+) -> tuple[list[Message], Snapshot, dict[str, Product]]:
+    """The reply's messages, the page after them and its products, or `_Rejected` with what to
+    fix."""
     if reply.stop == "length":
         raise _Rejected(
             "Your reply was cut off by the output limit. Send the whole block again, shorter: "
@@ -248,10 +251,11 @@ async def _accept(
         raise _Rejected(_compile_feedback(error.errors)) from error
     except ValueError as error:
         raise _Rejected(_compile_feedback([str(error)])) from error
-    issues = validate_page(snapshot, products=await _page_products(source, snapshot))
+    products = await _page_products(source, snapshot)
+    issues = validate_page(snapshot, products=products)
     if issues:
         raise _Rejected(issues_for_model(issues))
-    return messages, snapshot
+    return messages, snapshot, products
 
 
 def _compile_feedback(errors: list[str]) -> str:

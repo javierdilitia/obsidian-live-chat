@@ -195,3 +195,14 @@ def test_repeated_product_in_one_component() -> None:
     items = _component(shelf, "shelf")["items"]
     items.append({"productId": items[1]["productId"], "tag": "again"})
     assert _codes(validate_page(shelf, products=PRODUCTS)) == [("duplicate_product", "shelf")]
+
+
+def test_page_over_the_limit() -> None:
+    page = _build()
+    assert ("page_too_large", "root") not in _codes(validate_page(page, products=PRODUCTS))
+    _component(page, "root")["meta"] = ["x" * 32] * 9000
+    issues = validate_page(page, products=PRODUCTS)
+    assert ("page_too_large", "root") in _codes(issues)
+    (issue,) = [issue for issue in issues if issue.code == "page_too_large"]
+    assert issue.message.endswith("the limit is 256 KB. Use fewer sections or shorter text.")
+    assert issue.message.startswith("The page is ")
