@@ -18,7 +18,13 @@ python scripts/check.py all
 
 ## Branches
 
-Branch off `main` and name the branch by its kind: `feat/…`, `fix/…`, `chore/…`, `docs/…`. Changes reach `main` only through a pull request.
+We work trunk-based: `main` is the trunk and always passes every check.
+
+- Branch off the latest `main` for one small change and name the branch by its kind: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
+- Keep branches short-lived (hours, a day or two at most). If `main` moves on, update your branch from it before it drifts.
+- Every pull request targets `main`. No stacked branches: if a change needs another one that isn't merged yet, wait for it or put both in one pull request.
+- Land big features as a series of small pull requests (one per plan task or slice). Work that isn't ready stays unreachable from the UI until it is, instead of waiting on a long-lived branch.
+- Changes reach `main` only through a pull request. GitHub deletes the branch when it merges; delete your local copy with `git branch -d`.
 
 ## Commit messages
 
