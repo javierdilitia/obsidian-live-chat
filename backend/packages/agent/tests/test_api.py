@@ -18,11 +18,29 @@ from obsidian_agent.app import create_app
 from obsidian_agent.model import ModelFailed, ModelResult, ScriptedModel, Usage
 from obsidian_agent.settings import API_KEY, ENDPOINT, UI_DEPLOYMENT
 from obsidian_data_contract import Cartridge, CatalogSource, Product
+from obsidian_store import MemoryStore, TabRecord
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BUILD = (FIXTURES / "build.a2ui").read_text(encoding="utf-8")
 EDIT = (FIXTURES / "edit_add_colour.a2ui").read_text(encoding="utf-8")
 SURFACE_ID = re.compile(r"^shop:[0-9a-f]{32}$")
+
+
+def _create_app(**kwargs: Any) -> FastAPI:
+    """The app with a fresh in-memory store, so no test touches a database."""
+    return create_app(store=MemoryStore(), **kwargs)
+
+
+def _tab(app: FastAPI) -> TabRecord | None:
+    """The demo shopper's tab, as stored."""
+    tabs = asyncio.run(app.state.store.open_tabs("demo-user"))
+    return tabs[0] if tabs else None
+
+
+def _stored(app: FastAPI) -> TabRecord:
+    tab = _tab(app)
+    assert tab is not None
+    return tab
 
 
 def _reply(text: str) -> ModelResult:
@@ -41,13 +59,13 @@ def _cartridge(source: CatalogSource) -> Cartridge:
 
 def _cart_client() -> TestClient:
     """A client with no model replies, for the cart and catalog endpoints."""
-    app = create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    app = _create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
     return TestClient(app)
 
 
 def _app(*texts: str, source: FakeCatalogSource | None = None) -> tuple[FastAPI, ScriptedModel]:
     model = ScriptedModel([_reply(text) for text in texts])
-    return create_app(model=model, cartridge=_cartridge(source or FakeCatalogSource())), model
+    return _create_app(model=model, cartridge=_cartridge(source or FakeCatalogSource())), model
 
 
 def _run(client: TestClient, command: str) -> list[dict[str, Any]]:
@@ -94,9 +112,9 @@ def test_first_run_opens_tab_and_streams_messages() -> None:
     assert tab["title"] == "Compare 3 laptops for video editing under €2,000"
     assert page["type"] == "CUSTOM"
     assert page["value"] == compile_block(BUILD, surface_id=tab["surface_id"], current=None)[0]
-    workspace = app.state.workspace
-    assert workspace.tab.snapshot == page["value"]
-    assert workspace.tab.commands == ["Compare 3 laptops for video editing under €2,000"]
+    tab = _stored(app)
+    assert tab.snapshot == page["value"]
+    assert tab.card["commands"] == ["Compare 3 laptops for video editing under €2,000"]
     assert len(model.calls) == 1
 
 
@@ -116,26 +134,25 @@ def test_second_run_edits_only_changed_ids() -> None:
     assert {"root", "colour"} <= sent
     assert not sent & (_component_ids(built) - {"root"})
     assert json.dumps(decompile(built))[1:-1] in json.dumps(model.calls[1]["input"])
-    workspace = app.state.workspace
-    assert workspace.tab.snapshot == apply_messages(built, [edit])
-    assert len(workspace.tab.commands) == 2
+    tab = _stored(app)
+    assert tab.snapshot == apply_messages(built, [edit])
+    assert len(tab.card["commands"]) == 2
 
 
 def test_failed_edit_keeps_the_page() -> None:
     app, _ = _app(BUILD, "Sorry, no page.", "Still no page.", EDIT)
     client = TestClient(app)
     _run(client, "Compare 3 laptops for video editing under €2,000")
-    tab = app.state.workspace.tab
-    stored = tab.snapshot
-    before = copy.deepcopy(stored)
+    before = copy.deepcopy(_stored(app).snapshot)
 
     frames = _run(client, "Add colour accuracy for grading")
 
     assert _kinds(frames) == ["RUN_STARTED", "RUN_ERROR"]
     error = frames[-1]
     assert error["code"] == "edit_failed" and error["message"] == "Couldn't change this page."
-    assert tab.snapshot is stored and tab.snapshot == before
-    assert len(tab.commands) == 1
+    tab = _stored(app)
+    assert tab.snapshot == before
+    assert len(tab.card["commands"]) == 1
     # The page is still there to edit.
     assert _kinds(_run(client, "Add colour accuracy for grading")) == [
         "RUN_STARTED",
@@ -166,7 +183,7 @@ def test_model_error_is_a_run_error() -> None:
 
     assert _kinds(frames) == ["RUN_STARTED", "tab_opened", "RUN_ERROR"]
     assert frames[-1]["code"] == "model_unavailable"
-    assert app.state.workspace.tab.snapshot is None
+    assert _stored(app).snapshot is None
 
 
 class _Unusable:
@@ -177,7 +194,7 @@ class _Unusable:
 
 
 def test_unusable_reply_is_a_failed_build() -> None:
-    app = create_app(model=_Unusable(), cartridge=_cartridge(FakeCatalogSource()))
+    app = _create_app(model=_Unusable(), cartridge=_cartridge(FakeCatalogSource()))
 
     frames = _run(TestClient(app), "Compare laptops")
 
@@ -205,11 +222,10 @@ class _SlowEdit:
 
 def test_run_timeout_keeps_the_page(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(app_module, "RUN_TIMEOUT_S", 0.05)
-    app = create_app(model=_SlowEdit(), cartridge=_cartridge(FakeCatalogSource()))
+    app = _create_app(model=_SlowEdit(), cartridge=_cartridge(FakeCatalogSource()))
     client = TestClient(app)
     _run(client, "Compare 3 laptops for video editing under €2,000")
-    tab = app.state.workspace.tab
-    before = copy.deepcopy(tab.snapshot)
+    before = copy.deepcopy(_stored(app).snapshot)
 
     frames = _run(client, "Add colour accuracy for grading")
 
@@ -219,21 +235,22 @@ def test_run_timeout_keeps_the_page(monkeypatch: pytest.MonkeyPatch) -> None:
         "code": "timeout",
         "message": "This took too long. Try again.",
     }
-    assert tab.snapshot == before and len(tab.commands) == 1
+    tab = _stored(app)
+    assert tab.snapshot == before and len(tab.card["commands"]) == 1
 
 
 def test_missing_settings_is_a_run_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(app_module, "ENV_FILE", tmp_path / ".env")
     for name in (ENDPOINT, API_KEY, UI_DEPLOYMENT):
         monkeypatch.delenv(name, raising=False)
-    app = create_app(cartridge=_cartridge(FakeCatalogSource()))
+    app = _create_app(cartridge=_cartridge(FakeCatalogSource()))
 
     frames = _run(TestClient(app), "Compare laptops")
 
     assert _kinds(frames) == ["RUN_STARTED", "RUN_ERROR"]
     assert frames[-1]["code"] == "not_configured"
     assert UI_DEPLOYMENT in frames[-1]["message"]
-    assert app.state.workspace.tab is None
+    assert _tab(app) is None
 
 
 def test_empty_command_is_rejected() -> None:
@@ -275,7 +292,7 @@ def test_workspace_returns_tab_and_cart() -> None:
             },
         ],
     }
-    assert page == app.state.workspace.tab.snapshot
+    assert page == _stored(app).snapshot
 
 
 class _Repriced(FakeCatalogSource):
@@ -313,7 +330,7 @@ def _add(client: TestClient, product_id: Any, **extra: Any) -> dict[str, Any]:
 
 def test_add_uses_current_price() -> None:
     source = _Repriced()
-    client = TestClient(create_app(model=ScriptedModel([]), cartridge=_cartridge(source)))
+    client = TestClient(_create_app(model=ScriptedModel([]), cartridge=_cartridge(source)))
 
     first = _add(client, "aeris-studio-16", price_cents=1)
     source.prices["aeris-studio-16"] = 179900

@@ -2,8 +2,9 @@
 
 Dev run: `uv run --directory backend uvicorn obsidian_agent.app:create_app --factory --reload`
 
-The demo keeps one tab and one cart in memory (`Workspace`). The Azure model is made on the first
-run, from the repo's `.env`, so building the app never reads settings or touches the network.
+Each shopper's tab, its page and their cart live in the store (Postgres, or memory without a
+database). The Azure model and the store are opened on first use, from the repo's `.env`, so
+building the app never reads settings or touches the network.
 """
 
 import asyncio
@@ -32,9 +33,15 @@ from obsidian_agent.session import (
     unsign,
 )
 from obsidian_agent.settings import MissingSettings, Settings, env_setting
-from obsidian_agent.workspace import Tab, Workspace
 from obsidian_data_contract import Cartridge, CatalogSource, NotFoundError
-from obsidian_store import ACTION_RESULT_TTL, MemoryStore, Store, User
+from obsidian_store import (
+    ACTION_RESULT_TTL,
+    MemoryStore,
+    ProductFact,
+    Store,
+    TabRecord,
+    User,
+)
 from obsidian_store.postgres import PostgresStore
 
 log = logging.getLogger(__name__)
@@ -154,8 +161,8 @@ def create_app(
     app.state.cartridge = cartridge
     cartridge_id = cartridge.id
     catalog: CatalogSource = cartridge.make_source()
-    workspace = Workspace()
-    app.state.workspace = workspace
+    # One run at a time per shopper: a second command waits for the first to finish.
+    run_locks: dict[str, asyncio.Lock] = {}
     models: list[ModelClient] = [model] if model is not None else []
 
     def get_model() -> ModelClient:
@@ -187,15 +194,23 @@ def create_app(
         return {"users": [_user_json(user) for user in await (await ready()).list_users()]}
 
     @app.post("/api/runs")
-    async def runs(request: RunRequest) -> StreamingResponse:  # pyright: ignore[reportUnusedFunction]
+    async def runs(  # pyright: ignore[reportUnusedFunction]
+        request: RunRequest, user: Annotated[User, Depends(current_user)]
+    ) -> StreamingResponse:
         return StreamingResponse(
-            run_events(request.command),
+            run_events(request.command, user),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    async def run_events(command: str) -> AsyncIterator[str]:
-        async with workspace.run_lock:
+    async def first_open_tab(user_id: str) -> TabRecord | None:
+        """The shopper's one tab until slice 5 brings several."""
+        tabs = await (await ready()).open_tabs(user_id)
+        return tabs[0] if tabs else None
+
+    async def run_events(command: str, user: User) -> AsyncIterator[str]:
+        the_store = await ready()
+        async with run_locks.setdefault(user.id, asyncio.Lock()):
             run_id = uuid.uuid4().hex
             yield _frame({"type": "RUN_STARTED", "runId": run_id})
             try:
@@ -203,11 +218,16 @@ def create_app(
             except MissingSettings as error:
                 yield _run_error("not_configured", f"Missing settings: {', '.join(error.names)}.")
                 return
-            tab = workspace.tab
+            tab = await first_open_tab(user.id)
             if tab is None:
-                tab = Tab(surface_id=f"shop:{uuid.uuid4().hex}", title=_title(command))
-                workspace.tab = tab
-                value = {"surface_id": tab.surface_id, "title": tab.title}
+                tab = await the_store.create_tab(
+                    user.id,
+                    surface_id=f"shop:{uuid.uuid4().hex}",
+                    kind="compare",
+                    card={"title": _title(command), "commands": []},
+                    language=user.language,
+                )
+                value = {"surface_id": tab.surface_id, "title": tab.card["title"]}
                 yield _frame({"type": "CUSTOM", "name": "tab_opened", "value": value})
             current = tab.snapshot
             failed = ("build_failed", "Couldn't build this page.")
@@ -241,20 +261,34 @@ def create_app(
                 )
                 yield _run_error(*failed)
                 return
-            tab.snapshot = result.snapshot
-            tab.commands.append(command)
+            assert result.snapshot is not None  # noqa: S101 - a successful build has a page
+            card = {"title": tab.card["title"], "commands": [*tab.card["commands"], command]}
+            facts = {
+                product_id: ProductFact(price_cents=product.price_cents, stock=product.stock)
+                for product_id, product in result.products.items()
+            }
+            await the_store.save_tab(
+                tab.id, card=card, snapshot=result.snapshot, product_facts=facts, run_id=run_id
+            )
             for message in result.messages:
                 yield _frame({"type": "CUSTOM", "name": "a2ui", "value": message})
             yield _frame({"type": "RUN_FINISHED", "runId": run_id})
 
     @app.get("/api/workspace")
-    async def get_workspace() -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
-        """What a reloaded page shows: the tab, with its page if it has one, and the cart."""
-        tab = workspace.tab
+    async def get_workspace(  # pyright: ignore[reportUnusedFunction]
+        user: Annotated[User, Depends(current_user)],
+    ) -> dict[str, Any]:
+        """What a reloaded page shows: the shopper's tab, with its page if it has one, and their
+        cart. `{tab, cart}` until slice 5 brings several tabs."""
+        tab = await first_open_tab(user.id)
         shown = None
         if tab is not None:
-            shown = {"surface_id": tab.surface_id, "title": tab.title, "snapshot": tab.snapshot}
-        return {"tab": shown, "cart": await cart_lines()}
+            shown = {
+                "surface_id": tab.surface_id,
+                "title": tab.card["title"],
+                "snapshot": tab.snapshot,
+            }
+        return {"tab": shown, "cart": await cart_lines(user.id)}
 
     @app.get("/api/catalog/products")
     async def products(  # pyright: ignore[reportUnusedFunction]
@@ -269,67 +303,78 @@ def create_app(
         }
 
     @app.get("/api/cart")
-    async def get_cart() -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
-        """The cart at today's prices."""
-        return {"cart": await cart_lines()}
+    async def get_cart(  # pyright: ignore[reportUnusedFunction]
+        user: Annotated[User, Depends(current_user)],
+    ) -> dict[str, Any]:
+        """The shopper's cart at today's prices."""
+        return {"cart": await cart_lines(user.id)}
 
     @app.post("/api/actions")
-    async def actions(request: ActionRequest) -> dict[str, Any]:  # pyright: ignore[reportUnusedFunction]
+    async def actions(  # pyright: ignore[reportUnusedFunction]
+        request: ActionRequest, user: Annotated[User, Depends(current_user)]
+    ) -> dict[str, Any]:
         """Direct actions: `cart.add`, `cart.set_qty` and `cart.remove`. The product is re-read."""
+        the_store = await ready()
         name = request.name
         if name not in ("cart.add", "cart.set_qty", "cart.remove"):
-            return await action_error("invalid", f"Unknown action: {name}.")
+            return await action_error(user.id, "invalid", f"Unknown action: {name}.")
         product_id = request.context.get("productId")
         if not isinstance(product_id, str) or not product_id:
-            return await action_error("invalid", f"{name} needs a productId.")
-        in_cart = workspace.cart.get(product_id, 0)
+            return await action_error(user.id, "invalid", f"{name} needs a productId.")
         if name == "cart.remove":
-            workspace.cart.pop(product_id, None)
-            return {"ok": True, "cart": await cart_lines()}
+            await the_store.remove_from_cart(user.id, product_id)
+            return {"ok": True, "cart": await cart_lines(user.id)}
         if name == "cart.add":
-            return await set_quantity(product_id, in_cart + 1, adding=True)
+            return await change_cart(user.id, product_id, None)
         qty = request.context.get("qty")
         if isinstance(qty, bool) or not isinstance(qty, int) or qty < 0:
-            return await action_error("invalid", "cart.set_qty needs a qty of 0 or more.")
+            return await action_error(user.id, "invalid", "cart.set_qty needs a qty of 0 or more.")
         if qty == 0:
-            workspace.cart.pop(product_id, None)
-            return {"ok": True, "cart": await cart_lines()}
-        return await set_quantity(product_id, qty, adding=False)
+            await the_store.remove_from_cart(user.id, product_id)
+            return {"ok": True, "cart": await cart_lines(user.id)}
+        return await change_cart(user.id, product_id, qty)
 
-    async def set_quantity(product_id: str, qty: int, *, adding: bool) -> dict[str, Any]:
-        """Puts `qty` of a product in the cart if the shelf has that many; else the cart is kept."""
+    async def change_cart(user_id: str, product_id: str, qty: int | None) -> dict[str, Any]:
+        """Adds one (`qty` None) or sets `qty`, if the shelf has that many; else the cart is kept.
+        The stock check and the write are one atomic store call."""
+        the_store = await ready()
         try:
             product = await catalog.get_product(product_id)
         except NotFoundError:
-            return await action_error("not_found", "This product is no longer available.")
-        in_cart = workspace.cart.get(product_id, 0)
-        if qty > product.stock and qty > in_cart:
+            return await action_error(user_id, "not_found", "This product is no longer available.")
+        if qty is None:
+            change = await the_store.add_to_cart(user_id, product_id, stock=product.stock)
+        else:
+            change = await the_store.set_cart_qty(user_id, product_id, qty, stock=product.stock)
+        if not change.ok:
             message = f"{product.name} is out of stock."
-            if in_cart:
-                message = f"No more {product.name} in stock: all {in_cart} are in your cart."
-            if not adding and product.stock:
+            if change.qty:
+                message = f"No more {product.name} in stock: all {change.qty} are in your cart."
+            if qty is not None and product.stock:
                 message = f"Only {product.stock} {product.name} in stock."
-            return await action_error("out_of_stock", message)
-        workspace.cart[product_id] = qty
-        return {"ok": True, "cart": await cart_lines()}
+            return await action_error(user_id, "out_of_stock", message)
+        return {"ok": True, "cart": await cart_lines(user_id)}
 
-    async def action_error(code: str, message: str) -> dict[str, Any]:
+    async def action_error(user_id: str, code: str, message: str) -> dict[str, Any]:
         return {
             "ok": False,
-            "cart": await cart_lines(),
+            "cart": await cart_lines(user_id),
             "error": {"code": code, "message": message},
         }
 
-    async def cart_lines() -> list[dict[str, Any]]:
-        """The cart at today's prices. A product that no longer exists leaves the cart."""
-        found, missing = await lookup_products(catalog, list(workspace.cart))
+    async def cart_lines(user_id: str) -> list[dict[str, Any]]:
+        """The cart at today's prices. A product that no longer exists leaves the stored cart."""
+        the_store = await ready()
+        lines = await the_store.cart(user_id)
+        found, missing = await lookup_products(catalog, [line.product_id for line in lines])
         for product_id in missing:
-            workspace.cart.pop(product_id, None)
+            await the_store.remove_from_cart(user_id, product_id)
+        qtys = {line.product_id: line.qty for line in lines}
         return [
             {
                 "productId": product.id,
                 "name": product.name,
-                "qty": workspace.cart[product.id],
+                "qty": qtys[product.id],
                 "price_cents": product.price_cents,
             }
             for product in found
