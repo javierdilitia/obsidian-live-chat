@@ -3,5 +3,6 @@
   "cart.add": { "kind": "direct", "sources": ["AddToCartButton", "ProductShelf"] },
   "cart.set_qty": { "kind": "direct", "sources": ["shell:cart-drawer"] },
   "cart.remove": { "kind": "direct", "sources": ["shell:cart-drawer"] },
-  "session.switch_user": { "kind": "direct", "sources": ["shell:user-menu"] }
+  "session.switch_user": { "kind": "direct", "sources": ["shell:user-menu"] },
+  "prefs.set_language": { "kind": "direct", "sources": ["shell:language-menu"] }
 }
