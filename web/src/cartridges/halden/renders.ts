@@ -6,7 +6,7 @@
    look picks among them (unknown names fall back to a laptop, silver, dusk) and is never written
    into the SVG as it came. All products are fictional. */
 
-import type { Look } from "../lib/products";
+import type { Look } from "../../lib/products";
 
 interface Finish {
   hi: string;

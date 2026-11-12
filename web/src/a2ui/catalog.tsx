@@ -23,7 +23,6 @@ import { cartridge, specInfo } from "../cartridge";
 import "../styles/page.css";
 import { seriesColour, useRise } from "./motion";
 import { probeEnabled, useMountCounts, useMountProbe } from "./probe";
-import { installMaterials, renderMarkup } from "./renders";
 
 export const SHOP_CATALOG_ID = "https://obsidian.example/catalogs/shop/v1/catalog.json";
 
@@ -199,15 +198,19 @@ function StarIcon() {
 
 /* ——— shared commerce parts ——— */
 
+/** A product's render, drawn by the cartridge; a cartridge without renders gets an empty plate. */
 export function ProductRender({ look }: { look: Look }) {
-  useLayoutEffect(installMaterials, []);
+  const renderer = cartridge.renderer;
+  useLayoutEffect(() => {
+    renderer?.install();
+  }, [renderer]);
   return (
     <svg
       className="render"
       viewBox="0 0 320 230"
       aria-hidden="true"
       focusable="false"
-      dangerouslySetInnerHTML={{ __html: renderMarkup(look) }}
+      dangerouslySetInnerHTML={{ __html: renderer ? renderer.markup(look) : "" }}
     />
   );
 }

@@ -11,8 +11,8 @@ import { resetProductCache } from "./lib/products";
 /** A product look whose render fails (see the mock below). */
 const BROKEN_LOOK = "broken";
 
-vi.mock("./a2ui/renders", async (importOriginal) => {
-  const renders = await importOriginal<typeof import("./a2ui/renders")>();
+vi.mock("./cartridges/halden/renders", async (importOriginal) => {
+  const renders = await importOriginal<typeof import("./cartridges/halden/renders")>();
   return {
     ...renders,
     renderMarkup: (look: Parameters<typeof renders.renderMarkup>[0]) => {

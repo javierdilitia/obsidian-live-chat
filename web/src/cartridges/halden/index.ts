@@ -1,6 +1,7 @@
 /* Halden, the dev cartridge: a fictional electronics store. */
 import { z } from "zod";
 import type { CartridgeUI } from "../../cartridge";
+import { installMaterials, renderMarkup } from "./renders";
 import specs from "./specs.en.json";
 
 const GlossarySchema = z.record(
@@ -16,4 +17,5 @@ export const cartridge: CartridgeUI = {
     footer: ["concept demo", "fictional products, prices & ratings"],
   },
   specs: GlossarySchema.parse(specs),
+  renderer: { install: installMaterials, markup: renderMarkup },
 };
