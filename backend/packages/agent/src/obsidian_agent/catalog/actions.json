@@ -1,0 +1,7 @@
+{
+  "openCart": { "kind": "local" },
+  "cart.add": { "kind": "direct", "sources": ["AddToCartButton"] },
+  "cart.set_qty": { "kind": "direct", "sources": ["shell:cart-drawer"] },
+  "cart.remove": { "kind": "direct", "sources": ["shell:cart-drawer"] },
+  "session.switch_user": { "kind": "direct", "sources": ["shell:user-menu"] }
+}

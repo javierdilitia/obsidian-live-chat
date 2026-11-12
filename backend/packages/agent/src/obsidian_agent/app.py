@@ -17,13 +17,14 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field, StringConstraints
 
+from obsidian_agent.actions import ACTIONS, check_source
 from obsidian_agent.cartridges import cartridge_setting, load_cartridge
 from obsidian_agent.model import AzureModel, ModelClient, ModelFailed, UsageMeter
 from obsidian_agent.page_agent import build_page, lookup_products, page_tools
@@ -32,6 +33,7 @@ from obsidian_agent.session import (
     DEMO_SHOPPERS,
     SESSION_COOKIE,
     SESSION_KEY_SETTING,
+    sign,
     unsign,
 )
 from obsidian_agent.settings import MissingSettings, Settings, env_setting
@@ -39,6 +41,7 @@ from obsidian_agent.validate import page_size_bytes
 from obsidian_data_contract import Cartridge, CatalogSource, NotFoundError
 from obsidian_store import (
     ACTION_RESULT_TTL,
+    ActionRecord,
     MemoryStore,
     ProductFact,
     RunRecord,
@@ -390,14 +393,61 @@ def create_app(
 
     @app.post("/api/actions")
     async def actions(  # pyright: ignore[reportUnusedFunction]
-        request: ActionRequest, user: Annotated[User, Depends(current_user)]
+        request: ActionRequest, response: Response, user: Annotated[User, Depends(current_user)]
     ) -> dict[str, Any]:
-        """Direct actions: `cart.add`, `cart.set_qty` and `cart.remove`. The product is re-read."""
+        """Direct actions, checked in order: a known name, of kind `direct`, a `requestId`, a
+        stored answer for that ID (returned as it was), a source allowed to send it. Then the
+        handler runs and its answer is stored. Rejections before the handler are not stored."""
         the_store = await ready()
         name = request.name
-        if name not in ("cart.add", "cart.set_qty", "cart.remove"):
+        spec = ACTIONS.get(name)
+        if spec is None:
             return await action_error(user.id, "invalid", f"Unknown action: {name}.")
-        product_id = request.context.get("productId")
+        if spec.kind != "direct":
+            message = f"{name} is a {spec.kind} action; it does not go to the server."
+            return await action_error(user.id, "invalid", message)
+        request_id = request.context.get("requestId")
+        if not isinstance(request_id, str) or not request_id:
+            return await action_error(user.id, "invalid", f"{name} needs a requestId.")
+        now = datetime.now(UTC)
+        stored = await the_store.action_result(request_id, since=now - ACTION_RESULT_TTL)
+        if stored is not None:
+            if stored.user_id != user.id:
+                return await action_error(user.id, "invalid", "That request ID is not yours.")
+            set_session(response, stored.result)
+            return stored.result
+        problem = check_source(
+            spec,
+            surface_id=request.surface_id,
+            source_id=request.source_component_id,
+            context=request.context,
+            open_tabs=await the_store.open_tabs(user.id),
+        )
+        if problem is not None:
+            return await action_error(user.id, "invalid", problem)
+        result = await handle(name, user, request.context)
+        await the_store.save_action_result(
+            ActionRecord(request_id=request_id, user_id=user.id, result=result, at=now)
+        )
+        set_session(response, result)
+        return result
+
+    def set_session(response: Response, result: dict[str, Any]) -> None:
+        """A successful `session.switch_user` answer signs the browser in as its user."""
+        switched = result.get("user")
+        if result.get("ok") and isinstance(switched, dict):
+            user_id = cast(dict[str, Any], switched).get("id")
+            if isinstance(user_id, str):
+                response.set_cookie(
+                    SESSION_COOKIE, sign(user_id, key), httponly=True, samesite="lax", path="/"
+                )
+
+    async def handle(name: str, user: User, context: dict[str, Any]) -> dict[str, Any]:
+        """The direct handlers. Each re-reads what it needs; none trusts the browser's data."""
+        the_store = await ready()
+        if name == "session.switch_user":
+            return await switch_user(user, context.get("userId"))
+        product_id = context.get("productId")
         if not isinstance(product_id, str) or not product_id:
             return await action_error(user.id, "invalid", f"{name} needs a productId.")
         if name == "cart.remove":
@@ -405,13 +455,23 @@ def create_app(
             return {"ok": True, "cart": await cart_lines(user.id)}
         if name == "cart.add":
             return await change_cart(user.id, product_id, None)
-        qty = request.context.get("qty")
+        if name != "cart.set_qty":
+            return await action_error(user.id, "invalid", f"{name} has no handler.")
+        qty = context.get("qty")
         if isinstance(qty, bool) or not isinstance(qty, int) or qty < 0:
             return await action_error(user.id, "invalid", "cart.set_qty needs a qty of 0 or more.")
         if qty == 0:
             await the_store.remove_from_cart(user.id, product_id)
             return {"ok": True, "cart": await cart_lines(user.id)}
         return await change_cart(user.id, product_id, qty)
+
+    async def switch_user(user: User, user_id: object) -> dict[str, Any]:
+        """The shopper `user_id` names, with their cart; the endpoint sets the new cookie."""
+        the_store = await ready()
+        chosen = await the_store.get_user(user_id) if isinstance(user_id, str) else None
+        if chosen is None:
+            return await action_error(user.id, "not_found", "That shopper doesn't exist.")
+        return {"ok": True, "user": _user_json(chosen), "cart": await cart_lines(chosen.id)}
 
     async def change_cart(user_id: str, product_id: str, qty: int | None) -> dict[str, Any]:
         """Adds one (`qty` None) or sets `qty`, if the shelf has that many; else the cart is kept.

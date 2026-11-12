@@ -2,6 +2,7 @@
 store. Each test shares one `MemoryStore` between two apps; the second is "after the restart"."""
 
 import asyncio
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -55,13 +56,15 @@ def _run(client: TestClient, command: str) -> None:
 
 
 def _add(client: TestClient, product_id: str) -> dict[str, Any]:
+    """`cart.add` from the built page's verdict button (the fixture's Aeris Studio 16)."""
+    surface_id = client.get("/api/workspace").json()["tab"]["surface_id"]
     response = client.post(
         "/api/actions",
         json={
             "name": "cart.add",
-            "surfaceId": "shell",
-            "sourceComponentId": "cart-drawer",
-            "context": {"productId": product_id},
+            "surfaceId": surface_id,
+            "sourceComponentId": "verdict_button",
+            "context": {"productId": product_id, "requestId": str(uuid.uuid4())},
         },
     )
     assert response.status_code == 200
@@ -146,16 +149,26 @@ class _OneLeft(FakeCatalogSource):
 async def test_interleaved_adds_take_the_last_item_once() -> None:
     store = MemoryStore()
     app = _app(store, source=_OneLeft())
-    body = {
-        "name": "cart.add",
-        "surfaceId": "shell",
-        "sourceComponentId": "cart-drawer",
-        "context": {"productId": "aeris-studio-16"},
-    }
+    tab = await store.create_tab(
+        "demo-user", surface_id="shop:1", kind="compare", card={}, language="en"
+    )
+    button = {"id": "buy", "component": "AddToCartButton", "productId": "aeris-studio-16"}
+    page = {"createSurface": {"surfaceId": "shop:1", "components": [button]}}
+    await store.save_tab(tab.id, card={}, snapshot=page, product_facts={}, run_id="r")
+
+    def body(request_id: str) -> dict[str, Any]:
+        return {
+            "name": "cart.add",
+            "surfaceId": "shop:1",
+            "sourceComponentId": "buy",
+            "context": {"productId": "aeris-studio-16", "requestId": request_id},
+        }
+
     transport = httpx2.ASGITransport(app=app)
     async with httpx2.AsyncClient(transport=transport, base_url="http://test") as client:
         responses = await asyncio.gather(
-            client.post("/api/actions", json=body), client.post("/api/actions", json=body)
+            client.post("/api/actions", json=body("a")),
+            client.post("/api/actions", json=body("b")),
         )
     results = [response.json() for response in responses]
     assert sorted(result["ok"] for result in results) == [False, True]

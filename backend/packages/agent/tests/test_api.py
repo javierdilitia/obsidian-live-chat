@@ -1,4 +1,5 @@
-"""The API: a run streams AG-UI frames over SSE, the catalog reads, and the cart action."""
+"""The API: a run streams AG-UI frames over SSE, the workspace, and the catalog reads. The
+action path is in test_actions.py."""
 
 import asyncio
 import copy
@@ -17,7 +18,7 @@ from obsidian_agent.a2ui_adapter import apply_messages, compile_block, decompile
 from obsidian_agent.app import create_app
 from obsidian_agent.model import ModelFailed, ModelResult, ScriptedModel, Usage
 from obsidian_agent.settings import API_KEY, ENDPOINT, UI_DEPLOYMENT
-from obsidian_data_contract import Cartridge, CatalogSource, Product
+from obsidian_data_contract import Cartridge, CatalogSource
 from obsidian_store import MemoryStore, TabRecord
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -269,9 +270,10 @@ def test_workspace_returns_tab_and_cart() -> None:
     assert client.get("/api/workspace").json() == {"tab": empty, "cart": []}
 
     page = _a2ui(_run(client, "Compare laptops"))[0]
-    _add(client, "aeris-studio-16")
-    _add(client, "aeris-studio-16")
-    _add(client, "kore-zephyr-14")
+    # The cart as the action handlers leave it (test_actions.py covers how it gets there).
+    store = app.state.store
+    for product_id in ("aeris-studio-16", "aeris-studio-16", "kore-zephyr-14"):
+        asyncio.run(store.add_to_cart("demo-user", product_id, stock=5))
 
     response = client.get("/api/workspace")
     assert response.status_code == 200
@@ -293,199 +295,6 @@ def test_workspace_returns_tab_and_cart() -> None:
         ],
     }
     assert page == _stored(app).snapshot
-
-
-class _Repriced(FakeCatalogSource):
-    """The fake catalog, with prices that can change while the page is open."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.prices: dict[str, int] = {}
-
-    def _priced(self, product: Product) -> Product:
-        price = self.prices.get(product.id)
-        return product if price is None else product.model_copy(update={"price_cents": price})
-
-    async def get_product(self, product_id: str) -> Product:
-        return self._priced(await super().get_product(product_id))
-
-    async def get_products(self, product_ids: list[str]) -> list[Product]:
-        return [self._priced(product) for product in await super().get_products(product_ids)]
-
-
-def _add(client: TestClient, product_id: Any, **extra: Any) -> dict[str, Any]:
-    response = client.post(
-        "/api/actions",
-        json={
-            "name": "cart.add",
-            "surfaceId": "shop:" + "0" * 32,
-            "sourceComponentId": "verdict_button",
-            "context": {"productId": product_id, **extra},
-        },
-    )
-    assert response.status_code == 200
-    body: dict[str, Any] = response.json()
-    return body
-
-
-def test_add_uses_current_price() -> None:
-    source = _Repriced()
-    client = TestClient(_create_app(model=ScriptedModel([]), cartridge=_cartridge(source)))
-
-    first = _add(client, "aeris-studio-16", price_cents=1)
-    source.prices["aeris-studio-16"] = 179900
-    second = _add(client, "aeris-studio-16")
-
-    assert first == {
-        "ok": True,
-        "cart": [
-            {
-                "productId": "aeris-studio-16",
-                "name": "Aeris Studio 16",
-                "qty": 1,
-                "price_cents": 189900,
-            }
-        ],
-    }
-    assert second["ok"] and second["cart"] == [
-        {"productId": "aeris-studio-16", "name": "Aeris Studio 16", "qty": 2, "price_cents": 179900}
-    ]
-
-
-def test_add_out_of_stock() -> None:
-    client = _cart_client()
-
-    sold_out = _add(client, "kore-forge-17")
-
-    assert sold_out["ok"] is False and sold_out["cart"] == []
-    assert sold_out["error"]["code"] == "out_of_stock" and sold_out["error"]["message"]
-    # Lumen Slate 16 has 3 in stock: the fourth one is refused, the cart keeps three.
-    results = [_add(client, "lumen-slate-16") for _ in range(4)]
-    assert [result["ok"] for result in results] == [True, True, True, False]
-    assert results[-1]["error"]["code"] == "out_of_stock"
-    assert results[-1]["cart"] == [
-        {"productId": "lumen-slate-16", "name": "Lumen Slate 16", "qty": 3, "price_cents": 179900}
-    ]
-
-
-def _act(client: TestClient, name: str, **context: Any) -> dict[str, Any]:
-    response = client.post(
-        "/api/actions",
-        json={
-            "name": name,
-            "surfaceId": "shell",
-            "sourceComponentId": "cart-drawer",
-            "context": context,
-        },
-    )
-    assert response.status_code == 200
-    body: dict[str, Any] = response.json()
-    return body
-
-
-def _qtys(result: dict[str, Any]) -> dict[str, int]:
-    return {line["productId"]: line["qty"] for line in result["cart"]}
-
-
-def test_set_qty_checks_stock() -> None:
-    client = _cart_client()
-
-    # Lumen Slate 16 has 3 in stock.
-    up = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=3)
-    too_many = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=4)
-    down = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=1)
-    sold_out = _act(client, "cart.set_qty", productId="kore-forge-17", qty=1)
-
-    assert up["ok"] and _qtys(up) == {"lumen-slate-16": 3}
-    assert too_many["ok"] is False and too_many["error"]["code"] == "out_of_stock"
-    assert _qtys(too_many) == {"lumen-slate-16": 3}
-    assert (
-        down["ok"]
-        and down["cart"][0]["price_cents"] == 179900
-        and _qtys(down) == {"lumen-slate-16": 1}
-    )
-    assert sold_out["error"]["code"] == "out_of_stock" and _qtys(sold_out) == {"lumen-slate-16": 1}
-
-
-def test_remove_and_zero_qty() -> None:
-    client = _cart_client()
-    _act(client, "cart.add", productId="aeris-studio-16")
-    _act(client, "cart.add", productId="kore-zephyr-14")
-
-    zeroed = _act(client, "cart.set_qty", productId="aeris-studio-16", qty=0)
-    removed = _act(client, "cart.remove", productId="kore-zephyr-14")
-    again = _act(client, "cart.remove", productId="kore-zephyr-14")
-
-    assert zeroed["ok"] and _qtys(zeroed) == {"kore-zephyr-14": 1}
-    assert removed["ok"] and removed["cart"] == []
-    assert again["ok"] and again["cart"] == []
-
-
-@pytest.mark.parametrize(
-    ("name", "context", "code"),
-    [
-        ("cart.set_qty", {"productId": "aeris-studio-16"}, "invalid"),
-        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": -1}, "invalid"),
-        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": "2"}, "invalid"),
-        ("cart.set_qty", {"productId": "aeris-studio-16", "qty": True}, "invalid"),
-        ("cart.set_qty", {"productId": "ghost-laptop-99", "qty": 1}, "not_found"),
-        ("cart.remove", {}, "invalid"),
-    ],
-)
-def test_bad_cart_edits_change_nothing(name: str, context: dict[str, Any], code: str) -> None:
-    client = _cart_client()
-    _act(client, "cart.add", productId="aeris-studio-16")
-
-    result = _act(client, name, **context)
-
-    assert result["ok"] is False and result["error"]["code"] == code
-    assert _qtys(result) == {"aeris-studio-16": 1}
-
-
-def test_cart_endpoint() -> None:
-    client = _cart_client()
-    assert client.get("/api/cart").json() == {"cart": []}
-
-    _act(client, "cart.add", productId="aeris-studio-16")
-    _act(client, "cart.set_qty", productId="aeris-studio-16", qty=2)
-
-    assert client.get("/api/cart").json() == {
-        "cart": [
-            {
-                "productId": "aeris-studio-16",
-                "name": "Aeris Studio 16",
-                "qty": 2,
-                "price_cents": 189900,
-            }
-        ]
-    }
-
-
-@pytest.mark.parametrize(
-    ("name", "product_id", "code"),
-    [
-        ("cart.add", "ghost-laptop-99", "not_found"),
-        ("cart.add", None, "invalid"),
-        ("cart.add", 7, "invalid"),
-        ("cart.empty", "aeris-studio-16", "invalid"),
-    ],
-)
-def test_bad_actions_change_nothing(name: str, product_id: Any, code: str) -> None:
-    client = _cart_client()
-
-    response = client.post(
-        "/api/actions",
-        json={
-            "name": name,
-            "surfaceId": "shop:x",
-            "sourceComponentId": "b",
-            "context": {} if product_id is None else {"productId": product_id},
-        },
-    )
-
-    body = response.json()
-    assert response.status_code == 200 and body["ok"] is False
-    assert body["error"]["code"] == code and body["cart"] == []
 
 
 def test_products_reports_missing() -> None:
