@@ -27,7 +27,12 @@ from obsidian_agent.a2ui_adapter import (
     prompt_snippet,
 )
 from obsidian_agent.model import ModelClient, ModelResult, ToolCall
-from obsidian_agent.validate import issues_for_model, page_product_ids, validate_page
+from obsidian_agent.validate import (
+    issues_for_model,
+    numeric_spec_keys,
+    page_product_ids,
+    validate_page,
+)
 from obsidian_data_contract import (
     CatalogSource,
     Category,
@@ -243,7 +248,7 @@ async def _accept(
         raise _Rejected(_compile_feedback(error.errors)) from error
     except ValueError as error:
         raise _Rejected(_compile_feedback([str(error)])) from error
-    issues = validate_page(snapshot, known_products=await _known_products(source, snapshot))
+    issues = validate_page(snapshot, products=await _page_products(source, snapshot))
     if issues:
         raise _Rejected(issues_for_model(issues))
     return messages, snapshot
@@ -256,9 +261,10 @@ def _compile_feedback(errors: list[str]) -> str:
     )
 
 
-async def _known_products(source: CatalogSource, snapshot: Snapshot) -> set[str]:
+async def _page_products(source: CatalogSource, snapshot: Snapshot) -> dict[str, Product]:
+    """The page's products that exist, by ID."""
     found, _ = await lookup_products(source, sorted(page_product_ids(snapshot)))
-    return {product.id for product in found}
+    return {product.id: product for product in found}
 
 
 async def lookup_products(
@@ -311,9 +317,5 @@ def _compact(product: Product) -> dict[str, Any]:
         "stock": product.stock,
         "rating": product.rating,
         "specs": {key: spec.display for key, spec in product.specs.items()},
-        "chartable": [
-            key
-            for key, spec in product.specs.items()
-            if isinstance(spec.value, int | float) and not isinstance(spec.value, bool)
-        ],
+        "chartable": [key for key in product.specs if key in numeric_spec_keys([product])],
     }

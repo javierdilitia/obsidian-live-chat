@@ -169,9 +169,16 @@ def _merge(components: list[dict[str, Any]], updates: list[dict[str, Any]]) -> l
     return [by_id[component_id] for component_id in order]
 
 
+def child_ids(component: dict[str, Any]) -> list[str]:
+    """The IDs `component` references as children, in order, from the catalog's reference map."""
+    spec = _catalog().component_ref_map.get(component["component"])
+    if spec is None:
+        return []
+    return [child for child, _ in spec.extract_child_references(component)]
+
+
 def _reachable(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_id = {component["id"]: component for component in components}
-    ref_map = _catalog().component_ref_map
     seen: set[str] = set()
     stack = [ROOT_ID]
     while stack:
@@ -180,9 +187,7 @@ def _reachable(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if component is None or component_id in seen:
             continue
         seen.add(component_id)
-        spec = ref_map.get(component["component"])
-        if spec is not None:
-            stack.extend(child for child, _ in spec.extract_child_references(component))
+        stack.extend(child_ids(component))
     return [component for component in components if component["id"] in seen]
 
 
