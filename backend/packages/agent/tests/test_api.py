@@ -336,9 +336,7 @@ def test_add_uses_current_price() -> None:
 
 
 def test_add_out_of_stock() -> None:
-    client = TestClient(
-        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
-    )
+    client = _cart_client()
 
     sold_out = _add(client, "kore-forge-17")
 
@@ -373,9 +371,7 @@ def _qtys(result: dict[str, Any]) -> dict[str, int]:
 
 
 def test_set_qty_checks_stock() -> None:
-    client = TestClient(
-        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
-    )
+    client = _cart_client()
 
     # Lumen Slate 16 has 3 in stock.
     up = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=3)
@@ -395,9 +391,7 @@ def test_set_qty_checks_stock() -> None:
 
 
 def test_remove_and_zero_qty() -> None:
-    client = TestClient(
-        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
-    )
+    client = _cart_client()
     _act(client, "cart.add", productId="aeris-studio-16")
     _act(client, "cart.add", productId="kore-zephyr-14")
 
@@ -422,9 +416,7 @@ def test_remove_and_zero_qty() -> None:
     ],
 )
 def test_bad_cart_edits_change_nothing(name: str, context: dict[str, Any], code: str) -> None:
-    client = TestClient(
-        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
-    )
+    client = _cart_client()
     _act(client, "cart.add", productId="aeris-studio-16")
 
     result = _act(client, name, **context)
@@ -434,9 +426,7 @@ def test_bad_cart_edits_change_nothing(name: str, context: dict[str, Any], code:
 
 
 def test_cart_endpoint() -> None:
-    client = TestClient(
-        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
-    )
+    client = _cart_client()
     assert client.get("/api/cart").json() == {"cart": []}
 
     _act(client, "cart.add", productId="aeris-studio-16")
@@ -464,9 +454,7 @@ def test_cart_endpoint() -> None:
     ],
 )
 def test_bad_actions_change_nothing(name: str, product_id: Any, code: str) -> None:
-    client = TestClient(
-        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
-    )
+    client = _cart_client()
 
     response = client.post(
         "/api/actions",
@@ -484,9 +472,7 @@ def test_bad_actions_change_nothing(name: str, product_id: Any, code: str) -> No
 
 
 def test_products_reports_missing() -> None:
-    client = TestClient(
-        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
-    )
+    client = _cart_client()
 
     response = client.get(
         "/api/catalog/products",
