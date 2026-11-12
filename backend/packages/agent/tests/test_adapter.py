@@ -11,6 +11,7 @@ from obsidian_agent.a2ui_adapter import (
     Message,
     Snapshot,
     apply_messages,
+    child_ids,
     compile_block,
     decompile,
     prompt_snippet,
@@ -163,3 +164,10 @@ def test_data_lines_are_rejected_in_builds_and_edits() -> None:
     with pytest.raises(CompileError) as caught:
         compile_block(edit, surface_id=SURFACE, current=_build())
     assert "Only components" in caught.value.errors[0]
+
+
+def test_child_ids() -> None:
+    by_id = {component["id"]: component for component in _build()["createSurface"]["components"]}
+
+    assert child_ids(by_id["root"]) == ["verdict", "shelf", "specs", "charts"]
+    assert "verdict_button" in child_ids(by_id["verdict"])

@@ -1,12 +1,28 @@
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { z } from "zod";
 import shopJson from "../../../backend/packages/agent/src/obsidian_agent/catalog/shop.json";
 import { dispatchAction } from "../lib/actions";
 import { cart } from "../lib/cart";
 import { RETRY_BASE_MS, resetProductCache } from "../lib/products";
-import { shopCatalog } from "./catalog";
+import { ProductRender, shopCatalog } from "./catalog";
 import build from "./fixtures/build.json";
 import { LAPTOPS, SURFACE_ID, mockApi, showSurface } from "./test-helpers";
+
+/* `noRenderer.on` makes the cartridge look like one without product renders, for one test. */
+const noRenderer = vi.hoisted(() => ({ on: false }));
+
+vi.mock("../cartridge", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../cartridge")>();
+  return {
+    ...original,
+    cartridge: {
+      ...original.cartridge,
+      get renderer() {
+        return noRenderer.on ? undefined : original.cartridge.renderer;
+      },
+    },
+  };
+});
 
 beforeEach(() => {
   resetProductCache();
@@ -168,4 +184,16 @@ test("button flips to In cart · View and opens the drawer", async () => {
   expect(cart.get().open).toBe(true);
   expect(sent).toEqual([]);
   expect(fetchMock.mock.calls.filter(([url]) => url === "/api/actions")).toHaveLength(0);
+});
+
+test("ProductRender without a renderer shows an empty plate", () => {
+  noRenderer.on = true;
+  try {
+    const { container } = render(<ProductRender look={{ glyph: "laptop", finish: "silver" }} />);
+    const plate = container.querySelector(".render");
+    expect(plate).not.toBeNull();
+    expect(plate?.childNodes).toHaveLength(0);
+  } finally {
+    noRenderer.on = false;
+  }
 });

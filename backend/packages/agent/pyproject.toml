@@ -7,7 +7,6 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "obsidian-data-contract",
-    "halden-data-fake",
     "openai==3.49.0",
     "python-dotenv==1.2.4",
     "a2ui-agent-sdk==0.11.0",
@@ -15,7 +14,6 @@ dependencies = [
 
 [tool.uv.sources]
 obsidian-data-contract = { workspace = true }
-halden-data-fake = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

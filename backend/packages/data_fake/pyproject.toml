@@ -5,6 +5,9 @@ description = "In-memory CatalogSource built from JSON seed files; stands in for
 requires-python = ">=3.12"
 dependencies = ["obsidian-data-contract"]
 
+[project.entry-points."obsidian.cartridges"]
+halden = "halden_data_fake.cartridge:CARTRIDGE"
+
 [tool.uv.sources]
 obsidian-data-contract = { workspace = true }
 

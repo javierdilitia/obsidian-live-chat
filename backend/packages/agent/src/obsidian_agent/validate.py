@@ -3,16 +3,20 @@
 The SDK already rejects what the catalog schema forbids while compiling. These checks cover what
 the schema cannot say: products that do not exist, a button for a product the page does not show,
 a section written inline (it would get a position-based ID and remount on the next insert), a
-template child list (this catalog has no data model to fill it), and a root that is not a `Page`.
-Text limits are checked again, from the same catalog, on the whole page.
+template child list (this catalog has no data model to fill it), a root that is not a `Page`,
+a component inside a parent it does not belong in, a chart on a spec that is not a number, a table
+row no product has, and a product named twice in one component. Text limits are checked again,
+from the same catalog, on the whole page.
 """
 
 import re
-from collections.abc import Iterator
+from collections import Counter
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-from obsidian_agent.a2ui_adapter import ROOT_ID, Snapshot, shop_catalog_json
+from obsidian_agent.a2ui_adapter import ROOT_ID, Snapshot, child_ids, shop_catalog_json
+from obsidian_data_contract import Product
 
 IssueCode = Literal[
     "unknown_product",
@@ -21,7 +25,23 @@ IssueCode = Literal[
     "root_not_page",
     "unnamed_section",
     "template_children",
+    "misplaced",
+    "spec_not_numeric",
+    "spec_unknown",
+    "duplicate_product",
 ]
+
+_SECTION = frozenset({"Page"})
+# The component types each type may sit in. A type not listed here has no placement rule.
+# Slice 4 extends the map with the new page kinds' components.
+PLACEMENT: dict[str, frozenset[str]] = {
+    "Verdict": _SECTION,
+    "ProductShelf": _SECTION,
+    "SpecTable": _SECTION,
+    "ChartGrid": _SECTION,
+    "BarChart": frozenset({"ChartGrid"}),
+    "AddToCartButton": frozenset({"Verdict", "Page"}),
+}
 
 # The SDK names an inline component after where it sits: `<parent>_<prop>` for a single child,
 # `<parent>_<prop>_<n>` in a list, and `_inline_<n>` when it has no parent (a list held by a
@@ -38,8 +58,11 @@ class Issue:
     message: str
 
 
-def validate_page(snapshot: Snapshot, *, known_products: set[str]) -> list[Issue]:
-    """Every problem on the page; empty when it may be sent. Pure: the caller passes known IDs."""
+def validate_page(snapshot: Snapshot, *, products: Mapping[str, Product]) -> list[Issue]:
+    """Every problem on the page; empty when it may be sent.
+
+    Pure: `products` holds the page's products that exist, by ID; the caller looks them up.
+    """
     components: list[dict[str, Any]] = snapshot["createSurface"]["components"]
     issues = _root_issues({component["id"]: component for component in components})
     shown = {
@@ -48,9 +71,30 @@ def validate_page(snapshot: Snapshot, *, known_products: set[str]) -> list[Issue
         if component["component"] != "AddToCartButton"
         for product_id in _product_ids(component)
     }
+    parent_types: dict[str, str] = {}
     for component in components:
-        issues.extend(_component_issues(component, known_products, shown))
+        for child in child_ids(component):
+            parent_types.setdefault(child, component["component"])
+    for component in components:
+        issues.extend(_component_issues(component, products, shown))
+        issues.extend(_placement_issues(component, parent_types.get(component["id"])))
+        issues.extend(_spec_issues(component, products))
+        issues.extend(_duplicate_issues(component))
     return issues
+
+
+def numeric_spec_keys(products: Iterable[Product]) -> set[str]:
+    """Spec keys a chart can use: at least one product has a number there, and none has text."""
+    numeric: set[str] = set()
+    other: set[str] = set()
+    for product in products:
+        for key, spec in product.specs.items():
+            (numeric if _is_number(spec.value) else other).add(key)
+    return numeric - other
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
 
 
 def page_product_ids(snapshot: Snapshot) -> set[str]:
@@ -77,8 +121,77 @@ def _root_issues(by_id: dict[str, dict[str, Any]]) -> list[Issue]:
     ]
 
 
+def _placement_issues(component: dict[str, Any], parent_type: str | None) -> list[Issue]:
+    kind: str = component["component"]
+    allowed = PLACEMENT.get(kind)
+    if allowed is None or parent_type is None or parent_type in allowed:
+        return []
+    where = " or ".join(sorted(allowed))
+    message = f"{component['id']} is a {kind} inside {parent_type}; a {kind} goes only in {where}."
+    return [Issue("misplaced", component["id"], message)]
+
+
+def _strings(value: Any) -> list[str]:
+    """The strings in `value` when it is a list; else nothing."""
+    if not isinstance(value, list):
+        return []
+    return [item for item in cast(list[Any], value) if isinstance(item, str)]
+
+
+def _spec_issues(component: dict[str, Any], products: Mapping[str, Product]) -> list[Issue]:
+    """A chart on a key that is not a number, or a table row none of the products has."""
+    component_id: str = component["id"]
+    found = [products[i] for i in _strings(component.get("productIds")) if i in products]
+    if not found:
+        return []  # no known products: `unknown_product` reports the IDs
+    kind = component["component"]
+    key = component.get("specKey")
+    if kind == "BarChart" and isinstance(key, str):
+        numeric = numeric_spec_keys(found)
+        if key not in numeric:
+            message = (
+                f"{component_id}.specKey {key} is not a number for these products, so it cannot "
+                f"be charted. Numeric keys for these products: {_listed(numeric)}."
+            )
+            return [Issue("spec_not_numeric", component_id, message)]
+    if kind == "SpecTable":
+        has = {spec_key for product in found for spec_key in product.specs}
+        unknown = [k for k in _strings(component.get("specKeys")) if k not in has]
+        if unknown:
+            message = (
+                f"No product in {component_id} has {', '.join(unknown)}. "
+                f"Keys these products have: {_listed(has)}."
+            )
+            return [Issue("spec_unknown", component_id, message)]
+    return []
+
+
+def _listed(keys: set[str]) -> str:
+    return ", ".join(sorted(keys)) or "none"
+
+
+def _duplicate_issues(component: dict[str, Any]) -> list[Issue]:
+    """A product named twice in one `productIds`, or by two shelf items. `pickId` is not counted."""
+    named = _strings(component.get("productIds"))
+    items = component.get("items")
+    if component["component"] == "ProductShelf" and isinstance(items, list):
+        named = _strings(
+            [
+                cast(dict[str, Any], item).get("productId")
+                for item in cast(list[Any], items)
+                if isinstance(item, dict)
+            ]
+        )
+    repeated = [product_id for product_id, count in Counter(named).items() if count > 1]
+    if not repeated:
+        return []
+    component_id: str = component["id"]
+    message = f"{component_id} names {', '.join(repeated)} more than once. Name each product once."
+    return [Issue("duplicate_product", component_id, message)]
+
+
 def _component_issues(
-    component: dict[str, Any], known_products: set[str], shown: set[str]
+    component: dict[str, Any], products: Mapping[str, Product], shown: set[str]
 ) -> list[Issue]:
     component_id: str = component["id"]
     issues: list[Issue] = []
@@ -91,16 +204,14 @@ def _component_issues(
                 "model: list each child by name, for example children=[verdict, shelf].",
             )
         )
-    unknown = [
-        product_id for product_id in _product_ids(component) if product_id not in known_products
-    ]
+    unknown = [product_id for product_id in _product_ids(component) if product_id not in products]
     if unknown:
         issues.append(
             Issue("unknown_product", component_id, f"Unknown product IDs: {', '.join(unknown)}.")
         )
     if component["component"] == "AddToCartButton":
         product_id = component.get("productId")
-        if isinstance(product_id, str) and product_id in known_products and product_id not in shown:
+        if isinstance(product_id, str) and product_id in products and product_id not in shown:
             issues.append(
                 Issue(
                     "button_target",
