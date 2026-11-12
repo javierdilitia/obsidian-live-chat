@@ -10,6 +10,7 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 | 3 | Build, slice by slice | 1, 2 | planned |
 | 4 | Analytics and observability | 2, 3 | planned |
 | 5 | CD to Azure, then subagents | 3 | planned |
+| H | Haier cartridge | 3, the teammate's data agent | planned |
 
 ---
 
@@ -28,13 +29,13 @@ Six milestones. Each one ends with its spec or plan committed under `docs/superp
 
 ## 1 — Product spec
 
-**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; the contract decisions we own are recorded and in the contract with tests (spec §11.1); waits on the Haier intake meeting with the data-agent teammate (§11.2)
+**Status:** in progress — spec in `docs/superpowers/specs/2026-11-11-product-spec-design.md`; the contract decisions we own are recorded and in the contract with tests (spec §11.1); waits only on the user's review of the spec. The Haier intake moved to milestone H, after milestone 3
 
 **Goal:** detail every idea into a real product: tabs as A2UI surfaces and the agent's tab tools (open, edit, create, switch, close), the component catalog with every field, the action catalog with each action's kind (local / direct / agent), the data contract, persistence, and other places surfaces fit besides tabs.
 
 **Exit criteria:**
 - A written spec covering catalog, actions, tab tools, tab cards, saved tabs and persistence.
-- (a) Contract semantics we own (§11.1) decided and recorded; (b) Haier intake meeting with the data-agent teammate held, answers recorded (§11.2).
+- Contract semantics we own (§11.1) decided, recorded and in the contract with tests. The Haier intake (§11.2) moved to milestone H.
 
 ## 2 — First working demo
 
@@ -54,7 +55,7 @@ The detailed measurements once planned here (OpenUI comparison, 20-run accuracy,
 
 **Status:** planned
 
-**Goal:** the rest of the product spec, one slice at a time on top of the demo: several tabs and the router, saved tabs and history, the home page and For you, cart, checkout and orders, the language switch, the rest of the catalog.
+**Goal:** the rest of the product spec, one slice at a time on top of the demo: several tabs and the router, saved tabs and history, the home page and For you, cart, checkout and orders, the language switch, the rest of the catalog. Built cartridge-ready: Obsidian core holds no Halden specifics (the seams listed in `docs/ARCHITECTURE.md` move into the Halden cartridge), so Haier and later clients plug in without core changes.
 
 **Exit criteria:** set per slice, each with its own plan.
 
@@ -78,6 +79,17 @@ The detailed measurements once planned here (OpenUI comparison, 20-run accuracy,
 
 **Status:** planned
 
-**Goal:** continuous deployment to Azure with environments; then subagents for refunds and support, each with its own surfaces and catalog. The Haier cartridge replaces the synthetic Halden data when the teammate's data agent connects.
+**Goal:** continuous deployment to Azure with environments; then subagents for refunds and support, each with its own surfaces and catalog.
 
 **Exit criteria:** to be set when milestone 3 is planned.
+
+## H — Haier cartridge
+
+**Status:** planned — waits on milestone 3 and on the data-agent teammate's backend.
+
+**Goal:** connect Haier as the second cartridge; the final real demo runs on it. The teammate is building an SQL agent with tools over Haier's data. We connect to it for **retrieval only** (catalog and product data), through an adapter that implements the data contract. Everything else stays ours: the cart, saved tabs and history, shopper interests, and what shoppers buy in the app. The Haier intake meeting (spec §11.2) opens the milestone.
+
+**Exit criteria:**
+- The Haier intake is held and its answers are recorded in spec §11.2.
+- The Haier adapter passes the contract suite (`CatalogSourceContract`).
+- The demo flow runs on Haier data with no change to Obsidian core; Haier's presentation config lives in its cartridge.
