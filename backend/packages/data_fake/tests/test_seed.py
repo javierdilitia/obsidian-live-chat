@@ -17,7 +17,7 @@ async def test_seed_integrity():
     products = await source.search_products(ProductQuery(limit=50))
     orders = await source.get_orders("demo-user")
 
-    assert len(products) == 13
+    assert len(products) == 50
     assert len(categories) == 6
     assert len(orders) == 3
 
@@ -28,6 +28,22 @@ async def test_seed_integrity():
         order = await source.get_order(summary.id)
         for line in order.lines:
             assert (await source.get_product(line.product_id)).id == line.product_id
+
+
+async def test_laptops_cover_the_demo():
+    source = FakeCatalogSource()
+    products = await source.search_products(ProductQuery(limit=50))
+    laptops = [await source.get_product(p.id) for p in products if p.category_id == "laptops"]
+
+    assert len(laptops) == 15
+    keys = {"display", "hz", "cpu", "gpu", "ram", "ssd", "batt", "weight", "ports", "p3", "de"}
+    assert all(set(p.specs) == keys for p in laptops)
+
+    oled = [p for p in laptops if "OLED" in p.specs["display"].display]
+    assert len(oled) >= 6
+    assert len([p for p in oled if p.price_cents <= 200000]) >= 3
+    assert any(p.stock == 0 for p in laptops)
+    assert any(1 <= p.stock <= 3 for p in laptops)
 
 
 def test_bad_seed_fails_loudly(tmp_path: Path):
