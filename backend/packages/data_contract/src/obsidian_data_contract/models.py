@@ -16,6 +16,7 @@ OrderStatus = Literal[
     "confirmed", "packed", "shipped", "out_for_delivery", "delivered", "cancelled"
 ]
 StepState = Literal["done", "current", "pending"]
+ProductSort = Literal["rating", "price_asc", "price_desc"]
 
 PositiveCents = Annotated[StrictInt, Field(gt=0)]
 NonNegativeCents = Annotated[StrictInt, Field(ge=0)]
@@ -72,10 +73,18 @@ class Product(ProductSummary):
 
 
 class ProductQuery(_Model):
+    """A product search; `CatalogSource.search_products` says how each field matches.
+
+    Normalised here, so every implementation sees the same query: `text` is trimmed and
+    `category` trimmed and lowercased (blank means no filter); attribute keys and values are
+    trimmed, an entry with a blank value is dropped, and a blank key is rejected.
+    """
+
     text: str | None = None
     category: str | None = None
     max_price_cents: NonNegativeCents | None = None
     attributes: dict[str, str] = Field(default_factory=dict[str, str])
+    sort: ProductSort = "rating"
     limit: int = Field(default=20, ge=1, le=50)
 
     @field_validator("text")
@@ -84,6 +93,24 @@ class ProductQuery(_Model):
         if value is None:
             return None
         return value.strip() or None
+
+    @field_validator("category")
+    @classmethod
+    def _normalise_category(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip().lower() or None
+
+    @field_validator("attributes")
+    @classmethod
+    def _normalise_attributes(cls, value: dict[str, str]) -> dict[str, str]:
+        cleaned: dict[str, str] = {}
+        for key, wanted in value.items():
+            if not key.strip():
+                raise ValueError("attribute keys must not be blank")
+            if wanted.strip():
+                cleaned[key.strip()] = wanted.strip()
+        return cleaned
 
 
 class OrderLine(_Model):

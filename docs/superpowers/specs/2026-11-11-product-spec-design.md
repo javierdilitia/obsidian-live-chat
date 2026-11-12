@@ -453,16 +453,18 @@ Obsidian owns the data contract; each cartridge implements it. Some points are o
 
 ### 11.1 Decisions we own
 
-Decided. Each one lands in the contract with its contract tests in a separate PR before milestone 3 starts.
+Decided and in the contract (`obsidian_data_contract`), each with contract tests that every cartridge's adapter runs.
 
 | # | Point | Today | Decision | Status |
 |---|---|---|---|---|
-| A | Empty or space-padded `category` and `attributes` | `text` is stripped and blank becomes `None`, but `category=" laptops "` returns `[]`, `attributes={"display": ""}` matches every product that has the key, and `{" display": "OLED"}` matches nothing | Normalise in `ProductQuery` validators so every implementation agrees: `category` stripped and lowercased, blank → `None`; attribute keys and values stripped; a blank value drops that entry; a blank key is a `ValidationError`. Contract tests for each case. | decided — to be encoded in the contract with tests before milestone 3 |
-| B | Search text: one phrase or all words | `text` is one case-insensitive substring of the name or category ID, so "OLED laptop" finds nothing | Split on whitespace; **every word** must match (case-insensitive substring) at least one of: name, category ID, category name, any spec `display`. Ranking unchanged (rating descending, then ID). | decided — to be encoded in the contract with tests before milestone 3 |
-| C | Tracking steps for cancelled orders | "Exactly one step is `current`, unless delivered", so a cancelled order needs a fake current step | Cancelled: the steps reached are `done`, followed by a terminal `Cancelled` step, also `done`; no `current`, no `pending`. Rule becomes: delivered or cancelled → all steps `done` and the last one is terminal; otherwise exactly one `current`. | decided — to be encoded in the contract with tests before milestone 3 |
-| F | Sorting | Rating only | `ProductQuery.sort: rating \| price_asc \| price_desc`, default `rating` ("cheapest OLED laptop"). | decided — to be encoded in the contract with tests before milestone 3 |
+| A | Empty or space-padded `category` and `attributes` | `text` is stripped and blank becomes `None`, but `category=" laptops "` returns `[]`, `attributes={"display": ""}` matches every product that has the key, and `{" display": "OLED"}` matches nothing | Normalise in `ProductQuery` validators so every implementation agrees: `category` stripped and lowercased, blank → `None`; attribute keys and values stripped; a blank value drops that entry; a blank key is a `ValidationError`. Contract tests for each case. | done — in the contract with contract tests |
+| B | Search text: one phrase or all words | `text` is one case-insensitive substring of the name or category ID, so "OLED laptop" finds nothing | Split on whitespace; **every word** must match (case-insensitive substring) at least one of: name, category ID, category name, any spec `display`. Ranking unchanged (rating descending, then ID). | done — in the contract with contract tests |
+| C | Tracking steps for cancelled orders | "Exactly one step is `current`, unless delivered", so a cancelled order needs a fake current step | Cancelled: the steps reached are `done`, followed by a terminal `Cancelled` step, also `done`; no `current`, no `pending`. Rule becomes: delivered or cancelled → all steps `done` and the last one is terminal; otherwise exactly one `current`. | done — in the contract with contract tests |
+| F | Sorting | Rating only | `ProductQuery.sort: rating \| price_asc \| price_desc`, default `rating` ("cheapest OLED laptop"). | done — in the contract with contract tests |
 
 ### 11.2 Haier intake
+
+Known already (2026-11-12): the meeting happens after milestone 3 (ROADMAP milestone H). The teammate is building an SQL agent with tools over Haier's data; we connect to it for retrieval only. The cart, saved tabs, history and interests, and in-app purchases stay in our store.
 
 Questions to answer from their dataset. "Our default" is what we build if the answer leaves the point open.
 
@@ -471,7 +473,7 @@ Questions to answer from their dataset. "Our default" is what we build if the an
 | D | Spec metadata | No labels, units or direction; `weight` is the string `"1.74 kg"`, `ram` is `"32 GB LPDDR5"` | Do comparable specs come with a numeric value and a unit? Is there per-category spec metadata (unit, number or text, whether higher or lower is better)? Our default: `list_spec_definitions(category_id) → list[SpecDefinition]`, `SpecDefinition{key, unit, kind: number \| text, better: higher \| lower \| None}`; labels and explanations stay in the cartridge's glossary. | to ask |
 | E | Spec vocabulary | Laptops use `hz` and `batt`, monitors `refresh_rate`, audio `battery`; some laptops lack `p3` | Is there one fixed spec key vocabulary per category, and who owns it? How often are values missing? Our default: a missing key means unknown and renders "—". | to ask |
 | G | Look and images | `look` (glyph, finish) is required; a real catalog will not have it | What product images does their dataset have (URLs, sizes, the right to show them)? Our default: `look` optional, plus optional `image_url`; with neither, the UI uses a glyph per category. | to ask |
-| H | Orders | Read-only contract; orders keyed by `user_id` | Does their dataset hold orders? Who allocates order IDs? Do in-app orders flow back to their system (a write API) or stay ours? How do their user IDs map to ours? Do they have `returned` and `refunded` statuses (milestone 5)? | to ask |
+| H | Orders | Read-only contract; orders keyed by `user_id` | Does their dataset hold orders? Who allocates order IDs? Do in-app orders flow back to their system (a write API) or stay ours? How do their user IDs map to ours? Do they have `returned` and `refunded` statuses (milestone 5)? | partly: in-app purchases stay in our store; the rest to ask |
 | I | Serving and speed | In-process Python package | In-process, HTTP or MCP? What p95 latency per call can they hold (the pre-fetch is on the critical path; we'd like ≤ 150 ms)? How long may we cache (we'd like 60 s for display; checkout always re-reads)? | to ask |
 | J | Language | English data | Are names and spec displays available in Spanish? Our default: EN data, EN/ES UI. | to ask |
 
@@ -522,7 +524,7 @@ Real authentication; payments (checkout takes no payment, as in the mockup); ref
 ## 17. How we know milestone 1 is done
 
 1. This spec is reviewed and approved by the user.
-2. (a) The contract semantics we own (§11.1) are decided and recorded; (b) the Haier intake meeting with the data-agent teammate is held and its answers recorded (§11.2).
+2. The contract semantics we own (§11.1) are decided, recorded and in the contract with tests. The Haier intake (§11.2) moved to ROADMAP milestone H, after milestone 3.
 3. `PRODUCT.md` Users and Operating Context reflect this spec.
 4. Milestone 3's plans can be written from this spec and milestone 2's results without reopening any decision in §1.
 
