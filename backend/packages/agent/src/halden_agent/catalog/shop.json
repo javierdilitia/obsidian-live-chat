@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://halden.example/catalogs/shop/v1/catalog.json",
+  "catalogId": "https://halden.example/catalogs/shop/v1/catalog.json",
+  "protocolVersion": "1.0",
+  "title": "Halden shop catalog",
+  "description": "The components a Halden shop tab is built from. Components take product IDs and spec keys; prices, specs, stock and images are filled in by the app.",
+  "instructions": "- IDs, never values. Write product IDs and spec keys only. Never write a price, a spec value, a stock level or an action: the app fills them in.\n- `root` is always a `Page`. Its `children` are the page's sections, in order.\n- Section-level components (`Verdict`, `ProductShelf`, `SpecTable`, `ChartGrid`) are always assigned to a named variable with a short meaning-based name, such as `verdict`, `shelf`, `specs`, `colour` or `charts`, and listed by that name in `Page.children`. Never write a section inline inside `Page(...)`.\n- Smaller parts (a `BarChart` inside a `ChartGrid`, an `AddToCartButton` inside a `Verdict`) are written inline.\n- An `AddToCartButton` may only name a product the page shows.\n- To change a page that already exists, start the block with `surface(update=true)`. Then write `root` again with its full new child list and define only the sections that are new or changed. Never repeat a section that stays as it is: naming it in `root`'s child list keeps it.",
+  "components": {
+    "Page": {
+      "type": "object",
+      "description": "The root of every tab. Its children are the page's sections, each one a named variable.",
+      "properties": {
+        "component": { "const": "Page" },
+        "title": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "The page heading, up to 80 characters."
+        },
+        "kicker": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "A short label above the title, up to 40 characters."
+        },
+        "meta": {
+          "type": "array",
+          "maxItems": 4,
+          "items": { "type": "string", "maxLength": 32 },
+          "description": "Up to 4 short facts for the meta line, each up to 32 characters."
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": 2,
+          "items": { "$ref": "common_types.json#/$defs/ComponentId" },
+          "description": "Up to 2 buttons shown beside the title."
+        },
+        "children": {
+          "$ref": "common_types.json#/$defs/ChildList",
+          "description": "The sections, in order, each by its variable name (for example [verdict, shelf, specs, charts])."
+        }
+      },
+      "required": ["component", "title", "kicker", "children"]
+    },
+    "ChartGrid": {
+      "type": "object",
+      "description": "Section-level: assign it to a named variable. One or two charts side by side, written inline.",
+      "properties": {
+        "component": { "const": "ChartGrid" },
+        "children": {
+          "$ref": "common_types.json#/$defs/ChildList",
+          "minItems": 1,
+          "maxItems": 2,
+          "description": "One or two BarChart components, written inline."
+        }
+      },
+      "required": ["component", "children"]
+    },
+    "Verdict": {
+      "type": "object",
+      "description": "Section-level: assign it to a named variable. The answer in one sentence, with one primary button.",
+      "properties": {
+        "component": { "const": "Verdict" },
+        "lead": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Bold opening words, usually the pick's name, up to 40 characters."
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "The verdict, up to 200 characters."
+        },
+        "button": {
+          "$ref": "common_types.json#/$defs/ComponentId",
+          "description": "One AddToCartButton, written inline, for a product the page shows."
+        }
+      },
+      "required": ["component", "text"]
+    },
+    "ProductShelf": {
+      "type": "object",
+      "description": "Section-level: assign it to a named variable. Two to four products side by side, each with a short tag.",
+      "properties": {
+        "component": { "const": "ProductShelf" },
+        "items": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string", "description": "A product ID." },
+              "tag": {
+                "type": "string",
+                "maxLength": 40,
+                "description": "Why this product is here, up to 40 characters."
+              }
+            },
+            "required": ["productId", "tag"],
+            "additionalProperties": false
+          },
+          "description": "Two to four products, for example [{productId: \"aeris-studio-16\", tag: \"most power\"}, ...]."
+        },
+        "pickId": {
+          "type": "string",
+          "description": "The product ID of the pick, one of the items."
+        }
+      },
+      "required": ["component", "items"]
+    },
+    "SpecTable": {
+      "type": "object",
+      "description": "Section-level: assign it to a named variable. A spec-by-spec comparison of two to four products.",
+      "properties": {
+        "component": { "const": "SpecTable" },
+        "productIds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": { "type": "string" },
+          "description": "Two to four product IDs."
+        },
+        "specKeys": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "type": "string" },
+          "description": "Up to 12 spec keys, in the order the rows are shown."
+        },
+        "highlightBest": {
+          "type": "boolean",
+          "default": true,
+          "description": "Marks the best value in each row. Defaults to true."
+        }
+      },
+      "required": ["component", "productIds", "specKeys"]
+    },
+    "BarChart": {
+      "type": "object",
+      "description": "One numeric spec compared across two to four products. Written inline inside a ChartGrid.",
+      "properties": {
+        "component": { "const": "BarChart" },
+        "title": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "The chart title, up to 60 characters."
+        },
+        "productIds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": { "type": "string" },
+          "description": "Two to four product IDs."
+        },
+        "specKey": {
+          "type": "string",
+          "description": "A numeric spec key, such as batt, hz, p3 or de."
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "An optional note under the chart, up to 160 characters."
+        }
+      },
+      "required": ["component", "title", "productIds", "specKey"]
+    },
+    "AddToCartButton": {
+      "type": "object",
+      "description": "Adds one product to the cart. Its label and action are made by the app. Written inline as a Verdict's button or in Page.actions.",
+      "properties": {
+        "component": { "const": "AddToCartButton" },
+        "productId": {
+          "type": "string",
+          "description": "The product ID. It must be a product the page shows."
+        },
+        "variant": {
+          "type": "string",
+          "enum": ["primary", "ghost"],
+          "default": "primary",
+          "description": "primary for the page's main button, ghost otherwise."
+        },
+        "withName": {
+          "type": "boolean",
+          "default": false,
+          "description": "Shows the product name in the label."
+        },
+        "withPrice": {
+          "type": "boolean",
+          "default": false,
+          "description": "Shows the price in the label."
+        }
+      },
+      "required": ["component", "productId"]
+    }
+  },
+  "$defs": {
+    "anyComponent": {
+      "oneOf": [
+        { "$ref": "#/components/Page" },
+        { "$ref": "#/components/ChartGrid" },
+        { "$ref": "#/components/Verdict" },
+        { "$ref": "#/components/ProductShelf" },
+        { "$ref": "#/components/SpecTable" },
+        { "$ref": "#/components/BarChart" },
+        { "$ref": "#/components/AddToCartButton" }
+      ],
+      "discriminator": { "propertyName": "component" }
+    },
+    "anyFunction": { "not": {} }
+  }
+}

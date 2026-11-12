@@ -1,0 +1,111 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "shop:00000000000000000000000000000000",
+      "catalogId": "https://halden.example/catalogs/shop/v1/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Page",
+          "title": "Three laptops for video editing under €2,000",
+          "kicker": "video-editing comparison",
+          "meta": [
+            "9 specs weighed",
+            "today's prices"
+          ],
+          "children": [
+            "verdict",
+            "shelf",
+            "specs",
+            "charts"
+          ]
+        },
+        {
+          "id": "verdict",
+          "component": "Verdict",
+          "lead": "Aeris Studio 16",
+          "text": "the most screen and power for grading, inside the budget.",
+          "button": "verdict_button"
+        },
+        {
+          "id": "verdict_button",
+          "component": "AddToCartButton",
+          "productId": "aeris-studio-16",
+          "variant": "primary",
+          "withName": true,
+          "withPrice": true
+        },
+        {
+          "id": "shelf",
+          "component": "ProductShelf",
+          "items": [
+            {
+              "productId": "aeris-studio-16",
+              "tag": "most power"
+            },
+            {
+              "productId": "kore-zephyr-14",
+              "tag": "lightest"
+            },
+            {
+              "productId": "vela-prism-15",
+              "tag": "best value"
+            }
+          ],
+          "pickId": "aeris-studio-16"
+        },
+        {
+          "id": "specs",
+          "component": "SpecTable",
+          "productIds": [
+            "aeris-studio-16",
+            "kore-zephyr-14",
+            "vela-prism-15"
+          ],
+          "specKeys": [
+            "display",
+            "hz",
+            "cpu",
+            "gpu",
+            "ram",
+            "ssd",
+            "batt",
+            "weight",
+            "ports"
+          ]
+        },
+        {
+          "id": "charts",
+          "component": "ChartGrid",
+          "children": [
+            "charts_children_0",
+            "charts_children_1"
+          ]
+        },
+        {
+          "id": "charts_children_0",
+          "component": "BarChart",
+          "title": "Battery — hours of video playback",
+          "productIds": [
+            "aeris-studio-16",
+            "kore-zephyr-14",
+            "vela-prism-15"
+          ],
+          "specKey": "batt"
+        },
+        {
+          "id": "charts_children_1",
+          "component": "BarChart",
+          "title": "Refresh rate — Hz, higher is smoother",
+          "productIds": [
+            "aeris-studio-16",
+            "kore-zephyr-14",
+            "vela-prism-15"
+          ],
+          "specKey": "hz"
+        }
+      ]
+    }
+  }
+]

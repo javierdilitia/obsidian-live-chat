@@ -1,0 +1,58 @@
+[
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "shop:00000000000000000000000000000000",
+      "components": [
+        {
+          "id": "root",
+          "component": "Page",
+          "title": "Three laptops for video editing under €2,000",
+          "kicker": "video-editing comparison",
+          "meta": [
+            "9 specs weighed",
+            "today's prices"
+          ],
+          "children": [
+            "verdict",
+            "shelf",
+            "colour",
+            "specs",
+            "charts"
+          ]
+        },
+        {
+          "id": "colour",
+          "component": "ChartGrid",
+          "children": [
+            "colour_children_0",
+            "colour_children_1"
+          ]
+        },
+        {
+          "id": "colour_children_0",
+          "component": "BarChart",
+          "title": "Colour range — share of DCI-P3",
+          "productIds": [
+            "aeris-studio-16",
+            "kore-zephyr-14",
+            "vela-prism-15"
+          ],
+          "specKey": "p3"
+        },
+        {
+          "id": "colour_children_1",
+          "component": "BarChart",
+          "title": "Colour error — ΔE, shorter is truer",
+          "productIds": [
+            "aeris-studio-16",
+            "kore-zephyr-14",
+            "vela-prism-15"
+          ],
+          "specKey": "de",
+          "note": "Under ΔE 2 the eye can't see the error."
+        }
+      ]
+    }
+  }
+]

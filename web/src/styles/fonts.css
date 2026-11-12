@@ -1,0 +1,11 @@
+/* Supreme (Indian Type Foundry, via Fontshare — licence in public/fonts/Supreme-FFL.txt) is the
+   voice and the price; Spline Sans Mono is everything a machine measured. */
+@import url("https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500&display=swap");
+
+@font-face {
+  font-family: Supreme;
+  src: url("/fonts/Supreme-Variable.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}

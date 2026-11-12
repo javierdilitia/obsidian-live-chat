@@ -1,0 +1,598 @@
+/* OBSIDIAN · the page the agent builds, from mockup/css/artifacts.css and base.css.
+   Every catalog component renders inside its own `<a2ui-react-*>` element (display: contents), so
+   layout selectors never rely on :first-child across components. */
+
+/* ——— buttons ——— */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--r-ctl);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.2s var(--ease);
+  white-space: nowrap;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.btn-primary {
+  background: var(--steel);
+  color: var(--ink);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--frost);
+}
+.btn-ghost {
+  border: 1px solid var(--line);
+  color: var(--tx-2);
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--tx);
+  background: rgba(255, 255, 255, 0.04);
+}
+/* a product already in the cart: the button says so and opens the cart (artifacts.css `.is-in`) */
+.btn.buy.is-in {
+  border-color: rgba(156, 190, 224, 0.35);
+  color: var(--steel);
+}
+.btn.buy.is-in svg {
+  color: var(--steel);
+}
+.btn-primary.buy.is-in {
+  background: transparent;
+  border: 1px solid rgba(156, 190, 224, 0.45);
+  color: var(--steel);
+}
+
+/* ——— the mono meta line — items divided by 3px dots ——— */
+.art-meta,
+.art-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 4px;
+  font-family: var(--mono);
+  color: var(--tx-3);
+}
+.art-meta {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.art-meta > *,
+.art-foot > * {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.art-meta > * + *::before,
+.art-foot > * + *::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(237, 241, 246, 0.28);
+  flex: none;
+}
+
+/* ——— status pill ——— */
+.pill {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: rgba(156, 190, 224, 0.12);
+  color: var(--steel);
+  border: 1px solid rgba(156, 190, 224, 0.25);
+}
+
+/* ——— the studio plate a product render stands on — one soft light from above ——— */
+.shot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(60% 72% at 50% 34%, rgba(214, 230, 245, 0.075), transparent 72%);
+}
+.render {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* ——— commerce — prices speak in Supreme; mono stays for specs, ids and machine state ——— */
+.price-now {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.price-now b {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: var(--tx);
+}
+.price-now s {
+  font-size: 13.5px;
+  color: var(--tx-3);
+  text-decoration-thickness: 1px;
+}
+.save {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ember);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.trust {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+}
+.trust svg {
+  color: var(--frost);
+  flex: none;
+}
+.trust b {
+  font-weight: 700;
+  color: var(--tx-2);
+}
+.stock {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--tx-2);
+}
+.stock svg {
+  color: var(--steel);
+  flex: none;
+}
+
+/* ——— artifact shell ——— */
+.artifact {
+  position: relative;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-artifact);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+  overflow: clip;
+}
+.art-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 26px 28px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.art-head {
+  border-radius: var(--r-ctl);
+}
+.art-kicker {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tx-3);
+  margin-bottom: 6px;
+}
+.art-header h2 {
+  font-size: clamp(21px, 2.4vw, 27px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.art-actions {
+  display: flex;
+  gap: 10px;
+  flex: none;
+}
+.art-foot {
+  padding: 14px 28px;
+  font-size: 11.5px;
+}
+
+/* ——— staged construction: a part rises in when it mounts, in page order (motion.ts), 45 ms
+   apart in a build and 40 ms in an edit (`--rise-step`, set by the run) ——— */
+.rise {
+  animation: rise-in 0.6s var(--ease) both;
+  animation-delay: calc(var(--rise-i, 0) * var(--rise-step, 45ms));
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+}
+/* while a run holds the page (motion/run.ts), what mounts waits to rise until the dots have
+   landed, and a build's page is laid out unseen */
+[data-motion] .rise,
+[data-motion] .bar-fill {
+  animation-play-state: paused;
+}
+/* inside a part that rises as a whole, a part that mounted with it rests (motion.ts `riseIn`) */
+.rise[data-settled] {
+  animation: none;
+}
+[data-motion="build"] .artifact {
+  opacity: 0;
+}
+/* each section's room: a section an edit adds opens its own before the dots land
+   (mockup/css/artifacts.css `.grow-wrap`) */
+.room {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.6s var(--ease);
+}
+.room[data-shut] {
+  grid-template-rows: 0fr;
+}
+.room-inner {
+  min-height: 0;
+}
+.room[data-shut] > .room-inner {
+  overflow: hidden;
+}
+
+/* ——— verdict ——— */
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--line);
+  color: var(--tx);
+  font-size: 14.5px;
+}
+.verdict > svg {
+  color: var(--steel);
+  flex: none;
+}
+.verdict .vt {
+  flex: 1;
+  min-width: 0;
+  text-wrap: pretty;
+}
+.verdict b {
+  font-weight: 700;
+}
+.verdict .vt span {
+  color: var(--tx-2);
+}
+.verdict .btn {
+  flex: none;
+}
+
+/* ——— the shelf: each product on its plate, its price, and a way to buy it ——— */
+.trio {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+.prod {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 24px 22px;
+  border-left: 1px solid var(--line);
+  transition: background 0.2s var(--ease);
+}
+.prod:first-child {
+  border-left: none;
+}
+.prod:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.prod-shot {
+  width: calc(100% + 24px);
+  min-height: 120px;
+  margin: 0 -12px 6px;
+  border-radius: var(--r-panel);
+}
+.prod-shot .render {
+  max-width: 300px;
+  transition: transform 0.6s var(--ease);
+}
+.prod:hover .prod-shot .render {
+  transform: translateY(-4px);
+}
+.prod-shot .pill {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+}
+.prod h3 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+.prod-gone {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tx-3);
+}
+.prod .trust {
+  margin-top: 4px;
+}
+.prod .buybox {
+  margin-top: 12px;
+}
+.swatch-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--tx-3);
+}
+.swatch-line i {
+  width: 14px;
+  height: 3px;
+  border-radius: 99px;
+}
+.prod .stock {
+  margin-top: 6px;
+}
+.prod-actions {
+  margin-top: auto;
+  padding-top: 18px;
+  width: 100%;
+}
+.prod-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ——— spec table ——— */
+.specs-wrap {
+  padding: 6px 0 4px;
+  border-bottom: 1px solid var(--line);
+}
+.spec-row {
+  display: grid;
+  grid-template-columns: 170px repeat(var(--n, 3), minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+.spec-row:last-child {
+  border-bottom: none;
+}
+.spec-row > div {
+  padding: 12px 24px;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.spec-name {
+  color: var(--tx-2);
+  font-weight: 500;
+}
+.spec-val {
+  font-family: var(--mono);
+  color: var(--tx-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.spec-val.best {
+  color: var(--tx);
+}
+.spec-val .bdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  flex: none;
+}
+/* which column is which — the names over the values */
+.spec-head > div {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.spec-head .spec-val {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--tx-2);
+}
+.spec-head .spec-val i {
+  width: 14px;
+  height: 3px;
+  border-radius: 99px;
+  flex: none;
+}
+
+/* ——— charts: one or two side by side; each BarChart is a cell ——— */
+.charts {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  border-bottom: 1px solid var(--line);
+}
+.charts > * + * .chart-cell {
+  border-left: 1px solid var(--line);
+}
+.chart-cell {
+  height: 100%;
+  padding: 24px 28px 26px;
+}
+.chart-cell h3 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--tx-2);
+  margin-bottom: 18px;
+}
+.bar-row {
+  margin-bottom: 16px;
+}
+.bar-row:last-of-type {
+  margin-bottom: 0;
+}
+.bar-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+.bar-top .n {
+  font-size: 13px;
+  color: var(--tx-2);
+}
+.bar-top .v {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--tx);
+  font-variant-numeric: tabular-nums;
+}
+.bar-track {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+/* bars fill when they mount (the animation) and refill when their value changes (the transition),
+   staggered 120 ms per row after the row has risen in */
+.bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  animation: bar-fill 1s var(--ease) both;
+  transition: width 1s var(--ease);
+  animation-delay: calc(var(--rise-i, 0) * var(--rise-step, 45ms) + 250ms + var(--row, 0) * 120ms);
+  transition-delay: calc(var(--row, 0) * 120ms);
+}
+@keyframes bar-fill {
+  from {
+    width: 0;
+  }
+}
+.chart-cell .note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--tx-3);
+  margin-top: 18px;
+  max-width: 52ch;
+}
+
+/* ——— the mount probe (?probe) ——— */
+.probe {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 10px 14px;
+  background: var(--bg-raise);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-modal);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--tx-3);
+}
+.probe b {
+  color: var(--tx);
+  font-weight: 500;
+}
+
+@media (max-width: 1080px) {
+  .spec-row {
+    grid-template-columns: 140px repeat(var(--n, 3), minmax(0, 1fr));
+  }
+  .spec-row > div {
+    padding: 12px 14px;
+  }
+  .charts {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+  .charts > * + * .chart-cell {
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+}
+@media (max-width: 860px) {
+  /* the shelf scrolls sideways, one product at a time, so they stay side by side */
+  .trio {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(250px, 76%);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .trio::-webkit-scrollbar {
+    display: none;
+  }
+  .prod {
+    scroll-snap-align: start;
+  }
+  .verdict {
+    flex-wrap: wrap;
+  }
+  .verdict .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  /* specs: the label on its own line, the values under it — no sideways scroll */
+  .spec-row {
+    grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
+  }
+  .spec-row > div {
+    padding: 10px 14px;
+  }
+  .spec-row .spec-name {
+    grid-column: 1 / -1;
+    padding-bottom: 0;
+  }
+  .spec-head .spec-name {
+    display: none;
+  }
+  .spec-val {
+    font-size: 12px;
+    align-items: flex-start;
+    overflow-wrap: anywhere;
+  }
+  .spec-val .bdot {
+    margin-top: 5px;
+  }
+}
+@media (max-width: 520px) {
+  .art-header {
+    padding: 20px 18px 16px;
+  }
+  .art-foot,
+  .verdict,
+  .chart-cell {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+/* reduced motion: at rest, nothing hidden (tokens.css clamps every duration and delay) */
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .bar-fill {
+    animation: none;
+  }
+}
