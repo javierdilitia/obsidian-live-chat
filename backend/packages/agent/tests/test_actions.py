@@ -28,24 +28,32 @@ ON_THE_PAGE = (
 )
 
 
+SHELF_ITEMS = [
+    {"productId": "aeris-studio-16", "tag": "most power"},
+    {"productId": "kore-zephyr-14", "tag": "lightest"},
+]
+
+
 def _button_id(product_id: str) -> str:
     return f"add-{product_id}"
 
 
 def _page(surface_id: str, product_ids: tuple[str, ...] = ON_THE_PAGE) -> Snapshot:
-    """A page with one `AddToCartButton` per product, and a shelf (not a button)."""
+    """A page with one `AddToCartButton` per product, a button that names no product, and a
+    shelf of two of them (each shelf item has its own add control, spec §7.4)."""
     buttons = [
         {"id": _button_id(product_id), "component": "AddToCartButton", "productId": product_id}
         for product_id in product_ids
     ]
-    children = ["shelf", *(button["id"] for button in buttons)]
+    children = ["shelf", "bare", *(button["id"] for button in buttons)]
     return {
         "version": "v1.0",
         "createSurface": {
             "surfaceId": surface_id,
             "components": [
                 {"id": "root", "component": "Page", "title": "Laptops", "children": children},
-                {"id": "shelf", "component": "ProductShelf", "items": []},
+                {"id": "shelf", "component": "ProductShelf", "items": SHELF_ITEMS},
+                {"id": "bare", "component": "AddToCartButton"},
                 *buttons,
             ],
         },
@@ -145,7 +153,9 @@ def _invalid(result: dict[str, Any]) -> bool:
 def test_the_registry_has_one_kind_per_action() -> None:
     assert set(ACTIONS) >= {"openCart", "cart.add", "cart.set_qty", "cart.remove"}
     assert ACTIONS["openCart"] == ActionSpec(kind="local", sources=())
-    assert ACTIONS["cart.add"] == ActionSpec(kind="direct", sources=("AddToCartButton",))
+    assert ACTIONS["cart.add"] == ActionSpec(
+        kind="direct", sources=("AddToCartButton", "ProductShelf")
+    )
     assert ACTIONS["session.switch_user"].sources == ("shell:user-menu",)
     assert all(spec.kind in ("local", "direct", "agent") for spec in ACTIONS.values())
 
@@ -178,9 +188,15 @@ def test_check_source_rules() -> None:
         open_tabs=tabs,
     )
     assert ok is None
+    from_shelf = check_source(
+        add, surface_id=shop.surface_id, source_id="shelf", context=context, open_tabs=tabs
+    )
+    assert from_shelf is None
     for surface_id, source_id, ctx in [
         ("shop:other", "add-aeris-studio-16", context),
-        (shop.surface_id, "shelf", context),
+        (shop.surface_id, "root", context),
+        (shop.surface_id, "shelf", {"productId": "lumen-slate-16"}),
+        (shop.surface_id, "bare", context),
         (shop.surface_id, "missing", context),
         (shop.surface_id, "add-kore-zephyr-14", context),
         (SHELL_SURFACE, "cart-drawer", context),
@@ -234,7 +250,7 @@ def test_repeated_request_id_returns_the_first_result() -> None:
 def test_rejections_are_not_stored() -> None:
     shop = _Shop()
     refused = shop.post(
-        "cart.add", shop.surface_id, "shelf", {"productId": "aeris-studio-16", "requestId": "r1"}
+        "cart.add", shop.surface_id, "root", {"productId": "aeris-studio-16", "requestId": "r1"}
     )
     accepted = shop.add("aeris-studio-16", request_id="r1")
     assert _invalid(refused)
@@ -265,18 +281,22 @@ def test_surface_must_be_an_open_tab_of_this_shopper() -> None:
     assert shop.stored_qtys("ana") == {} and shop.stored_qtys() == {}
 
 
-def test_source_must_be_an_add_button_on_that_page() -> None:
+def test_source_must_be_an_add_control_for_that_product_on_that_page() -> None:
     shop = _Shop()
 
     def add_from(source_id: str, product_id: str) -> dict[str, Any]:
         context = {"productId": product_id, "requestId": _rid()}
         return shop.post("cart.add", shop.surface_id, source_id, context)
 
-    assert _invalid(add_from("shelf", "aeris-studio-16"))
+    assert _invalid(add_from("root", "aeris-studio-16"))
     assert _invalid(add_from("no-such-component", "aeris-studio-16"))
     assert _invalid(add_from("add-aeris-studio-16", "kore-zephyr-14"))
+    assert _invalid(add_from("bare", "aeris-studio-16"))
+    assert _invalid(add_from("shelf", "lumen-slate-16"))
     assert shop.stored_qtys() == {}
     assert add_from("add-aeris-studio-16", "aeris-studio-16")["ok"]
+    assert add_from("shelf", "kore-zephyr-14")["ok"]
+    assert shop.stored_qtys() == {"aeris-studio-16": 1, "kore-zephyr-14": 1}
 
 
 def test_shell_source_only_for_shell_actions() -> None:

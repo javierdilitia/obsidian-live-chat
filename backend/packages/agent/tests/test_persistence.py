@@ -90,6 +90,28 @@ def test_restart_keeps_the_tab_page_and_cart() -> None:
     ]
 
 
+def test_the_built_shelf_adds_to_the_cart() -> None:
+    """The build fixture's shelf: each item's own Add to cart sends `cart.add` as the shelf."""
+    store = MemoryStore()
+    client = TestClient(_app(store, BUILD))
+    _run(client, "Compare laptops")
+    surface_id = client.get("/api/workspace").json()["tab"]["surface_id"]
+
+    response = client.post(
+        "/api/actions",
+        json={
+            "name": "cart.add",
+            "surfaceId": surface_id,
+            "sourceComponentId": "shelf",
+            "context": {"productId": "kore-zephyr-14", "requestId": str(uuid.uuid4())},
+        },
+    )
+
+    assert response.json()["ok"] is True, response.json()
+    lines = asyncio.run(store.cart("demo-user"))
+    assert [(line.product_id, line.qty) for line in lines] == [("kore-zephyr-14", 1)]
+
+
 def test_each_shopper_has_their_own_workspace() -> None:
     store = MemoryStore()
     client = TestClient(_app(store, BUILD))

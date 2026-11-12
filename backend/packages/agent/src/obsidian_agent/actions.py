@@ -63,7 +63,8 @@ def check_source(
 
     A `shell` surface passes only for a `shell:<source_id>` the action lists. Otherwise the
     surface is one of the shopper's open tabs, the source a component on that tab's page whose
-    type the action lists, and a component that names a product names the one in `context`.
+    type the action lists, and when the component or the action names products, the one in
+    `context` is among those the component acts on (its `productId`, or a shelf item's).
     """
     if surface_id == SHELL_SURFACE:
         if f"{_SHELL_PREFIX}{source_id}" in spec.sources:
@@ -78,7 +79,24 @@ def check_source(
         return f"{source_id} is not on that page."
     if component.get("component") not in spec.sources:
         return f"{source_id} can't send this action."
-    product_id = component.get("productId")
-    if product_id is not None and product_id != context.get("productId"):
-        return f"{source_id} is for another product."
+    named = _product_ids(component)
+    if (named or "productId" in context) and context.get("productId") not in named:
+        return f"{source_id} is not for that product."
     return None
+
+
+def _product_ids(component: dict[str, Any]) -> set[str]:
+    """The products a component's own controls act on: its `productId`, or each item's (a
+    `ProductShelf` item has its own Add to cart, spec §7.4)."""
+    named: set[str] = set()
+    product_id = component.get("productId")
+    if isinstance(product_id, str):
+        named.add(product_id)
+    items = component.get("items")
+    if isinstance(items, list):
+        for item in cast(list[object], items):
+            if isinstance(item, dict):
+                item_id = cast(dict[str, Any], item).get("productId")
+                if isinstance(item_id, str):
+                    named.add(item_id)
+    return named
