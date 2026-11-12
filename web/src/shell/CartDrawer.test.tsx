@@ -5,6 +5,9 @@ import { cart } from "../lib/cart";
 import { resetProductCache } from "../lib/products";
 import { CartDrawer } from "./CartDrawer";
 
+/** Every action carries its own request ID (a UUID per click). */
+const A_REQUEST_ID: unknown = expect.any(String);
+
 const aeris: CartLine = {
   productId: "aeris-studio-16",
   name: "Aeris Studio 16",
@@ -90,7 +93,7 @@ test("stepper sends cart.set_qty", async () => {
       name: "cart.set_qty",
       surfaceId: "shell",
       sourceComponentId: "cart-drawer",
-      context: { productId: "kore-zephyr-14", qty: 3 },
+      context: { productId: "kore-zephyr-14", qty: 3, requestId: A_REQUEST_ID },
     },
   ]);
 });
@@ -127,7 +130,7 @@ test("remove sends cart.remove", async () => {
       name: "cart.remove",
       surfaceId: "shell",
       sourceComponentId: "cart-drawer",
-      context: { productId: "aeris-studio-16" },
+      context: { productId: "aeris-studio-16", requestId: A_REQUEST_ID },
     },
   ]);
 });

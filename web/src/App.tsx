@@ -28,6 +28,7 @@ import { IdleGlobe, ThinkingGlobe } from "./motion/GlobeCanvas";
 import { playMessages, startThinking, stopThinking, type Stage } from "./motion/run";
 import { Seam } from "./motion/Seam";
 import { CartDrawer } from "./shell/CartDrawer";
+import { UserMenu } from "./shell/UserMenu";
 import { prefersReducedMotion } from "./a2ui/motion";
 import "./styles/shell.css";
 
@@ -521,6 +522,7 @@ export default function App() {
         </div>
         <div className="ledger">
           <CartCell lines={lines} open={cartOpen} />
+          <UserMenu onNotice={notify} />
         </div>
         {/* the agent's line: breathes with the landing globe, fills while a page builds */}
         <Seam level={seamLevel} ref={seamLine} />

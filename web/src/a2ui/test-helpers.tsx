@@ -106,7 +106,18 @@ interface MockApiOptions {
   workspace?: readonly unknown[];
   /** What the server's cart already holds, as `productId: qty`. */
   cart?: Readonly<Record<string, number>>;
+  /** The seeded shoppers `GET /api/users` lists; the first is the session's. */
+  users?: readonly { id: string; name: string; language: string }[];
+  /** `session.switch_user` answers this error instead of switching. */
+  switchError?: { code: string; message: string };
 }
+
+/** The shoppers a fresh server seeds (the demo cartridge's; test data only). */
+export const SHOPPERS = [
+  { id: "demo-user", name: "Javier", language: "en" },
+  { id: "ana", name: "Ana", language: "es" },
+  { id: "sam", name: "Sam", language: "en" },
+];
 
 const FRESH_WORKSPACE = { tab: null, cart: [] };
 
@@ -122,6 +133,8 @@ export function mockApi(
     runs = [],
     workspace = [FRESH_WORKSPACE],
     cart: held = {},
+    users = SHOPPERS,
+    switchError,
   }: MockApiOptions = {},
 ) {
   let failures = failProducts;
@@ -149,6 +162,13 @@ export function mockApi(
       const missing = ids.filter((id) => !products.some((p) => p.id === id));
       return Promise.resolve(Response.json({ products: found, missing }));
     }
+    if (url.pathname === "/api/session") {
+      return Promise.resolve(Response.json({ user: users[0] }));
+    }
+    if (url.pathname === "/api/users") {
+      const byId = [...users].sort((a, b) => a.id.localeCompare(b.id));
+      return Promise.resolve(Response.json({ users: byId }));
+    }
     if (url.pathname === "/api/workspace") {
       const answer = workspaces.length > 1 ? workspaces.shift() : workspaces[0];
       return Promise.resolve(Response.json(answer));
@@ -161,8 +181,19 @@ export function mockApi(
       const body = typeof init.body === "string" ? init.body : "{}";
       const action = JSON.parse(body) as {
         name: string;
-        context: { productId?: string; qty?: number };
+        context: { productId?: string; qty?: number; userId?: string };
       };
+      if (action.name === "session.switch_user") {
+        const user = users.find((u) => u.id === action.context.userId);
+        if (switchError || !user) {
+          const error = switchError ?? {
+            code: "not_found",
+            message: "That shopper doesn't exist.",
+          };
+          return Promise.resolve(Response.json({ ok: false, cart: cartLines(), error }));
+        }
+        return Promise.resolve(Response.json({ ok: true, user, cart: [] }));
+      }
       if (action.name === "cart.remove" || action.name === "cart.set_qty") {
         const { productId = "", qty = 0 } = action.context;
         if (action.name === "cart.remove" || qty <= 0) cart.delete(productId);
