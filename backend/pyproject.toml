@@ -20,7 +20,7 @@ testpaths = ["packages"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = ["live: calls the real Azure deployment; skipped unless OBSIDIAN_LIVE=1"]
-addopts = "--import-mode=importlib --cov=obsidian_data_contract --cov=halden_data_fake --cov=obsidian_agent --cov-fail-under=80"
+addopts = "--import-mode=importlib --cov=obsidian_data_contract --cov=halden_data_fake --cov=obsidian_agent --cov=obsidian_store --cov-fail-under=80"
 
 [tool.pyright]
 typeCheckingMode = "strict"

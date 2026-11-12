@@ -6,6 +6,7 @@ members = [
     "halden-data-fake",
     "obsidian-agent",
     "obsidian-data-contract",
+    "obsidian-store",
 ]
 
 [manifest.dependency-groups]
@@ -524,6 +525,27 @@ requires-dist = [
 name = "obsidian-data-contract"
 version = "0.1.0"
 source = { editable = "packages/data_contract" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+testing = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pytest", marker = "extra == 'testing'" },
+    { name = "pytest-asyncio", marker = "extra == 'testing'" },
+]
+
+[[package]]
+name = "obsidian-store"
+version = "0.1.0"
+source = { editable = "packages/store" }
 dependencies = [
     { name = "pydantic" },
 ]
