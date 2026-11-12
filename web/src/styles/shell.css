@@ -126,6 +126,15 @@
   pointer-events: none;
   background: var(--line);
 }
+/* on the landing it brightens and dims with the globe's breath (`--breath`, set by IdleGlobe) */
+.seam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 8%, rgba(156, 190, 224, 0.5) 50%, transparent 92%);
+  opacity: calc(var(--breath, 0) * 0.8);
+  transition: opacity 0.4s linear;
+}
 .seam::after {
   content: "";
   position: absolute;
@@ -239,6 +248,10 @@
     max-width: 214px;
   }
 }
+/* a tab that came back with a reload is there already: it doesn't slide in (spec §9) */
+.tab.settled {
+  animation: none;
+}
 .tab-main {
   flex: 1;
   min-width: 0;
@@ -296,7 +309,12 @@
   opacity: 0;
   pointer-events: none;
 }
+/* the thesis line, and the agent's globe at rest beside it (mockup/css/hero.css) */
 .hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 40px;
+  align-items: center;
   padding-bottom: 32px;
 }
 .hero h1 {
@@ -309,6 +327,20 @@
 .hero h1 span {
   display: block;
   color: var(--tx-3);
+}
+/* the agent, waiting: drawn to a canvas by IdleGlobe */
+.idle {
+  display: block;
+  width: 220px;
+  height: 220px;
+  justify-self: center;
+}
+/* a reload: the shell takes the restored tab as it is, with no fold or slide (spec §9) */
+.instant .collapse,
+.instant .toolbar,
+.instant .capsule,
+.instant .send {
+  transition: none;
 }
 
 /* ——— command bar: the address bar of this browser ——— */
@@ -442,6 +474,15 @@
 }
 
 /* ——— the workspace that holds the page ——— */
+/* the thinking globe: drawn on this canvas, over the workspace and under the chrome */
+.orb {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 35;
+}
 .workspace {
   flex: 1;
   position: relative;
@@ -569,6 +610,15 @@
       max-width: 156px;
     }
   }
+  .hero {
+    grid-template-columns: minmax(0, 1fr) 160px;
+    gap: 24px;
+    padding-bottom: 28px;
+  }
+  .idle {
+    width: 160px;
+    height: 160px;
+  }
 }
 @media (max-width: 520px) {
   .col {
@@ -579,6 +629,15 @@
   }
   .cap-state {
     max-width: 40%;
+  }
+  .hero {
+    grid-template-columns: minmax(0, 1fr) 96px;
+    gap: 12px;
+    padding-bottom: 22px;
+  }
+  .idle {
+    width: 96px;
+    height: 96px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

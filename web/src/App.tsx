@@ -2,8 +2,10 @@
    one tab the agent opens, the command bar, the workspace that holds the page, toasts and the one
    disclaimer. A command runs over SSE (`streamRun`); its A2UI messages go to one
    `MessageProcessor([shopCatalog])`, whose action handler posts the page's buttons to the server.
-   On mount the app shows what the server holds (`readWorkspace`), so a reload keeps the page; a
-   streamed message the processor rejects re-syncs the page the same way. */
+   On mount the app shows what the server holds (`readWorkspace`), so a reload keeps the page,
+   with no build motion; a streamed message the processor rejects re-syncs the page the same way.
+   Each run plays the mockup's motion grammar (`motion/run.ts`): the dot globe thinks, its dots land
+   on the page, and an edit moves only the parts it names. */
 import { A2uiSurface, type ReactCatalogComponent } from "@a2ui/react";
 import { MessageProcessor, type ActionPayload, type SurfaceModel } from "@a2ui/web_core/v1_0";
 import {
@@ -19,6 +21,10 @@ import { formatPrice, shopCatalog } from "./a2ui/catalog";
 import { dispatchAction, type CartLine } from "./lib/actions";
 import { streamRun, type RunEnd } from "./lib/sse";
 import { readWorkspace, type Workspace } from "./lib/workspace";
+import type { DotGlobe } from "./motion/globe";
+import { IdleGlobe, ThinkingGlobe } from "./motion/GlobeCanvas";
+import { playMessages, startThinking, stopThinking, type Stage } from "./motion/run";
+import { Seam } from "./motion/Seam";
 import "./styles/shell.css";
 
 type Surface = SurfaceModel<ReactCatalogComponent>;
@@ -30,14 +36,16 @@ interface Page {
 
 type Status =
   | { kind: "building" | "updating" }
-  /** `rested`: the field has faded out, keeping its text while it fades. */
-  | { kind: "built"; rested?: boolean }
+  /** "Built · just now", "Updated · 1 section added"; `rested`: the field has faded out, keeping
+   *  its text while it fades. */
+  | { kind: "done"; lead: string; detail: string; rested?: boolean }
   | { kind: "error"; message: string };
 
 const PROMPT = "What are you shopping for?";
 const TAB_ID = "page-tab";
 /** "Built · just now" stays this long, then the state field and the seam fade (the mockup's timing). */
 const BUILT_MS = 2400;
+const BUILT = { lead: "Built", detail: "just now" };
 const TOAST_MS = 2600;
 const TOAST_OUT_MS = 320;
 const UNREACHABLE = "Couldn't reach the assistant. Try again.";
@@ -202,12 +210,22 @@ async function sendAction(action: ActionPayload): Promise<{ cart?: CartLine[]; m
 
 /* ——— the page ——— */
 
-/** Keeps the shell when the page throws while rendering: one line stands where the page was. */
-export class PageBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+/**
+ * Keeps the shell when the page throws while rendering: one line stands where the page was. The
+ * next run (`run` changes) tries the page again, without remounting a page that rendered.
+ */
+export class PageBoundary extends Component<
+  { run: number; children: ReactNode },
+  { failed: boolean }
+> {
   override state = { failed: false };
 
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+
+  override componentDidUpdate(previous: Readonly<{ run: number }>) {
+    if (previous.run !== this.props.run && this.state.failed) this.setState({ failed: false });
   }
 
   override render() {
@@ -228,10 +246,10 @@ function StateText({ status }: { status: Status }) {
       return <b>Building comparison…</b>;
     case "updating":
       return <b>Updating this page…</b>;
-    case "built":
+    case "done":
       return (
         <>
-          <b>Built</b> · just now
+          <b>{status.lead}</b> · {status.detail}
         </>
       );
     case "error":
@@ -256,12 +274,24 @@ export default function App() {
   const [page, setPage] = useState<Page | null>(null);
   /** The page came back from the server (a reload or a re-sync): it fades in, nothing rises. */
   const [restored, setRestored] = useState(false);
+  /** The shell took the restored tab without its motion: the hero folded, the bar in place. */
+  const [instant, setInstant] = useState(false);
+  /** The tab came back with the page: it is there already, it doesn't slide in. */
+  const [tabSettled, setTabSettled] = useState(false);
+  /** Runs sent; a new run gives a page that failed to render another try. */
+  const [runs, setRuns] = useState(0);
+  /** How far the seam has filled while a run works. */
+  const [progress, setProgress] = useState(0);
   const [tabTitle, setTabTitle] = useState<string | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [command, setCommand] = useState("");
   /** The command that built or last changed the page: the bar shows it, like an address bar. */
   const [shown, setShown] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const chrome = useRef<HTMLDivElement>(null);
+  const workspace = useRef<HTMLElement>(null);
+  const seamLine = useRef<HTMLSpanElement>(null);
+  const globe = useRef<DotGlobe | null>(null);
   const refocus = useRef(false);
   /** A command has been sent: the reload's answer, if it comes later, is out of date. */
   const sent = useRef(false);
@@ -288,6 +318,8 @@ export default function App() {
     ({ tab, cart: lines }: Workspace) => {
       setCart(lines);
       if (!tab) return;
+      setInstant(true);
+      setTabSettled(true);
       setTabTitle(tab.title);
       processor.model.deleteSurface(tab.surface_id);
       if (!tab.snapshot) return;
@@ -300,21 +332,20 @@ export default function App() {
   // A reload: the server still holds the tab, the page and the cart.
   useEffect(() => {
     let live = true;
-    readWorkspace().then(
-      (saved) => {
+    readWorkspace()
+      .then((saved) => {
         if (live && !sent.current && (saved.tab || saved.cart.length > 0)) showSaved(saved);
-      },
-      () => undefined, // no server yet: start empty
-    );
+      })
+      .catch(() => undefined); // no server yet, or nothing it holds can be shown: start empty
     return () => {
       live = false;
     };
   }, [showSaved]);
 
   useEffect(() => {
-    if (status?.kind !== "built" || status.rested) return;
+    if (status?.kind !== "done" || status.rested) return;
     const timer = setTimeout(() => {
-      setStatus({ kind: "built", rested: true });
+      setStatus({ ...status, rested: true });
     }, BUILT_MS);
     return () => {
       clearTimeout(timer);
@@ -332,24 +363,58 @@ export default function App() {
     setToasts((list) => list.filter((toast) => toast.id !== id));
   }, []);
 
+  /** What a run moves; the workspace is always on screen once the app has mounted. */
+  function stage(): Stage | null {
+    if (!workspace.current) return null;
+    return {
+      workspace: workspace.current,
+      chrome: chrome.current,
+      globe: globe.current,
+      seam: setProgress,
+    };
+  }
+
   async function run(text: string) {
     sent.current = true;
     setRestored(false);
+    setInstant(false);
+    setRuns((count) => count + 1);
     setStatus({ kind: page ? "updating" : "building" });
-    const rejected: unknown[] = [];
+    const moving = stage();
+    if (moving) startThinking(moving, page !== null);
+    // The messages go to the page together once the stream ends, so the run's choreography
+    // knows every part the run changes.
+    const messages: Record<string, unknown>[] = [];
     let end: RunEnd;
     try {
       end = await streamRun(text, (event) => {
         if (event.type !== "CUSTOM") return;
         if (event.name === "tab_opened") setTabTitle(event.value.title);
-        else rejected.push(...processor.processMessagesWithErrors(event.value));
+        else messages.push(event.value);
       });
     } catch {
       end = { type: "RUN_ERROR", code: "unreachable", message: UNREACHABLE };
     }
+    let rejected: unknown[] = [];
+    let done = BUILT;
+    try {
+      if (moving && messages.length > 0) {
+        const played = await playMessages(moving, processor, messages, page?.surface ?? null);
+        rejected = played.rejected;
+        if (played.plan) done = played.plan.state;
+      } else if (moving) {
+        stopThinking(moving);
+      }
+    } catch (error) {
+      rejected = [error];
+    }
     // The server kept the change, so the page on screen is out of date: take the server's.
     if (rejected.length > 0) {
-      await readWorkspace().then(showSaved, () => undefined);
+      try {
+        showSaved(await readWorkspace());
+      } catch {
+        // the server can't be read or its page can't be shown: the state field says so below
+      }
     }
     if (end.type === "RUN_ERROR") {
       setStatus({ kind: "error", message: end.message });
@@ -357,7 +422,7 @@ export default function App() {
       setStatus({ kind: "error", message: NOT_SHOWN });
     } else {
       setShown(text);
-      setStatus({ kind: "built" });
+      setStatus({ kind: "done", ...done });
     }
   }
 
@@ -371,16 +436,13 @@ export default function App() {
 
   const ready = command.trim() !== "" && command.trim() !== shown && !running;
   // The state field shows until "Built · just now" rests.
-  const fresh = status !== null && !(status.kind === "built" && status.rested);
-  // The seam fills to 55 % while the model works and to 100 % when the page is built, then fades.
-  const seamOn = running || (fresh && status.kind === "built");
-  const seam: Record<string, number> = {
-    "--p": running ? 0.55 : seamOn ? 1 : 0,
-    "--on": seamOn ? 1 : 0,
-  };
+  const fresh = status !== null && !(status.kind === "done" && status.rested);
+  // The seam fills as the run goes, reaches 100 % when it is done, then fades.
+  const seamLevel = running ? progress : fresh && status.kind === "done" ? 1 : null;
+  const appClass = ["app", tabTitle === null ? "" : "tabs-on", instant ? "instant" : ""];
 
   return (
-    <div className={tabTitle === null ? "app" : "app tabs-on"}>
+    <div className={appClass.filter(Boolean).join(" ")}>
       <Sprite />
       <header className="shell">
         <div className="wordmark">
@@ -393,19 +455,19 @@ export default function App() {
         <div className="ledger">
           <CartCell lines={cart} />
         </div>
-        {/* the agent's line: fills while a page builds */}
-        <span className={seamOn ? "seam" : "seam rest"} style={seam} aria-hidden="true" />
+        {/* the agent's line: breathes with the landing globe, fills while a page builds */}
+        <Seam level={seamLevel} ref={seamLine} />
       </header>
 
       <main className="stage">
-        <div className="chrome">
+        <div ref={chrome} className="chrome">
           <div className={tabTitle === null ? "collapse closed" : "collapse"}>
             <div className="collapse-inner">
               <div className="tabband">
                 <div className="col tabbar">
                   <div className="tabs" role="tablist" aria-label="Pages the assistant built">
                     {tabTitle !== null && (
-                      <div className="tab active">
+                      <div className={tabSettled ? "tab active settled" : "tab active"}>
                         <button
                           id={TAB_ID}
                           className="tab-main"
@@ -439,6 +501,8 @@ export default function App() {
                   <h1>
                     <span>Tell us what it’s for.</span> We’ll build you the shortlist.
                   </h1>
+                  {/* the agent, waiting */}
+                  <IdleGlobe active={tabTitle === null} input={input} seam={seamLine} />
                 </div>
               </div>
             </div>
@@ -486,6 +550,7 @@ export default function App() {
         </div>
 
         <section
+          ref={workspace}
           id="workspace"
           className={restored ? "workspace col restored" : "workspace col"}
           {...(tabTitle === null
@@ -493,7 +558,7 @@ export default function App() {
             : { role: "tabpanel", "aria-labelledby": TAB_ID })}
         >
           {page && (
-            <PageBoundary key={page.key}>
+            <PageBoundary key={page.key} run={runs}>
               <A2uiSurface surface={page.surface} />
             </PageBoundary>
           )}
@@ -504,6 +569,9 @@ export default function App() {
           Concept demo · every product, price, rating and order is fictional
         </footer>
       </main>
+
+      {/* the thinking globe, over the workspace and under the chrome */}
+      <ThinkingGlobe globeRef={globe} />
 
       <div className="toasts" aria-live="polite">
         {toasts.map((toast) => (

@@ -19,7 +19,7 @@ import { z } from "zod";
 import type { Product, ProductMap } from "../lib/products";
 import { useProducts } from "../lib/products";
 import "../styles/page.css";
-import { seriesColour, useGlow, useRise } from "./motion";
+import { seriesColour, useRise } from "./motion";
 import { probeEnabled, useMountCounts, useMountProbe } from "./probe";
 import { installMaterials, renderMarkup, type Look } from "./renders";
 
@@ -315,18 +315,35 @@ function ProbePanel() {
   );
 }
 
+/**
+ * A section's room in the page (mockup/css/artifacts.css `.grow-wrap`). A section that mounts while
+ * an edit holds the page is new to `Page.children`: its room starts shut, and the run opens it
+ * (grid rows 0fr→1fr) before the dots land.
+ */
+function Room({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const room = ref.current;
+    if (room?.closest('[data-motion="edit"]')) room.dataset.shut = "";
+  }, []);
+  return (
+    <div ref={ref} className="room">
+      <div className="room-inner">{children}</div>
+    </div>
+  );
+}
+
 function PageView({ props, buildChild, context }: ViewProps<typeof PageApi>) {
-  useMountProbe(context.componentModel.id);
+  const id = context.componentModel.id;
+  useMountProbe(id);
   const ref = useRef<HTMLElement>(null);
-  const headRef = useRef<HTMLDivElement>(null);
   useRise(ref);
-  useGlow(headRef, JSON.stringify([props.title, props.kicker, props.meta]));
   const meta = props.meta ?? [];
   const actions = props.actions ?? [];
   return (
-    <article ref={ref} className="artifact" aria-label={props.title}>
+    <article ref={ref} className="artifact" aria-label={props.title} data-part={id}>
       <header className="art-header">
-        <div ref={headRef} className="art-head rise">
+        <div className="art-head rise">
           <p className="art-kicker">{props.kicker}</p>
           <h2>{props.title}</h2>
           {meta.length > 0 && (
@@ -341,7 +358,12 @@ function PageView({ props, buildChild, context }: ViewProps<typeof PageApi>) {
           <div className="art-actions rise">{actions.map((id) => buildChild(id))}</div>
         )}
       </header>
-      {props.children.map((child) => childRef(child, buildChild))}
+      {/* each section in its room, keyed as the renderer keys the section itself */}
+      {props.children.map((child) => (
+        <Room key={typeof child === "string" ? child : child.id}>
+          {childRef(child, buildChild)}
+        </Room>
+      ))}
       <footer className="art-foot rise">
         {FOOTER.map((part) => (
           <span key={part}>{part}</span>
@@ -359,9 +381,8 @@ function VerdictView({ props, buildChild, context }: ViewProps<typeof VerdictApi
   useMountProbe(id);
   const ref = useRef<HTMLDivElement>(null);
   useRise(ref);
-  useGlow(ref, JSON.stringify([props.lead, props.text, props.button]));
   return (
-    <div ref={ref} className="verdict rise" data-section={id}>
+    <div ref={ref} className="verdict rise" data-section={id} data-part={id}>
       <CheckIcon size={17} />
       <p className="vt">
         {props.lead && <b>{props.lead} </b>}
@@ -437,7 +458,6 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
   useMountProbe(id);
   const ref = useRef<HTMLUListElement>(null);
   useRise(ref);
-  useGlow(ref, JSON.stringify([props.items, props.pickId]));
   const { products, failed } = useProducts(props.items.map((item) => item.productId));
   return (
     <ul
@@ -445,6 +465,7 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
       className="trio"
       aria-label="Products"
       data-section={id}
+      data-part={id}
       style={vars({ "--n": props.items.length })}
     >
       {props.items.map((item, i) => (
@@ -482,7 +503,6 @@ function SpecTableView({ props, context }: ViewProps<typeof SpecTableApi>) {
   useMountProbe(id);
   const ref = useRef<HTMLDivElement>(null);
   useRise(ref);
-  useGlow(ref, JSON.stringify([props.productIds, props.specKeys, props.highlightBest]));
   const { products, failed } = useProducts(props.productIds);
   const highlight = props.highlightBest ?? true;
   return (
@@ -492,6 +512,7 @@ function SpecTableView({ props, context }: ViewProps<typeof SpecTableApi>) {
       role="table"
       aria-label="Specs"
       data-section={id}
+      data-part={id}
       style={vars({ "--n": props.productIds.length })}
     >
       <div className="spec-row spec-head" role="row">
@@ -545,23 +566,23 @@ function ChartGridView({ props, buildChild, context }: ViewProps<typeof ChartGri
   const ref = useRef<HTMLDivElement>(null);
   useRise(ref);
   return (
-    <div ref={ref} className="charts" data-section={id}>
+    <div ref={ref} className="charts" data-section={id} data-part={id}>
       {props.children.map((child) => childRef(child, buildChild))}
     </div>
   );
 }
 
 function BarChartView({ props, context }: ViewProps<typeof BarChartApi>) {
-  useMountProbe(context.componentModel.id);
+  const id = context.componentModel.id;
+  useMountProbe(id);
   const ref = useRef<HTMLDivElement>(null);
   useRise(ref);
-  useGlow(ref, JSON.stringify([props.title, props.productIds, props.specKey, props.note]));
   const { products, failed } = useProducts(props.productIds);
   const values = props.productIds.map((pid) => numeric(products.get(pid), props.specKey));
   const max = Math.max(0, ...values.filter((value): value is number => value !== undefined));
   const dim = specInfo(props.specKey).better === "lower";
   return (
-    <div ref={ref} className="chart-cell">
+    <div ref={ref} className="chart-cell" data-part={id}>
       <h3 className="rise">{props.title}</h3>
       {props.productIds.map((pid, i) => {
         const product = products.get(pid);
@@ -601,13 +622,14 @@ function cartLabel(product: Product | undefined, withName: boolean, withPrice: b
 }
 
 function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButtonApi>) {
-  useMountProbe(context.componentModel.id);
+  const id = context.componentModel.id;
+  useMountProbe(id);
   const { products, failed } = useProducts([props.productId]);
   const product = products.get(props.productId);
   const variant = props.variant ?? "primary";
   if (product === null || (product === undefined && failed)) {
     return (
-      <button type="button" className={`btn btn-${variant} buy`} disabled>
+      <button type="button" className={`btn btn-${variant} buy`} data-part={id} disabled>
         {nameOf(product, failed)}
       </button>
     );
@@ -618,6 +640,7 @@ function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButto
     <button
       type="button"
       className={`btn btn-${variant} buy`}
+      data-part={id}
       aria-label={named}
       disabled={product !== undefined && product.stock <= 0}
       onClick={() => {

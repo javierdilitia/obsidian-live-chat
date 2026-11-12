@@ -196,10 +196,11 @@
   font-size: 11.5px;
 }
 
-/* ——— staged construction: a part rises in when it mounts, in page order (motion.ts) ——— */
+/* ——— staged construction: a part rises in when it mounts, in page order (motion.ts), 45 ms
+   apart in a build and 40 ms in an edit (`--rise-step`, set by the run) ——— */
 .rise {
   animation: rise-in 0.6s var(--ease) both;
-  animation-delay: calc(var(--rise-i, 0) * 45ms);
+  animation-delay: calc(var(--rise-i, 0) * var(--rise-step, 45ms));
 }
 @keyframes rise-in {
   from {
@@ -207,6 +208,31 @@
     transform: translateY(14px);
     filter: blur(6px);
   }
+}
+/* while a run holds the page (motion/run.ts), what mounts waits to rise until the dots have
+   landed, and a build's page is laid out unseen */
+[data-motion] .rise,
+[data-motion] .bar-fill {
+  animation-play-state: paused;
+}
+[data-motion="build"] .artifact {
+  opacity: 0;
+}
+/* each section's room: a section an edit adds opens its own before the dots land
+   (mockup/css/artifacts.css `.grow-wrap`) */
+.room {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.6s var(--ease);
+}
+.room[data-shut] {
+  grid-template-rows: 0fr;
+}
+.room-inner {
+  min-height: 0;
+}
+.room[data-shut] > .room-inner {
+  overflow: hidden;
 }
 
 /* ——— verdict ——— */
@@ -432,7 +458,7 @@
   border-radius: 99px;
   animation: bar-fill 1s var(--ease) both;
   transition: width 1s var(--ease);
-  animation-delay: calc(var(--rise-i, 0) * 45ms + 250ms + var(--row, 0) * 120ms);
+  animation-delay: calc(var(--rise-i, 0) * var(--rise-step, 45ms) + 250ms + var(--row, 0) * 120ms);
   transition-delay: calc(var(--row, 0) * 120ms);
 }
 @keyframes bar-fill {

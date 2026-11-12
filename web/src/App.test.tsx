@@ -1,4 +1,5 @@
 /* The demo shell end to end, with a fake server: runs stream the Task 3 fixtures over SSE. */
+import { SurfaceGroupModel } from "@a2ui/web_core/v1_0";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App, { PageBoundary } from "./App";
 import build from "./a2ui/fixtures/build.json";
@@ -55,14 +56,39 @@ const savedWorkspace = (snapshot: unknown, cart: unknown[] = []) => ({
   cart,
 });
 
+/** `prefers-reduced-motion`, as the browser answers it. */
+function reduceMotion(reduce: boolean) {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: reduce && query.includes("reduce"),
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
 beforeEach(() => {
   resetProductCache();
   resetMountProbe();
+  // The choreography's timings collapse under reduced motion, so most runs finish at once.
+  reduceMotion(true);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+  delete (Element.prototype as Partial<Element>).scrollIntoView;
 });
+
+/** jsdom has no Web Animations: records what each element was asked to animate. */
+function recordAnimations() {
+  const calls: { element: Element; keyframes: Keyframe[] }[] = [];
+  HTMLElement.prototype.animate = function (this: HTMLElement, keyframes) {
+    calls.push({ element: this, keyframes: keyframes as Keyframe[] });
+    return { cancel: () => undefined } as Animation;
+  };
+  return calls;
+}
 
 function commandBar() {
   return screen.getByRole("textbox", { name: "What are you shopping for?" });
@@ -125,7 +151,7 @@ test("App edits the page in place", async () => {
 
   send(EDIT_COMMAND);
   expect(assistant()).toHaveTextContent("Updating this page…");
-  await waitForState("Built · just now");
+  await waitForState("Updated · 1 section added");
 
   expect(screen.getAllByRole("tab")).toHaveLength(1);
   expect(screen.getByText("Colour range — share of DCI-P3")).toBeInTheDocument();
@@ -222,14 +248,19 @@ test("App restores the page after a reload", async () => {
   const runs = () => fetchMock.mock.calls.filter(([url]) => url === "/api/runs");
   expect(runs()).toHaveLength(0);
   expect(assistant()).toBeEmptyDOMElement();
-  // The page fades in as a whole: its parts don't rise in as they do for a build.
+  // The page fades in as a whole: its parts don't rise in as they do for a build, and the hero
+  // folds and the tab arrives without their motion.
   expect(panel).toHaveClass("restored");
+  const app = panel.closest(".app");
+  expect(app).toHaveClass("instant");
+  expect(screen.getByRole("tab").closest(".tab")).toHaveClass("settled");
 
   // The next command edits the restored page, and its new parts rise in as usual.
   send(EDIT_COMMAND);
   expect(assistant()).toHaveTextContent("Updating this page…");
   expect(panel).not.toHaveClass("restored");
-  await waitForState("Built · just now");
+  expect(app).not.toHaveClass("instant");
+  await waitForState("Updated · 1 section added");
   expect(runs()).toHaveLength(1);
   expect(screen.getByText("Colour range — share of DCI-P3")).toBeInTheDocument();
 });
@@ -265,6 +296,97 @@ test("App re-syncs when a message is rejected", async () => {
   expect(assistant()).toHaveTextContent("Couldn't show all of this page.");
 });
 
+test("a re-sync that throws still ends the run", async () => {
+  const broken = {
+    version: "1.0",
+    updateComponents: {
+      surfaceId: SURFACE_ID,
+      components: [{ id: "root", component: "Page", title: 5 }],
+    },
+  };
+  mockApi(undefined, {
+    workspace: [{ tab: null, cart: [] }, savedWorkspace(editedSnapshot())],
+    runs: [BUILD_RUN, [started, ...a2ui([broken]), finished]],
+  });
+  render(<App />);
+  await buildPage();
+
+  // The edit's message is rejected; showing the server's page then throws.
+  vi.spyOn(SurfaceGroupModel.prototype, "deleteSurface").mockImplementation(() => {
+    throw new Error("the snapshot could not be shown");
+  });
+  send(EDIT_COMMAND);
+
+  await waitForState("Couldn't show all of this page.");
+  expect(commandBar()).toBeEnabled();
+  expect(screen.getByRole("tab")).not.toHaveAttribute("aria-busy", "true");
+});
+
+test("an edit scrolls its new section into view, below the chrome", async () => {
+  const scrolled: { element: Element; options: unknown }[] = [];
+  Element.prototype.scrollIntoView = function (this: Element, options?: unknown) {
+    scrolled.push({ element: this, options });
+  };
+  // jsdom lays nothing out: put the new section below the fold
+  const below = new DOMRect(0, 2400, 800, 0);
+  const origin = new DOMRect(0, 0, 0, 0);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches('.room:has([data-part="colour"])') ? below : origin;
+  });
+  mockApi(undefined, { runs: [BUILD_RUN, EDIT_RUN] });
+  render(<App />);
+  await buildPage();
+  expect(scrolled).toEqual([]);
+
+  send(EDIT_COMMAND);
+  await waitForState("Updated · 1 section added");
+
+  const room = document.querySelector('[data-part="colour"]')?.closest(".room");
+  expect(scrolled).toEqual([{ element: room, options: { block: "start", behavior: "instant" } }]);
+  expect(room).toHaveStyle({ scrollMarginTop: "16px" });
+});
+
+test("an edit plays the whole choreography with motion on", { timeout: 10_000 }, async () => {
+  reduceMotion(false);
+  const animations = recordAnimations();
+  mockApi(undefined, { runs: [BUILD_RUN, EDIT_RUN] });
+  render(<App />);
+  send(BUILD_COMMAND);
+  await waitFor(
+    () => {
+      expect(assistant()).toHaveTextContent("Built · just now");
+    },
+    { timeout: 5000 },
+  );
+  await screen.findAllByText("€1,899");
+  // the built page fades in under the landed dots
+  const page = screen.getByRole("article");
+  expect(animations.some((call) => call.element === page)).toBe(true);
+  resetMountProbe();
+  animations.length = 0;
+
+  send(EDIT_COMMAND);
+  await waitFor(
+    () => {
+      expect(assistant()).toHaveTextContent("Updated · 1 section added");
+    },
+    { timeout: 5000 },
+  );
+
+  // only the new section mounts; the page's header, re-sent with it, glows once
+  expect(mountCounts()).toEqual({ colour: 1, colour_children_0: 1, colour_children_1: 1 });
+  const header = page.querySelector(".art-head");
+  const glows = animations.filter((call) => call.element === header);
+  expect(glows).toHaveLength(1);
+  expect(glows[0]?.keyframes[0]).toMatchObject({ backgroundColor: "rgba(156,190,224,.09)" });
+  expect(document.querySelector('[data-part="colour"]')?.closest(".room")).not.toHaveAttribute(
+    "data-shut",
+  );
+  expect(document.querySelector("#workspace")).not.toHaveAttribute("data-motion");
+});
+
 test("command input is capped at 500", () => {
   mockApi();
   render(<App />);
@@ -277,10 +399,31 @@ test("a page that fails to render shows a message, not a blank app", () => {
     throw new Error("a component failed");
   }
   render(
-    <PageBoundary>
+    <PageBoundary run={0}>
       <Broken />
     </PageBoundary>,
   );
   expect(screen.getByText("Couldn't show this page.")).toBeInTheDocument();
+  quiet.mockRestore();
+});
+
+test("the page boundary tries again on the next run", () => {
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  function Broken(): never {
+    throw new Error("a component failed");
+  }
+  const { rerender } = render(
+    <PageBoundary run={1}>
+      <Broken />
+    </PageBoundary>,
+  );
+  expect(screen.getByText("Couldn't show this page.")).toBeInTheDocument();
+
+  rerender(
+    <PageBoundary run={2}>
+      <p>The page</p>
+    </PageBoundary>,
+  );
+  expect(screen.getByText("The page")).toBeInTheDocument();
   quiet.mockRestore();
 });
