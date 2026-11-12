@@ -28,7 +28,13 @@ from obsidian_agent.a2ui_adapter import (
 )
 from obsidian_agent.model import ModelClient, ModelResult, ToolCall
 from obsidian_agent.validate import issues_for_model, page_product_ids, validate_page
-from obsidian_data_contract import CatalogSource, NotFoundError, Product, ProductQuery
+from obsidian_data_contract import (
+    CatalogSource,
+    Category,
+    NotFoundError,
+    Product,
+    ProductQuery,
+)
 
 log = logging.getLogger(__name__)
 
@@ -40,56 +46,74 @@ MAX_TOOL_ROUNDS = 2
 SEARCH_LIMIT = 12
 MAX_IDS = 12
 
-TOOLS: list[dict[str, Any]] = [
-    {
-        "type": "function",
-        "name": "search_products",
-        "description": (
-            f"Search the catalog. Every filter is optional. Returns up to {SEARCH_LIMIT} products, "
-            "best rated first, each with its price, stock and specs."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "text": {
-                    "type": "string",
-                    "description": "One word or part of a name, matched in the product name or "
-                    "category, for example 'Aeris' or 'Zephyr'.",
+SORTS = ["rating", "price_asc", "price_desc"]
+
+
+def page_tools(categories: list[Category]) -> list[dict[str, Any]]:
+    """The page agent's two read-only tools. The category list comes from the cartridge's data.
+
+    Build them once per app: they go out with every call, so they must not change between calls
+    (prompt caching). No static text here names a product, category or spec key.
+    """
+    return [
+        {
+            "type": "function",
+            "name": "search_products",
+            "description": (
+                f"Search the catalog. Every filter is optional. Returns up to {SEARCH_LIMIT} "
+                "products in the order sort asks for, each with its price, stock and specs."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "Words to look for. Every word must appear in the "
+                        "product's name, its category, or one of its spec values. More words "
+                        "narrow the search.",
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "A category ID: "
+                        + ", ".join(category.id for category in categories)
+                        + ".",
+                    },
+                    "max_price_cents": {
+                        "type": "integer",
+                        "description": "The highest price in euro cents, inclusive (€2,000 is "
+                        "200000).",
+                    },
+                    "attributes": {
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                        "description": "Spec key to a word its value must contain.",
+                    },
+                    "sort": {
+                        "type": "string",
+                        "enum": SORTS,
+                        "description": "rating: best rated first (the default). price_asc: "
+                        "cheapest first. price_desc: most expensive first.",
+                    },
                 },
-                "category": {
-                    "type": "string",
-                    "description": "A category ID: laptops, monitors, audio, keyboards, storage "
-                    "or docks.",
-                },
-                "max_price_cents": {
-                    "type": "integer",
-                    "description": "The highest price in euro cents, inclusive (€2,000 is 200000).",
-                },
-                "attributes": {
-                    "type": "object",
-                    "additionalProperties": {"type": "string"},
-                    "description": "Spec key to a word its value must contain, for example "
-                    '{"display": "OLED"}.',
-                },
+                "additionalProperties": False,
             },
-            "additionalProperties": False,
         },
-    },
-    {
-        "type": "function",
-        "name": "get_products",
-        "description": "Look up products by ID. Returns each one's price, stock and specs, and "
-        "the IDs that do not exist.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "ids": {"type": "array", "items": {"type": "string"}, "maxItems": MAX_IDS},
+        {
+            "type": "function",
+            "name": "get_products",
+            "description": "Look up products by ID. Returns each one's price, stock and specs, "
+            "and the IDs that do not exist.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ids": {"type": "array", "items": {"type": "string"}, "maxItems": MAX_IDS},
+                },
+                "required": ["ids"],
+                "additionalProperties": False,
             },
-            "required": ["ids"],
-            "additionalProperties": False,
         },
-    },
-]
+    ]
+
 
 _NO_MORE_TOOLS = "No more tool rounds. Write the page now with the products you already have."
 
@@ -118,11 +142,14 @@ async def build_page(
     model: ModelClient,
     source: CatalogSource,
     *,
+    tools: list[dict[str, Any]],
     surface_id: str,
     command: str,
     current: Snapshot | None,
 ) -> BuildResult:
     """Builds the page for `command`, or edits `current` when there is one.
+
+    `tools` is `page_tools(...)`, built once per app so every call offers the same tools.
 
     Raises whatever the model client raises (`ModelFailed`, network errors): the caller reports
     those as a run error.
@@ -133,7 +160,7 @@ async def build_page(
     for attempt in range(1, MAX_ATTEMPTS + 1):
         if feedback:
             history.append({"role": "user", "content": feedback})
-        reply, tool_rounds = await _reply(model, source, history, tool_rounds)
+        reply, tool_rounds = await _reply(model, source, tools, history, tool_rounds)
         try:
             messages, snapshot = await _accept(
                 reply, source, surface_id=surface_id, current=current
@@ -157,6 +184,7 @@ def _request(command: str, current: Snapshot | None) -> str:
 async def _reply(
     model: ModelClient,
     source: CatalogSource,
+    tools: list[dict[str, Any]],
     history: list[dict[str, Any]],
     tool_rounds: int,
 ) -> tuple[ModelResult, int]:
@@ -167,7 +195,7 @@ async def _reply(
     A reply cut off by the output limit (`length`) stays out of the history.
     """
     while True:
-        result = await model.call(system=SYSTEM_PROMPT, input=list(history), tools=TOOLS)
+        result = await model.call(system=SYSTEM_PROMPT, input=list(history), tools=tools)
         usage = result.usage
         log.info(
             "page model call: stop=%s input=%d cached=%d output=%d latency_ms=%d",

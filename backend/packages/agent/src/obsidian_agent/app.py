@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from obsidian_agent.cartridges import cartridge_setting, load_cartridge
 from obsidian_agent.model import AzureModel, ModelClient, ModelFailed
-from obsidian_agent.page_agent import build_page, lookup_products
+from obsidian_agent.page_agent import build_page, lookup_products, page_tools
 from obsidian_agent.settings import MissingSettings, Settings
 from obsidian_agent.workspace import Tab, Workspace
 from obsidian_data_contract import Cartridge, CatalogSource, NotFoundError
@@ -84,6 +84,15 @@ def create_app(model: ModelClient | None = None, cartridge: Cartridge | None = N
             models.append(azure_model(Settings.from_env(ENV_FILE)))
         return models[0]
 
+    tool_sets: list[list[dict[str, Any]]] = []
+
+    async def get_tools() -> list[dict[str, Any]]:
+        """The page tools, made on the first run from the cartridge's categories, then reused:
+        the tools go out with every call and must not change (prompt caching)."""
+        if not tool_sets:
+            tool_sets.append(page_tools(await catalog.list_categories()))
+        return tool_sets[0]
+
     @app.get("/health")
     async def health() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
         return {"status": "ok", "cartridge": cartridge_id}
@@ -120,6 +129,7 @@ def create_app(model: ModelClient | None = None, cartridge: Cartridge | None = N
                     result = await build_page(
                         page_model,
                         catalog,
+                        tools=await get_tools(),
                         surface_id=tab.surface_id,
                         command=command,
                         current=current,

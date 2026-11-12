@@ -1,5 +1,6 @@
 """The page builder: one model reply becomes a checked page, with one retry when it is not."""
 
+import asyncio
 import json
 import time
 from pathlib import Path
@@ -18,13 +19,15 @@ from obsidian_agent.a2ui_adapter import (
 )
 from obsidian_agent.fixtures import FIXTURE_SURFACE_ID
 from obsidian_agent.model import ModelResult, ScriptedModel, Stop, ToolCall, Usage
-from obsidian_agent.page_agent import PAGE_PROMPT, SYSTEM_PROMPT, build_page
+from obsidian_agent.page_agent import PAGE_PROMPT, SYSTEM_PROMPT, build_page, page_tools
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ROOT_ENV = Path(__file__).resolve().parents[4] / ".env"
 SURFACE = FIXTURE_SURFACE_ID
 COMMAND = "Compare 3 laptops for video editing under €2,000"
 EDIT_COMMAND = "Add colour accuracy for grading"
+CATEGORIES = asyncio.run(FakeCatalogSource().list_categories())
+TOOLS = page_tools(CATEGORIES)
 
 
 def _block(name: str) -> str:
@@ -59,7 +62,7 @@ async def test_build_ok() -> None:
     model = ScriptedModel([_reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
     )
 
     assert result.ok and result.error is None and result.attempts == 1
@@ -73,7 +76,12 @@ async def test_edit_shows_the_current_page_and_sends_only_the_change() -> None:
     current = _built()
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=EDIT_COMMAND, current=current
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=EDIT_COMMAND,
+        current=current,
     )
 
     assert result.ok
@@ -88,7 +96,7 @@ async def test_unknown_product_retries_with_feedback() -> None:
     model = ScriptedModel([_reply(ghost), _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
     )
 
     assert result.ok and result.attempts == 2
@@ -102,7 +110,7 @@ async def test_length_stop_is_a_failure() -> None:
     model = ScriptedModel([_reply(_block("build.a2ui"), stop="length")] * 2)
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
     )
 
     assert not result.ok and result.attempts == 2
@@ -129,7 +137,7 @@ async def test_length_stop_does_not_echo_cut_off_items() -> None:
     model = ScriptedModel([cut_off, _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
     )
 
     assert result.ok and result.attempts == 2
@@ -143,7 +151,12 @@ async def test_failed_edit_returns_the_current_page() -> None:
     current = _built()
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=EDIT_COMMAND, current=current
+        model,
+        FakeCatalogSource(),
+        tools=TOOLS,
+        surface_id=SURFACE,
+        command=EDIT_COMMAND,
+        current=current,
     )
 
     assert not result.ok and result.attempts == 2 and result.messages == []
@@ -159,7 +172,7 @@ item = Verdict(text="hi")
     model = ScriptedModel([_reply(template), _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
     )
 
     assert result.ok and result.attempts == 2
@@ -172,7 +185,7 @@ async def test_tool_round_then_page() -> None:
     model = ScriptedModel([_tool_round(search, fetch), _reply(_block("build.a2ui"))])
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
     )
 
     assert result.ok and result.attempts == 1
@@ -209,7 +222,7 @@ async def test_tool_rounds_are_capped_at_two() -> None:
     )
 
     result = await build_page(
-        model, FakeCatalogSource(), surface_id=SURFACE, command=COMMAND, current=None
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
     )
 
     # Tools stay on offer (the history holds tool calls), but a third round is refused unrun.
@@ -227,6 +240,49 @@ async def test_tool_rounds_are_capped_at_two() -> None:
     assert result.ok and result.attempts == 2
 
 
+def _outputs(call: dict[str, Any]) -> dict[str, Any]:
+    """The tool outputs the model was sent in this call, by call ID."""
+    return {
+        item["call_id"]: json.loads(item["output"])
+        for item in call["input"]
+        if item.get("type") == "function_call_output"
+    }
+
+
+async def test_search_tool_offers_sort_and_the_cartridge_categories() -> None:
+    tools = page_tools(await FakeCatalogSource().list_categories())
+
+    search = next(tool for tool in tools if tool["name"] == "search_products")
+    properties = search["parameters"]["properties"]
+    assert properties["sort"]["enum"] == ["rating", "price_asc", "price_desc"]
+    for category in CATEGORIES:
+        assert category.id in properties["category"]["description"]
+
+
+async def test_search_with_words_and_price_sort() -> None:
+    search = ToolCall("call-1", "search_products", {"text": "oled laptop", "sort": "price_asc"})
+    model = ScriptedModel([_tool_round(search), _reply(_block("build.a2ui"))])
+
+    await build_page(
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+    )
+
+    found = _outputs(model.calls[1])["call-1"]["products"]
+    prices = [product["price_cents"] for product in found]
+    assert len(found) >= 2 and prices == sorted(prices)
+
+
+async def test_search_rejects_an_unknown_sort() -> None:
+    search = ToolCall("call-1", "search_products", {"sort": "newest"})
+    model = ScriptedModel([_tool_round(search), _reply(_block("build.a2ui"))])
+
+    await build_page(
+        model, FakeCatalogSource(), tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+    )
+
+    assert _outputs(model.calls[1])["call-1"]["error"].startswith("Invalid arguments: sort")
+
+
 async def test_system_prompt_is_fixed() -> None:
     model = ScriptedModel(
         [
@@ -237,9 +293,11 @@ async def test_system_prompt_is_fixed() -> None:
     )
     source = FakeCatalogSource()
 
-    built = await build_page(model, source, surface_id=SURFACE, command=COMMAND, current=None)
+    built = await build_page(
+        model, source, tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+    )
     await build_page(
-        model, source, surface_id=SURFACE, command=EDIT_COMMAND, current=built.snapshot
+        model, source, tools=TOOLS, surface_id=SURFACE, command=EDIT_COMMAND, current=built.snapshot
     )
 
     assert {call["system"] for call in model.calls} == {SYSTEM_PROMPT}
@@ -287,14 +345,16 @@ async def test_live_build_then_edit() -> None:
     source = FakeCatalogSource()
 
     started = time.perf_counter()
-    built = await build_page(model, source, surface_id=SURFACE, command=COMMAND, current=None)
+    built = await build_page(
+        model, source, tools=TOOLS, surface_id=SURFACE, command=COMMAND, current=None
+    )
     print(model.report(f"build (attempts {built.attempts})", time.perf_counter() - started))
     assert built.ok, built.error
     assert built.snapshot is not None
 
     started = time.perf_counter()
     edited = await build_page(
-        model, source, surface_id=SURFACE, command=EDIT_COMMAND, current=built.snapshot
+        model, source, tools=TOOLS, surface_id=SURFACE, command=EDIT_COMMAND, current=built.snapshot
     )
     print(model.report(f"edit (attempts {edited.attempts})", time.perf_counter() - started))
     assert edited.ok, edited.error
