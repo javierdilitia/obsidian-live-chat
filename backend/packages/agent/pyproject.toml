@@ -9,6 +9,7 @@ dependencies = [
     "halden-data-contract",
     "openai==3.49.0",
     "python-dotenv==1.2.4",
+    "a2ui-agent-sdk==0.11.0",
 ]
 
 [tool.uv.sources]

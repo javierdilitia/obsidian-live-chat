@@ -1,0 +1,15 @@
+<a2ui>
+root = Page(title="Three laptops for video editing under €2,000", kicker="video-editing comparison",
+            meta=["9 specs weighed", "today's prices"], children=[verdict, shelf, specs, charts])
+verdict = Verdict(lead="Aeris Studio 16", text="the most screen and power for grading, inside the budget.",
+                  button=AddToCartButton("aeris-studio-16", variant="primary", withName=true, withPrice=true))
+shelf = ProductShelf(items=[{productId: "aeris-studio-16", tag: "most power"},
+                            {productId: "kore-zephyr-14", tag: "lightest"},
+                            {productId: "vela-prism-15", tag: "best value"}], pickId="aeris-studio-16")
+specs = SpecTable(productIds=["aeris-studio-16", "kore-zephyr-14", "vela-prism-15"],
+                  specKeys=["display", "hz", "cpu", "gpu", "ram", "ssd", "batt", "weight", "ports"])
+charts = ChartGrid([BarChart(title="Battery — hours of video playback",
+                             productIds=["aeris-studio-16", "kore-zephyr-14", "vela-prism-15"], specKey="batt"),
+                    BarChart(title="Refresh rate — Hz, higher is smoother",
+                             productIds=["aeris-studio-16", "kore-zephyr-14", "vela-prism-15"], specKey="hz")])
+</a2ui>
