@@ -35,7 +35,10 @@ uv run --project backend pre-commit install --install-hooks -t pre-commit -t com
 # 4. Run every check (the same ones CI runs)
 python scripts/check.py all
 
-# 5. Run the apps
+# 5. Run the apps: both at once (Ctrl+C stops both)
+python scripts/dev.py
+
+#    or one per terminal
 uv run --directory backend uvicorn obsidian_agent.app:create_app --factory --reload   # agent: http://127.0.0.1:8000/health
 pnpm --dir web dev                                                                  # web: http://localhost:5173
 ```
@@ -47,6 +50,10 @@ On macOS/Linux use `python3` if `python` isn't on your PATH.
 The demo calls the Azure deployment named in the repo root's `.env` (`AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY`, `MODEL_UI_DEPLOYMENT`; see `.env.example`). Every command is a real model call on that deployment, so it costs tokens; without the settings the command bar answers "Missing settings: …".
 
 ```bash
+# both at once: the agent on http://127.0.0.1:8000, the web app on http://localhost:5173
+python scripts/dev.py
+
+# or one per terminal
 # terminal 1: the agent, on http://127.0.0.1:8000
 uv run --directory backend uvicorn obsidian_agent.app:create_app --factory --reload
 

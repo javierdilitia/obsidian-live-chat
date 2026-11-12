@@ -13,3 +13,4 @@ known-first-party = ["obsidian_data_contract", "halden_data_fake", "obsidian_age
 "**/tests/**" = ["S101"]
 "**/contract_tests.py" = ["S101"]
 "scripts/check.py" = ["S603"]
+"scripts/dev.py" = ["S603"]

@@ -27,6 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - The mockup's motion grammar: the breathing landing globe, the thinking globe, dots that land on the page outline, the seam fill, and on follow-ups the step-back, the new section's room, a scroll to the change and a glow you can see.
   - The cart drawer (`cart.set_qty`, `cart.remove`, `GET /api/cart`): lines with steppers and remove, the total, "In cart · View" on every buy button, fly-to-cart and the cart value roll.
 
+- `scripts/dev.py`: starts the agent and the web dev server together from one command; Ctrl+C stops both, and if one exits the other is stopped too.
+
 ### Changed
 
 - The concept mockup moved to `mockup/`, unchanged.
