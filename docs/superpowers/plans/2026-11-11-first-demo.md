@@ -187,6 +187,78 @@
 
 ---
 
+### Task 7: Reload restore and the final-review fixes
+
+Added 2026-11-12 after the final whole-branch review ("with fixes") and the user's by-eye check.
+
+**Files:** Modify `backend/packages/agent/src/halden_agent/app.py`, `.../page_agent.py`; `web/src/App.tsx`, `web/src/lib/sse.ts` (or a new `web/src/lib/workspace.ts`); `README.md`. Tests in `test_api.py`, `test_page_agent.py`, `web/src/App.test.tsx`.
+
+**Interfaces (produced):**
+- `GET /api/workspace` returns `{tab: {surface_id, title, snapshot} | null, cart: [{productId, name, qty, price_cents}]}` (spec §5 "Reload", trimmed to the demo's one tab).
+- On mount, `App` reads `/api/workspace`. If there is a tab with a snapshot, it shows the tab and renders the snapshot as one `createSurface` with no build animation (spec §9 "Reload and restore": no globe, the page fades in). The cart cell starts from the returned cart.
+- When the processor rejects a streamed message, the App re-reads `/api/workspace` and re-renders the surface from the server's snapshot, so client and server never drift.
+- `build_page`: on `stop == "length"`, the cut-off reply's `output_items` are not echoed into the retry's input (an incomplete reasoning item or an unanswered `function_call` makes the Responses API return 400).
+- A whole run is bounded: `build_page` runs under `asyncio.timeout(RUN_TIMEOUT_S = 150)`; a timeout ends as `RUN_ERROR {code: "timeout"}` with a clear message and keeps the page.
+- The command input has `maxLength={500}` (the server's limit); a 4xx response shows its own message, not "Couldn't reach the assistant".
+- An error boundary around the surface shows "Couldn't show this page" instead of a blank app.
+- README: the live-test command in PowerShell form too (`$env:HALDEN_LIVE=1; uv run …`).
+
+- [ ] **Step 1: Write the tests.** `test_workspace_returns_tab_and_cart`; `test_length_stop_does_not_echo_cut_off_items`; `test_run_timeout_keeps_the_page`; `App restores the page after a reload` (mocked `/api/workspace`, no rise animation on restore); `App re-syncs when a message is rejected`; `command input is capped at 500`.
+- [ ] **Step 2:** Run the tests. Expected: FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `python scripts/check.py all`. Expected: PASS.
+- [ ] **Step 5:** Commit `fix: restore the page after a reload and bound each run`.
+
+---
+
+### Task 8: The motion grammar: dot globe, landing dots and follow-up choreography
+
+Added 2026-11-12 at the user's request after the by-eye check: the mockup's waiting animation and the dots that form the page were missing, an edit did not bring the new section into view, and the 9 % glow was not visible.
+
+**Files:** Create `web/src/motion/globe.ts` (port of `mockup/js/orb.js`: the Fibonacci dot globe and `outlinePoints`), `web/src/motion/choreography.ts` (pure: what each run event does to which component IDs), `web/src/motion/Globe.tsx`, `web/src/motion/Seam.tsx`; tests `web/src/motion/choreography.test.ts`, `web/src/motion/globe.test.ts`. Modify `web/src/App.tsx`, `web/src/a2ui/motion.ts`, `web/src/a2ui/catalog.tsx`, `web/src/styles/{shell,page}.css`.
+
+Source of truth: `DESIGN.md` "Dot globe", "Agent seam", "Landing hero", "Follow-up updates", "The build"; spec §9; the mockup's `js/orb.js`, `js/agent.js`, `js/hero.js`, `css/chrome.css`, `css/hero.css`. Port, don't redesign.
+
+**Behaviour (produced):**
+- Landing: the breathing globe on its own canvas to the right of the hero line (220/160/96 px by breakpoint, 5.6 s breath; leans in on focus and on typing). It draws only while on screen.
+- `RUN_STARTED`: the thinking globe forms out of a point (.75 s) in the centre of the visible workspace for a build, or over the page at 72 % radius for an edit. The seam fills to 18 %.
+- First `createSurface` (a build): the page is laid out unseen, then the globe's dots fly out and land on the outlines of its on-screen blocks (680–940 ms, 0–260 ms random delay, ease-out-expo). The page fades in under them, the dots fade (.52 s), then the content cascades in (the existing 45 ms rise). The seam goes to 55 % at the build status, 85 % when the dots land and 100 % at Built, then fades.
+- `updateComponents` (an edit): the existing parts it names step back (opacity .1, 3 px blur, 3 px lift, .3 s). A section ID that is new to `Page.children` opens its own room first (grid rows 0fr→1fr, .6 s). The dots land only on the changed parts' outlines, those parts rise in at a 40 ms stagger, and the parts that existed before glow once. Nothing else moves, and the mount probe still shows no remounts.
+- The page scrolls the first new or changed section into view (smooth; instant under reduced motion), below the sticky chrome.
+- The glow is visible. First find why the user could not see it (the element animated, layers painted over it, or the colour on the panel), then fix the cause. Keep DESIGN.md's 9 % steel unless the cause is the colour itself; if so, note the new value under "Notes from building".
+- The state field after an edit reports the change ("Updated · 1 section added", "Updated · 3 parts changed").
+- Reduced motion: the globe holds one still frame, nothing flies, the page fades in, and content rests visible.
+
+- [ ] **Step 1: Write the tests.** `choreography.test.ts`: `a build lands on every section`; `an edit steps back only the named existing parts`; `a new section opens its room`; `the scroll target is the first new or changed section`; `reduced motion skips flight and stagger`. `globe.test.ts`: `outlinePoints spaces n points along the given rects`. `mount.test.tsx` still passes, and a new case checks that an edit's step-back and rise do not remount.
+- [ ] **Step 2:** Run `pnpm --dir web test`. Expected: FAIL.
+- [ ] **Step 3:** Implement. Canvas drawing is guarded so jsdom tests do not need a canvas.
+- [ ] **Step 4:** Run `python scripts/check.py all`. Expected: PASS.
+- [ ] **Step 5:** Commit `feat(web): add the dot globe, landing dots and follow-up choreography`.
+
+---
+
+### Task 9: Cart drawer, "In cart · View" and fly-to-cart
+
+Added 2026-11-12 at the user's request: the cart cell could not be opened.
+
+**Files:** Modify `backend/packages/agent/src/halden_agent/app.py` (+ `test_api.py`); create `web/src/shell/CartDrawer.tsx`, `web/src/lib/cart.ts` (one cart store every buy button reads), `web/src/styles/overlays.css`; modify `web/src/App.tsx`, `web/src/a2ui/catalog.tsx`; tests `web/src/shell/CartDrawer.test.tsx` and additions to `catalog.test.tsx`.
+
+Source of truth: spec §2.2 (the cart is an app store every buy button reads), §7.6, §8.2 (cart actions), §13 (direct action errors); `DESIGN.md` "Overlays", "Toasts & fly-to-cart", "Shell bar" (cart value roll); the mockup's `js/shop.js` (cart, fly-to-cart) and `css/overlays.css`.
+
+**Interfaces (produced):**
+- `POST /api/actions` also handles `cart.set_qty{productId, qty}` (stock check on increase; `qty` 0 removes) and `cart.remove{productId}`, each returning `{ok, cart, error?}` with live prices. `GET /api/cart` returns the cart.
+- The cart cell opens the cart drawer: one line per product (render, name, unit price, quantity stepper, remove ×), the total, and the empty-state copy from the mockup. Esc and the close button close it; focus stays inside while it is open and returns to the cart cell. No checkout button in this demo (there is no checkout yet).
+- Every buy button reads the cart store: once its product is in the cart it flips to "In cart · View", which opens the drawer instead of adding again.
+- Adding to cart launches the 14 px series-coloured dot that flies to the cart value (.65 s), and the value rolls (the old one lifts and blurs out, the new one rises in on --spring). Reduced motion: no flight, the value just changes.
+
+- [ ] **Step 1: Write the tests.** `test_set_qty_checks_stock`; `test_remove_and_zero_qty`; `test_cart_endpoint`; `drawer lists lines and total`; `stepper sends cart.set_qty`; `remove sends cart.remove`; `Esc closes and returns focus`; `button flips to In cart · View and opens the drawer`.
+- [ ] **Step 2:** Run the tests. Expected: FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `python scripts/check.py all`. Expected: PASS.
+- [ ] **Step 5:** Commit `feat: add the cart drawer, In cart · View and fly-to-cart`.
+
+---
+
 ## Notes from building
 
 (Add one dated line per surprise: SDK behaviour, edit syntax, action dispatch route, token counts, seconds per build and edit, by-eye results.)
