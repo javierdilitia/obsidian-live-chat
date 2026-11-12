@@ -50,10 +50,10 @@
 **Files:** Create `backend/packages/agent/src/halden_agent/settings.py`, `.../model.py`, `backend/packages/agent/tests/test_model.py`. Modify `backend/packages/agent/pyproject.toml` (add `openai`, `python-dotenv`), `.env.example`, `backend/pyproject.toml` (pytest marker `live`; add `halden_agent` to `--cov`).
 
 **Interfaces (produced):**
-- `Settings(endpoint, api_key, ui_deployment, ui_reasoning_effort: str | None)` and `Settings.from_env(env_file: Path) -> Settings`, which raises `MissingSettings(names: list[str])`.
+- `Settings(endpoint, api_key, api_version, ui_deployment, ui_reasoning_effort: str | None)` and `Settings.from_env(env_file: Path) -> Settings`, which raises `MissingSettings(names: list[str])`. `api_version` comes from `AZURE_OPENAI_API_VERSION` (add it to `.env.example`, default `2025-04-01-preview`).
 - `Usage(input_tokens, cached_tokens, output_tokens)` and `ModelResult(text: str, tool_calls: list[ToolCall], usage: Usage, stop: Literal["stop", "length", "tool_calls"], latency_ms: int)`, with `ToolCall(call_id, name, arguments: dict[str, Any])`.
 - `class ModelClient(Protocol)`: `async def call(self, *, system: str, input: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None) -> ModelResult`.
-- `AzureModel(settings)`: `openai.AsyncOpenAI(base_url=f"{endpoint.rstrip('/')}/openai/v1/", api_key=...)`, Responses API. An `incomplete` status for `max_output_tokens` maps to `stop="length"`.
+- `AzureModel(settings)`: `openai.AsyncAzureOpenAI(azure_endpoint=endpoint, api_key=..., api_version=api_version)`, Responses API (`client.responses.create(model=ui_deployment, ...)`). The user's endpoint is an Azure OpenAI resource whose Foundry target URI is `https://ridopocs.openai.azure.com/openai/responses?api-version=2025-04-01-preview`. An `incomplete` status for `max_output_tokens` maps to `stop="length"`.
 - `ScriptedModel(results: list[ModelResult])`: returns the results in order, records `.calls`, and raises `ScriptExhausted` past the end. Every other test uses it.
 
 - [ ] **Step 1: Write the tests.** `test_scripted_model_returns_in_order_then_raises`; `test_length_stop_from_incomplete_response` (pure helper `stop_from_response` on a `SimpleNamespace`); `test_missing_settings_lists_every_empty_name`; `test_live_ping` (`live`): the call returns `stop == "stop"` and `output_tokens > 0`.
