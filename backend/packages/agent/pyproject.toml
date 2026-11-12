@@ -3,7 +3,13 @@ name = "halden-agent"
 version = "0.1.0"
 description = "Halden agent service (FastAPI). Only a health endpoint for now."
 requires-python = ">=3.12"
-dependencies = ["fastapi", "uvicorn", "halden-data-contract"]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "halden-data-contract",
+    "openai==3.49.0",
+    "python-dotenv==1.2.4",
+]
 
 [tool.uv.sources]
 halden-data-contract = { workspace = true }
