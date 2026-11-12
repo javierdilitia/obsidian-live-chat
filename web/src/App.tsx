@@ -211,11 +211,12 @@ async function sendAction(action: ActionPayload): Promise<{ cart?: CartLine[]; m
 /* ——— the page ——— */
 
 /**
- * Keeps the shell when the page throws while rendering: one line stands where the page was. The
- * next run (`run` changes) tries the page again, without remounting a page that rendered.
+ * Keeps the shell when the page throws while rendering: one line stands where the page was. When
+ * `attempt` changes, which the app does once a run's change has been applied to the page, it tries
+ * the page again, without remounting a page that rendered.
  */
 export class PageBoundary extends Component<
-  { run: number; children: ReactNode },
+  { attempt: number; children: ReactNode },
   { failed: boolean }
 > {
   override state = { failed: false };
@@ -224,8 +225,10 @@ export class PageBoundary extends Component<
     return { failed: true };
   }
 
-  override componentDidUpdate(previous: Readonly<{ run: number }>) {
-    if (previous.run !== this.props.run && this.state.failed) this.setState({ failed: false });
+  override componentDidUpdate(previous: Readonly<{ attempt: number }>) {
+    if (previous.attempt !== this.props.attempt && this.state.failed) {
+      this.setState({ failed: false });
+    }
   }
 
   override render() {
@@ -278,8 +281,8 @@ export default function App() {
   const [instant, setInstant] = useState(false);
   /** The tab came back with the page: it is there already, it doesn't slide in. */
   const [tabSettled, setTabSettled] = useState(false);
-  /** Runs sent; a new run gives a page that failed to render another try. */
-  const [runs, setRuns] = useState(0);
+  /** Runs ended; the page, with the run's change in it, gets another try if it failed to render. */
+  const [attempt, setAttempt] = useState(0);
   /** How far the seam has filled while a run works. */
   const [progress, setProgress] = useState(0);
   const [tabTitle, setTabTitle] = useState<string | null>(null);
@@ -378,7 +381,6 @@ export default function App() {
     sent.current = true;
     setRestored(false);
     setInstant(false);
-    setRuns((count) => count + 1);
     setStatus({ kind: page ? "updating" : "building" });
     const moving = stage();
     if (moving) startThinking(moving, page !== null);
@@ -416,6 +418,8 @@ export default function App() {
         // the server can't be read or its page can't be shown: the state field says so below
       }
     }
+    // the change (or the server's page) is in the model now: a page that failed to render tries again
+    setAttempt((count) => count + 1);
     if (end.type === "RUN_ERROR") {
       setStatus({ kind: "error", message: end.message });
     } else if (rejected.length > 0) {
@@ -558,7 +562,7 @@ export default function App() {
             : { role: "tabpanel", "aria-labelledby": TAB_ID })}
         >
           {page && (
-            <PageBoundary key={page.key} run={runs}>
+            <PageBoundary key={page.key} attempt={attempt}>
               <A2uiSurface surface={page.surface} />
             </PageBoundary>
           )}

@@ -5,8 +5,22 @@ import App, { PageBoundary } from "./App";
 import build from "./a2ui/fixtures/build.json";
 import edit from "./a2ui/fixtures/edit_add_colour.json";
 import { mountCounts, resetMountProbe } from "./a2ui/probe";
-import { SURFACE_ID, mockApi } from "./a2ui/test-helpers";
+import { LAPTOPS, SURFACE_ID, mockApi } from "./a2ui/test-helpers";
 import { resetProductCache } from "./lib/products";
+
+/** A product look whose render fails (see the mock below). */
+const BROKEN_LOOK = "broken";
+
+vi.mock("./a2ui/renders", async (importOriginal) => {
+  const renders = await importOriginal<typeof import("./a2ui/renders")>();
+  return {
+    ...renders,
+    renderMarkup: (look: Parameters<typeof renders.renderMarkup>[0]) => {
+      if (look.screen === "broken") throw new Error("this product could not be drawn");
+      return renders.renderMarkup(look);
+    },
+  };
+});
 
 const BUILD_COMMAND = "Compare 3 laptops for video editing under €2,000";
 const EDIT_COMMAND = "Add colour accuracy for grading";
@@ -387,6 +401,39 @@ test("an edit plays the whole choreography with motion on", { timeout: 10_000 },
   expect(document.querySelector("#workspace")).not.toHaveAttribute("data-motion");
 });
 
+test("a section that is recreated by an edit is not left shut", async () => {
+  // `specs` becomes a different kind of component: the renderer removes it and adds it again, so
+  // its room is a new one, though the section was on the page already
+  const recreate = {
+    version: "1.0",
+    updateComponents: {
+      surfaceId: SURFACE_ID,
+      components: [
+        {
+          id: "specs",
+          component: "BarChart",
+          title: "Battery — hours of video playback",
+          productIds: ["aeris-studio-16", "kore-zephyr-14"],
+          specKey: "batt",
+        },
+      ],
+    },
+  };
+  mockApi(undefined, { runs: [BUILD_RUN, [started, ...a2ui([recreate]), finished]] });
+  render(<App />);
+  await buildPage();
+  expect(document.querySelector('[data-part="specs"]')).toHaveClass("specs-wrap");
+
+  send(EDIT_COMMAND);
+  await waitForState("Updated");
+
+  const section = document.querySelector('[data-part="specs"]');
+  expect(section).toHaveClass("chart-cell");
+  expect(section?.closest(".room")).toBeInTheDocument();
+  expect(document.querySelectorAll(".room[data-shut]")).toHaveLength(0);
+  expect(document.querySelector("#workspace")).not.toHaveAttribute("data-motion");
+});
+
 test("command input is capped at 500", () => {
   mockApi();
   render(<App />);
@@ -399,7 +446,7 @@ test("a page that fails to render shows a message, not a blank app", () => {
     throw new Error("a component failed");
   }
   render(
-    <PageBoundary run={0}>
+    <PageBoundary attempt={0}>
       <Broken />
     </PageBoundary>,
   );
@@ -407,23 +454,72 @@ test("a page that fails to render shows a message, not a blank app", () => {
   quiet.mockRestore();
 });
 
-test("the page boundary tries again on the next run", () => {
+test("the page boundary tries again when the attempt changes", () => {
   const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
   function Broken(): never {
     throw new Error("a component failed");
   }
   const { rerender } = render(
-    <PageBoundary run={1}>
+    <PageBoundary attempt={1}>
       <Broken />
     </PageBoundary>,
   );
   expect(screen.getByText("Couldn't show this page.")).toBeInTheDocument();
 
   rerender(
-    <PageBoundary run={2}>
+    <PageBoundary attempt={2}>
       <p>The page</p>
     </PageBoundary>,
   );
   expect(screen.getByText("The page")).toBeInTheDocument();
+  quiet.mockRestore();
+});
+
+test("the page boundary shows a page that a run's edit has fixed", async () => {
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  // one product's render fails, so the shelf throws while rendering and the page is replaced by
+  // a line of text
+  const vela = LAPTOPS.map((product) =>
+    product.id === "vela-prism-15"
+      ? { ...product, look: { ...product.look, screen: BROKEN_LOOK } }
+      : product,
+  );
+  // the edit takes that product off the shelf
+  const fix = {
+    version: "1.0",
+    updateComponents: {
+      surfaceId: SURFACE_ID,
+      components: [
+        {
+          id: "shelf",
+          component: "ProductShelf",
+          items: [
+            { productId: "aeris-studio-16", tag: "most power" },
+            { productId: "kore-zephyr-14", tag: "lightest" },
+          ],
+          pickId: "aeris-studio-16",
+        },
+      ],
+    },
+  };
+  mockApi(vela, { runs: [BUILD_RUN, [started, ...a2ui([fix]), finished]] });
+  render(<App />);
+
+  send(BUILD_COMMAND);
+  // a page that won't draw is waited for (about a second) before the run gives up on it
+  await waitFor(
+    () => {
+      expect(assistant()).toHaveTextContent("Built · just now");
+    },
+    { timeout: 5000 },
+  );
+  expect(await screen.findByText("Couldn't show this page.")).toBeInTheDocument();
+
+  send(EDIT_COMMAND);
+  await waitForState("Updated");
+
+  expect(screen.queryByText("Couldn't show this page.")).toBeNull();
+  expect(screen.getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
+  expect(await screen.findAllByRole("listitem")).not.toHaveLength(0);
   quiet.mockRestore();
 });

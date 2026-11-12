@@ -174,6 +174,7 @@ function scrollToRoom(stage: Stage, room: HTMLElement, reducedMotion: boolean): 
 /** Lets go of everything a run holds, with no motion: the page as it is. */
 function letGo(stage: Stage, held: readonly HTMLElement[]): void {
   delete stage.workspace.dataset.motion;
+  delete stage.workspace.dataset.rooms;
   for (const element of held) release(element);
   for (const room of stage.workspace.querySelectorAll<HTMLElement>(".room[data-shut]")) {
     delete room.dataset.shut;
@@ -184,6 +185,7 @@ function letGo(stage: Stage, held: readonly HTMLElement[]): void {
 /**
  * Applies a run's messages to the page with the run's choreography, and resolves once the page is
  * built or updated. `surface` is the page on screen before the run (null before the first build).
+ * However the run ends, the page and the globe are let go before it does.
  */
 export async function playMessages(
   stage: Stage,
@@ -207,8 +209,40 @@ export async function playMessages(
 
   // the parts about to change step back; everything else stays exactly where it is
   const backs = before ? parts(workspace, stepBackIds(before, changed, reducedMotion)) : [];
-  for (const element of backs) stepBack(element);
-  if (backs.length > 0) await sleep(STEP_BACK_MS, reducedMotion);
+  try {
+    for (const element of backs) stepBack(element);
+    if (backs.length > 0) await sleep(STEP_BACK_MS, reducedMotion);
+    return await choreograph({ stage, processor, messages, before, changed, build, backs });
+  } catch (error) {
+    // a throw anywhere on the way must not leave the page held out of view
+    letGo(stage, backs);
+    throw error;
+  }
+}
+
+interface Run {
+  stage: Stage;
+  processor: Processor;
+  messages: readonly Message[];
+  before: PageTree | null;
+  changed: string[];
+  build: boolean;
+  /** The parts that stepped back for this run. */
+  backs: HTMLElement[];
+}
+
+/** The rest of a run once its parts have stepped back: the change, the dots, the rise. */
+async function choreograph({
+  stage,
+  processor,
+  messages,
+  before,
+  changed,
+  build,
+  backs,
+}: Run): Promise<Played> {
+  const reducedMotion = prefersReducedMotion();
+  const { workspace, globe } = stage;
 
   let rejected: unknown[];
   try {
@@ -222,10 +256,13 @@ export async function playMessages(
     letGo(stage, backs);
     return { rejected, plan: null };
   }
+
+  // The sections new to the page open their own rooms; any other that mounts again (a section that
+  // changed its kind is created anew) stays open. Planned now, before React puts the change on screen.
+  const plan = planRun({ before, after: readTree(after), changed, reducedMotion });
+  workspace.dataset.rooms = JSON.stringify(plan.rooms);
   await rendered(workspace, build);
   for (const element of backs) holdHidden(element);
-
-  const plan = planRun({ before, after: readTree(after), changed, reducedMotion });
 
   // an edit brings what changed into view, then opens room for a new section
   const target = plan.scrollTo === null ? null : roomOf(workspace, plan.scrollTo);
@@ -252,6 +289,7 @@ export async function playMessages(
 
   // the page fades in under the dots; the parts rise in, and those that were there glow once
   delete workspace.dataset.motion;
+  delete workspace.dataset.rooms;
   if (plan.kind === "build" && page && typeof page.animate === "function") {
     page.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_IN_MS, easing: "ease-out" });
   }

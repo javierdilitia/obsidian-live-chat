@@ -109,8 +109,20 @@ export function holdHidden(element: HTMLElement): void {
   hold(element, play(element, [HIDDEN, HIDDEN], { duration: 1, fill: "forwards" }));
 }
 
+/**
+ * Parts that rise never nest (mockup/js/artifacts.js: "data-k elements never nest"; `patch` marks
+ * everything inside a changed part as risen up front). What mounted inside this part during the run
+ * would otherwise play its own CSS rise (`.rise`) once the run lets go of the page, on top of the
+ * part's: so it is marked settled and rests where the part's rise puts it. Bars are left alone:
+ * they refill by themselves (`.bar-fill`), as a changed chart's bars do in the mockup.
+ */
+function settle(element: HTMLElement): void {
+  for (const inner of element.querySelectorAll<HTMLElement>(".rise")) inner.dataset.settled = "";
+}
+
 /** The part rises in (.6s) after `delay` ms, from wherever it was held. */
 export function riseIn(element: HTMLElement, delay: number): void {
+  settle(element);
   play(element, [HIDDEN, REST], { duration: RISE_MS, delay, easing: EASE, fill: "backwards" });
   hold(element, null);
 }

@@ -215,6 +215,10 @@
 [data-motion] .bar-fill {
   animation-play-state: paused;
 }
+/* inside a part that rises as a whole, a part that mounted with it rests (motion.ts `riseIn`) */
+.rise[data-settled] {
+  animation: none;
+}
 [data-motion="build"] .artifact {
   opacity: 0;
 }

@@ -315,16 +315,31 @@ function ProbePanel() {
   );
 }
 
+/** The sections the running edit adds (`data-rooms` on the workspace, set by the run), if one runs. */
+function addedSections(room: HTMLElement): string[] {
+  try {
+    const held = room.closest<HTMLElement>('[data-motion="edit"]');
+    const listed: unknown = JSON.parse(held?.dataset.rooms ?? "[]");
+    return Array.isArray(listed) ? listed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * A section's room in the page (mockup/css/artifacts.css `.grow-wrap`). A section that mounts while
- * an edit holds the page is new to `Page.children`: its room starts shut, and the run opens it
- * (grid rows 0fr→1fr) before the dots land.
+ * an edit holds the page and that the edit adds to `Page.children` starts shut, and the run opens it
+ * (grid rows 0fr→1fr) before the dots land. A section that was on the page and mounts again (the
+ * renderer creates a component anew when its kind changes) is open from the start.
  */
 function Room({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const room = ref.current;
-    if (room?.closest('[data-motion="edit"]')) room.dataset.shut = "";
+    if (!room) return;
+    // the section is the first catalog part in the room: it carries the component's ID
+    const section = room.querySelector<HTMLElement>("[data-part]")?.dataset.part;
+    if (section !== undefined && addedSections(room).includes(section)) room.dataset.shut = "";
   }, []);
   return (
     <div ref={ref} className="room">
