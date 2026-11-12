@@ -19,12 +19,12 @@ from fastapi.responses import StreamingResponse
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field, StringConstraints
 
-from halden_data_fake import FakeCatalogSource
+from obsidian_agent.cartridges import cartridge_setting, load_cartridge
 from obsidian_agent.model import AzureModel, ModelClient, ModelFailed
 from obsidian_agent.page_agent import build_page, lookup_products
 from obsidian_agent.settings import MissingSettings, Settings
 from obsidian_agent.workspace import Tab, Workspace
-from obsidian_data_contract import CatalogSource, NotFoundError
+from obsidian_data_contract import Cartridge, CatalogSource, NotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -63,10 +63,18 @@ class ActionRequest(BaseModel):
     context: dict[str, Any] = Field(default_factory=lambda: {})
 
 
-def create_app(model: ModelClient | None = None, source: CatalogSource | None = None) -> FastAPI:
-    """The app. Tests pass a `ScriptedModel`; without one, the Azure model is made on first use."""
+def create_app(model: ModelClient | None = None, cartridge: Cartridge | None = None) -> FastAPI:
+    """The app. Tests pass a `ScriptedModel`; without one, the Azure model is made on first use.
+
+    Without a cartridge, the one `OBSIDIAN_CARTRIDGE` names (or the only one installed) is loaded
+    at once, so a bad choice fails at start, naming the installed cartridges.
+    """
     app = FastAPI(title="Obsidian agent", version="0.1.0")
-    catalog: CatalogSource = source if source is not None else FakeCatalogSource()
+    if cartridge is None:
+        cartridge = load_cartridge(cartridge_setting(ENV_FILE))
+    app.state.cartridge = cartridge
+    cartridge_id = cartridge.id
+    catalog: CatalogSource = cartridge.make_source()
     workspace = Workspace()
     app.state.workspace = workspace
     models: list[ModelClient] = [model] if model is not None else []
@@ -78,7 +86,7 @@ def create_app(model: ModelClient | None = None, source: CatalogSource | None = 
 
     @app.get("/health")
     async def health() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
-        return {"status": "ok"}
+        return {"status": "ok", "cartridge": cartridge_id}
 
     @app.post("/api/runs")
     async def runs(request: RunRequest) -> StreamingResponse:  # pyright: ignore[reportUnusedFunction]

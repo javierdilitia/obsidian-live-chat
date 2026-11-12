@@ -17,7 +17,7 @@ from obsidian_agent.a2ui_adapter import apply_messages, compile_block, decompile
 from obsidian_agent.app import create_app
 from obsidian_agent.model import ModelFailed, ModelResult, ScriptedModel, Usage
 from obsidian_agent.settings import API_KEY, ENDPOINT, UI_DEPLOYMENT
-from obsidian_data_contract import Product
+from obsidian_data_contract import Cartridge, CatalogSource, Product
 
 FIXTURES = Path(__file__).parent / "fixtures"
 BUILD = (FIXTURES / "build.a2ui").read_text(encoding="utf-8")
@@ -35,9 +35,19 @@ def _reply(text: str) -> ModelResult:
     )
 
 
+def _cartridge(source: CatalogSource) -> Cartridge:
+    return Cartridge("halden", "Halden", lambda: source)
+
+
+def _cart_client() -> TestClient:
+    """A client with no model replies, for the cart and catalog endpoints."""
+    app = create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    return TestClient(app)
+
+
 def _app(*texts: str, source: FakeCatalogSource | None = None) -> tuple[FastAPI, ScriptedModel]:
     model = ScriptedModel([_reply(text) for text in texts])
-    return create_app(model=model, source=source or FakeCatalogSource()), model
+    return create_app(model=model, cartridge=_cartridge(source or FakeCatalogSource())), model
 
 
 def _run(client: TestClient, command: str) -> list[dict[str, Any]]:
@@ -167,7 +177,7 @@ class _Unusable:
 
 
 def test_unusable_reply_is_a_failed_build() -> None:
-    app = create_app(model=_Unusable(), source=FakeCatalogSource())
+    app = create_app(model=_Unusable(), cartridge=_cartridge(FakeCatalogSource()))
 
     frames = _run(TestClient(app), "Compare laptops")
 
@@ -195,7 +205,7 @@ class _SlowEdit:
 
 def test_run_timeout_keeps_the_page(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(app_module, "RUN_TIMEOUT_S", 0.05)
-    app = create_app(model=_SlowEdit(), source=FakeCatalogSource())
+    app = create_app(model=_SlowEdit(), cartridge=_cartridge(FakeCatalogSource()))
     client = TestClient(app)
     _run(client, "Compare 3 laptops for video editing under €2,000")
     tab = app.state.workspace.tab
@@ -216,7 +226,7 @@ def test_missing_settings_is_a_run_error(monkeypatch: pytest.MonkeyPatch, tmp_pa
     monkeypatch.setattr(app_module, "ENV_FILE", tmp_path / ".env")
     for name in (ENDPOINT, API_KEY, UI_DEPLOYMENT):
         monkeypatch.delenv(name, raising=False)
-    app = create_app(source=FakeCatalogSource())
+    app = create_app(cartridge=_cartridge(FakeCatalogSource()))
 
     frames = _run(TestClient(app), "Compare laptops")
 
@@ -303,7 +313,7 @@ def _add(client: TestClient, product_id: Any, **extra: Any) -> dict[str, Any]:
 
 def test_add_uses_current_price() -> None:
     source = _Repriced()
-    client = TestClient(create_app(model=ScriptedModel([]), source=source))
+    client = TestClient(create_app(model=ScriptedModel([]), cartridge=_cartridge(source)))
 
     first = _add(client, "aeris-studio-16", price_cents=1)
     source.prices["aeris-studio-16"] = 179900
@@ -326,7 +336,9 @@ def test_add_uses_current_price() -> None:
 
 
 def test_add_out_of_stock() -> None:
-    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    client = TestClient(
+        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    )
 
     sold_out = _add(client, "kore-forge-17")
 
@@ -361,7 +373,9 @@ def _qtys(result: dict[str, Any]) -> dict[str, int]:
 
 
 def test_set_qty_checks_stock() -> None:
-    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    client = TestClient(
+        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    )
 
     # Lumen Slate 16 has 3 in stock.
     up = _act(client, "cart.set_qty", productId="lumen-slate-16", qty=3)
@@ -381,7 +395,9 @@ def test_set_qty_checks_stock() -> None:
 
 
 def test_remove_and_zero_qty() -> None:
-    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    client = TestClient(
+        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    )
     _act(client, "cart.add", productId="aeris-studio-16")
     _act(client, "cart.add", productId="kore-zephyr-14")
 
@@ -406,7 +422,9 @@ def test_remove_and_zero_qty() -> None:
     ],
 )
 def test_bad_cart_edits_change_nothing(name: str, context: dict[str, Any], code: str) -> None:
-    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    client = TestClient(
+        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    )
     _act(client, "cart.add", productId="aeris-studio-16")
 
     result = _act(client, name, **context)
@@ -416,7 +434,9 @@ def test_bad_cart_edits_change_nothing(name: str, context: dict[str, Any], code:
 
 
 def test_cart_endpoint() -> None:
-    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    client = TestClient(
+        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    )
     assert client.get("/api/cart").json() == {"cart": []}
 
     _act(client, "cart.add", productId="aeris-studio-16")
@@ -444,7 +464,9 @@ def test_cart_endpoint() -> None:
     ],
 )
 def test_bad_actions_change_nothing(name: str, product_id: Any, code: str) -> None:
-    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    client = TestClient(
+        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    )
 
     response = client.post(
         "/api/actions",
@@ -462,7 +484,9 @@ def test_bad_actions_change_nothing(name: str, product_id: Any, code: str) -> No
 
 
 def test_products_reports_missing() -> None:
-    client = TestClient(create_app(model=ScriptedModel([]), source=FakeCatalogSource()))
+    client = TestClient(
+        create_app(model=ScriptedModel([]), cartridge=_cartridge(FakeCatalogSource()))
+    )
 
     response = client.get(
         "/api/catalog/products",

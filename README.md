@@ -47,7 +47,7 @@ On macOS/Linux use `python3` if `python` isn't on your PATH.
 
 ## Run the demo
 
-The demo calls the Azure deployment named in the repo root's `.env` (`AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY`, `MODEL_UI_DEPLOYMENT`; see `.env.example`). Every command is a real model call on that deployment, so it costs tokens; without the settings the command bar answers "Missing settings: …".
+The demo calls the Azure deployment named in the repo root's `.env` (`AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY`, `MODEL_UI_DEPLOYMENT`; see `.env.example`). Every command is a real model call on that deployment, so it costs tokens; without the settings the command bar answers "Missing settings: …". The agent serves one cartridge (one client's catalog), found through the `obsidian.cartridges` entry point; set `OBSIDIAN_CARTRIDGE` to its ID (for example `halden`) when more than one is installed, and the agent refuses to start, naming the installed ones, if the choice is missing or unknown.
 
 ```bash
 # both at once: the agent on http://127.0.0.1:8000, the web app on http://localhost:5173
