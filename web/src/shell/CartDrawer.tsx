@@ -9,6 +9,7 @@
 import { useEffect, useRef } from "react";
 import { ProductRender } from "../a2ui/catalog";
 import { useI18n } from "../i18n/I18nProvider";
+import type { Message } from "../i18n/i18n";
 import { cart, changeCart, useCart } from "../lib/cart";
 import { useProducts } from "../lib/products";
 import "../styles/overlays.css";
@@ -34,7 +35,7 @@ function GlyphIcon({ size, d, width }: { size: number; d: string; width: number 
   );
 }
 
-export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
+export function CartDrawer({ onNotice }: { onNotice: (message: Message) => void }) {
   const { t, money } = useI18n();
   const { lines, open } = useCart();
   const panel = useRef<HTMLElement>(null);
@@ -102,7 +103,8 @@ export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
       qty === null
         ? await changeCart("cart.remove", { productId })
         : await changeCart("cart.set_qty", { productId, qty });
-    if (refusal) onNotice(t(refusal.key, refusal.params));
+    // worded where it shows, so a language switch while the step was out still applies
+    if (refusal) onNotice(refusal);
   }
 
   return (

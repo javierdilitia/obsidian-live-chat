@@ -9,7 +9,7 @@ import { LAPTOPS, SURFACE_ID, mockApi } from "./a2ui/test-helpers";
 import { I18nProvider } from "./i18n/I18nProvider";
 import { englishLeft } from "./i18n/test-helpers";
 import { resetProductCache } from "./lib/products";
-import { bootLanguage, browser } from "./lib/session";
+import { browser } from "./lib/session";
 
 /** A product look whose render fails (see the mock below). */
 const BROKEN_LOOK = "broken";
@@ -728,6 +728,71 @@ test("a failed switch shows the error and keeps the menu", async () => {
   expect(reload).not.toHaveBeenCalled();
 });
 
+test("a failed switch's error follows a language switch (#28)", async () => {
+  const switchError = { code: "invalid", message: "Couldn't switch shopper." };
+  mockApi(undefined, { switchError });
+  stubReload();
+  render(
+    <I18nProvider language="en">
+      <App />
+    </I18nProvider>,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Shopper: Javier" }));
+  const users = await screen.findByRole("menu", { name: "Switch shopper" });
+  fireEvent.click(within(users).getByRole("menuitemradio", { name: /Sam/ }));
+  expect(await screen.findByText("Couldn't switch shopper. Try again.")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
+  const languages = screen.getByRole("menu", { name: "Language" });
+  await act(async () => {
+    fireEvent.click(within(languages).getByRole("menuitemradio", { name: "Español" }));
+    await Promise.resolve();
+  });
+
+  expect(
+    await screen.findByText("No se ha podido cambiar de cliente. Inténtalo de nuevo."),
+  ).toBeInTheDocument();
+});
+
+/* ——— the agent not up yet (the page loaded first: the dev server, or the agent restarting) ——— */
+
+/** Every call fails as the dev proxy's would, until `up()`. */
+function agentDown() {
+  const answer = globalThis.fetch;
+  let down = true;
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+    down ? Promise.resolve(new Response(null, { status: 500 })) : answer(input, init),
+  );
+  return {
+    up: () => {
+      down = false;
+    },
+  };
+}
+
+test("the shopper cell appears once the agent answers", async () => {
+  mockApi();
+  const agent = agentDown();
+  render(<App />);
+  await act(() => Promise.resolve());
+  expect(screen.queryByRole("button", { name: /^Shopper/ })).not.toBeInTheDocument();
+
+  agent.up();
+
+  expect(await screen.findByRole("button", { name: "Shopper: Javier" })).toBeInTheDocument();
+});
+
+test("a saved page comes back once the agent answers", async () => {
+  mockApi(undefined, { workspace: [savedWorkspace(build[0], [aerisLine])] });
+  const agent = agentDown();
+  render(<App />);
+  await act(() => Promise.resolve());
+
+  agent.up();
+
+  expect(await screen.findByRole("tab", { name: BUILD_COMMAND })).toBeInTheDocument();
+});
+
 /* ——— Spanish ——— */
 
 function renderIn(language: "en" | "es") {
@@ -838,17 +903,4 @@ test("switching language re-words the open page", async () => {
   );
   expect(screen.getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
   expect(mountCounts()).toEqual({});
-});
-
-test("bootLanguage reads the session", async () => {
-  mockApi(undefined, {
-    users: [
-      { id: "ana", name: "Ana", language: "es" },
-      { id: "demo-user", name: "Javier", language: "en" },
-    ],
-  });
-  expect(await bootLanguage()).toBe("es");
-
-  vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 500 })));
-  expect(await bootLanguage()).toBe("en");
 });

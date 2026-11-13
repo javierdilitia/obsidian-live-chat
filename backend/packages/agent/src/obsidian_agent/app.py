@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from obsidian_agent.actions import ACTIONS, check_source
 from obsidian_agent.cartridges import cartridge_setting, load_cartridge
-from obsidian_agent.language import is_language
+from obsidian_agent.language import is_language, normalise_language
 from obsidian_agent.model import AzureModel, ModelClient, ModelFailed, UsageMeter
 from obsidian_agent.page_agent import build_page, lookup_products, page_tools
 from obsidian_agent.session import (
@@ -309,7 +309,7 @@ def create_app(
                 surface_id=f"shop:{uuid.uuid4().hex}",
                 kind="compare",
                 card={"title": _title(command), "commands": []},
-                language=user.language,
+                language=normalise_language(user.language),
             )
             value = {"surface_id": tab.surface_id, "title": tab.card["title"]}
             yield {"type": "CUSTOM", "name": "tab_opened", "value": value}
@@ -317,7 +317,7 @@ def create_app(
         current = tab.snapshot
         # A tab keeps its language: an edit writes in it. A page not yet built takes the language
         # the shopper reads as the run starts, and saving stamps the tab with it.
-        language = user.language if current is None else tab.language
+        language = normalise_language(user.language if current is None else tab.language)
         failed = ("build_failed", "Couldn't build this page.")
         if current is not None:
             failed = ("edit_failed", "Couldn't change this page.")
