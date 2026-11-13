@@ -53,3 +53,9 @@ test("each dispatch sends its own request ID", async () => {
   expect(action.context).toEqual({ productId: "p1" });
   vi.unstubAllGlobals();
 });
+
+test("the language menu sends prefs.set_language, a direct action from the shell", () => {
+  const entry = new Map(entries).get("prefs.set_language");
+  expect(entry).toEqual({ kind: "direct", sources: ["shell:language-menu"] });
+  expect(DISPATCHED_ACTIONS).toContain("prefs.set_language");
+});

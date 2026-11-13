@@ -3,6 +3,7 @@
    `web/src/cartridges/`, plus `index.html`. */
 import indexHtml from "../index.html?raw";
 import { cartridge } from "./cartridge";
+import { LANGUAGES } from "./i18n/i18n";
 
 const core = import.meta.glob<string>(
   ["./**/*.{ts,tsx}", "!./cartridges/**", "!./**/*.test.{ts,tsx}", "!./a2ui/test-helpers.tsx"],
@@ -23,7 +24,13 @@ test("no core source imports a cartridge folder", () => {
 });
 
 test("no core source names the cartridge's store or disclaimer", () => {
-  const names = [cartridge.storeName, cartridge.disclaimer.shell, ...cartridge.disclaimer.footer];
+  const names = [
+    cartridge.storeName,
+    ...LANGUAGES.flatMap((language) => [
+      cartridge.disclaimer[language].shell,
+      ...cartridge.disclaimer[language].footer,
+    ]),
+  ];
   const sources = { ...core, "../index.html": indexHtml };
   const naming = Object.entries(sources).flatMap(([path, text]) =>
     names.filter((name) => text.includes(name)).map((name) => `${path}: ${name}`),

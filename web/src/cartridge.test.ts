@@ -4,8 +4,9 @@ function fake(id: string): CartridgeUI {
   return {
     id,
     storeName: id,
-    disclaimer: { shell: "", footer: [] },
-    specs: {},
+    disclaimer: { en: { shell: "", footer: [] }, es: { shell: "", footer: [] } },
+    specs: { en: {}, es: {} },
+    better: {},
   };
 }
 
@@ -41,11 +42,12 @@ describe("pickCartridge", () => {
 });
 
 describe("specInfo", () => {
-  it("reads the cartridge glossary", () => {
-    expect(specInfo("hz")).toEqual({ label: "Refresh rate", better: "higher" });
+  it("reads the cartridge glossary in the shopper's language", () => {
+    expect(specInfo("hz", "es")).toEqual({ label: "Frecuencia de refresco", better: "higher" });
+    expect(specInfo("hz", "en")).toEqual({ label: "Refresh rate", better: "higher" });
   });
 
   it("makes a readable label for a key the glossary lacks", () => {
-    expect(specInfo("warp_drive")).toEqual({ label: "Warp drive" });
+    expect(specInfo("warp_drive", "es")).toEqual({ label: "Warp drive" });
   });
 });

@@ -3,7 +3,8 @@
 
    IDs, never values: the model names product IDs and spec keys; prices, specs, stock and looks
    come from the products endpoint (`useProducts`), and every fixed string ("The pick",
-   "In stock", "No longer available", button labels) comes from this file. */
+   "In stock", "No longer available", button labels) comes from the EN/ES bundle (`useI18n`), as
+   do prices, counts and ratings, so a language switch re-words the page without remounting it. */
 import { createComponentImplementation, type ReactA2uiComponentProps } from "@a2ui/react";
 import {
   Catalog,
@@ -20,6 +21,8 @@ import { cart, expectFlight, useCart } from "../lib/cart";
 import type { Product, ProductMap } from "../lib/products";
 import { useProducts, type Look } from "../lib/products";
 import { cartridge, specInfo } from "../cartridge";
+import { useI18n, type I18n } from "../i18n/I18nProvider";
+import type { Language } from "../i18n/i18n";
 import "../styles/page.css";
 import { seriesColour, useRise } from "./motion";
 import { probeEnabled, useMountCounts, useMountProbe } from "./probe";
@@ -101,25 +104,11 @@ type BuildChild = ReactA2uiComponentProps<unknown>["buildChild"];
 /* ——— fixed strings (the spec glossary and the disclaimer come from the cartridge) ——— */
 
 const DASH = "—";
-const GONE = "No longer available";
-const FAILED = "Couldn't load";
 
-const euro = new Intl.NumberFormat("en-IE", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-const euroCents = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" });
-const count = new Intl.NumberFormat("en-IE");
-
-export function formatPrice(cents: number): string {
-  return cents % 100 === 0 ? euro.format(cents / 100) : euroCents.format(cents / 100);
-}
-
-function stockText(stock: number): string {
-  if (stock <= 0) return "Out of stock";
-  if (stock <= 3) return `Only ${String(stock)} left`;
-  return "In stock";
+function stockText(stock: number, t: I18n["t"]): string {
+  if (stock <= 0) return t("stock.out");
+  if (stock <= 3) return t("stock.few", { count: stock });
+  return t("stock.in");
 }
 
 /** A numeric spec value, or undefined when the product lacks it or it is text. */
@@ -134,10 +123,10 @@ function vars(values: Record<string, string | number>): CSSProperties {
 }
 
 /** A product's name; the fixed string when it is gone or failed to load; blank while loading. */
-function nameOf(product: Product | null | undefined, failed: boolean): string {
-  if (product === null) return GONE;
+function nameOf(product: Product | null | undefined, failed: boolean, t: I18n["t"]): string {
+  if (product === null) return t("product.gone");
   if (product) return product.name;
-  return failed ? FAILED : "";
+  return failed ? t("product.loadFailed") : "";
 }
 
 /** A spec as shown: a dash when the product lacks it, is gone or failed to load. */
@@ -216,14 +205,15 @@ export function ProductRender({ look }: { look: Look }) {
 }
 
 function Trust({ product }: { product: Product }) {
+  const { t, rating: formatRating, count } = useI18n();
   if (product.rating == null) return null;
-  const rating = product.rating.toFixed(1);
-  const reviews = count.format(product.review_count);
+  const rating = formatRating(product.rating);
+  const reviews = count(product.review_count);
   return (
     <span
       className="trust"
       role="img"
-      aria-label={`Rated ${rating} out of 5 from ${reviews} reviews`}
+      aria-label={t("product.rating", { rating, count: product.review_count })}
     >
       <StarIcon />
       <b>{rating}</b>
@@ -233,28 +223,34 @@ function Trust({ product }: { product: Product }) {
 }
 
 function PriceBlock({ product }: { product: Product }) {
+  const { t, money } = useI18n();
   const was = product.was_price_cents;
   return (
     <>
       <div className="price-now">
-        <b>{formatPrice(product.price_cents)}</b>
+        <b>{money(product.price_cents)}</b>
         {was != null && (
           <s>
-            <span className="visually-hidden">was </span>
-            {formatPrice(was)}
+            <span className="visually-hidden">{t("product.was")} </span>
+            {money(was)}
           </s>
         )}
       </div>
-      {was != null && <div className="save">Save {formatPrice(was - product.price_cents)}</div>}
+      {was != null && (
+        <div className="save">
+          {t("product.save", { amount: money(was - product.price_cents) })}
+        </div>
+      )}
     </>
   );
 }
 
 function Stock({ stock }: { stock: number }) {
+  const { t } = useI18n();
   return (
     <span className="stock">
       {stock > 0 && <CheckIcon size={13} />}
-      {stockText(stock)}
+      {stockText(stock, t)}
     </span>
   );
 }
@@ -273,10 +269,11 @@ function addToCart(context: ComponentContext, productId: string, from: Element):
 /** "In cart · View": a product already in the cart opens the drawer instead of adding again
  *  (spec §7.6 `openCart`, a local action: nothing is sent). */
 function InCartLabel() {
+  const { t } = useI18n();
   return (
     <>
       <CheckIcon size={15} />
-      In cart · View
+      {t("buy.inCart")}
     </>
   );
 }
@@ -330,6 +327,7 @@ function Room({ children }: { children: ReactNode }) {
 }
 
 function PageView({ props, buildChild, context }: ViewProps<typeof PageApi>) {
+  const { language } = useI18n();
   const id = context.componentModel.id;
   useMountProbe(id);
   const ref = useRef<HTMLElement>(null);
@@ -361,7 +359,7 @@ function PageView({ props, buildChild, context }: ViewProps<typeof PageApi>) {
         </Room>
       ))}
       <footer className="art-foot rise">
-        {cartridge.disclaimer.footer.map((part) => (
+        {cartridge.disclaimer[language].footer.map((part) => (
           <span key={part}>{part}</span>
         ))}
       </footer>
@@ -412,6 +410,7 @@ function ShelfItem({
   inCart,
   onAdd,
 }: ShelfItemProps) {
+  const { t } = useI18n();
   const tagLine = (
     <div className="swatch-line">
       <i style={{ background: seriesColour(index) }} />
@@ -422,11 +421,11 @@ function ShelfItem({
     <li className="prod rise">
       <div className="prod-shot shot">
         {product && <ProductRender look={product.look} />}
-        {pick && product && <span className="pill">The pick</span>}
+        {pick && product && <span className="pill">{t("product.pick")}</span>}
       </div>
       {(product === null || (product === undefined && failed)) && (
         <>
-          <p className="prod-gone">{nameOf(product, failed)}</p>
+          <p className="prod-gone">{nameOf(product, failed, t)}</p>
           {tagLine}
         </>
       )}
@@ -443,7 +442,11 @@ function ShelfItem({
             <button
               type="button"
               className={inCart ? "btn btn-ghost buy is-in" : "btn btn-ghost buy"}
-              aria-label={inCart ? `In cart · View ${product.name}` : `Add ${product.name} to cart`}
+              aria-label={
+                inCart
+                  ? t("buy.inCartAria", { name: product.name })
+                  : t("buy.addAria", { name: product.name })
+              }
               disabled={!inCart && product.stock <= 0}
               onClick={(event) => {
                 if (inCart) cart.open();
@@ -455,7 +458,7 @@ function ShelfItem({
               ) : (
                 <>
                   <CartIcon />
-                  Add to cart
+                  {t("buy.add")}
                 </>
               )}
             </button>
@@ -467,6 +470,7 @@ function ShelfItem({
 }
 
 function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>) {
+  const { t } = useI18n();
   const id = context.componentModel.id;
   useMountProbe(id);
   const ref = useRef<HTMLUListElement>(null);
@@ -482,7 +486,7 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
     <ul
       ref={ref}
       className="trio"
-      aria-label="Products"
+      aria-label={t("page.products")}
       data-section={id}
       data-part={id}
       style={vars({ "--n": props.items.length })}
@@ -509,8 +513,13 @@ function ProductShelfView({ props, context }: ViewProps<typeof ProductShelfApi>)
 /* ——— SpecTable ——— */
 
 /** The indexes of the best value in a row, for a numeric spec with a direction. */
-function bestOf(products: ProductMap, ids: readonly string[], key: string): Set<number> {
-  const better = specInfo(key).better;
+function bestOf(
+  products: ProductMap,
+  ids: readonly string[],
+  key: string,
+  language: Language,
+): Set<number> {
+  const better = specInfo(key, language).better;
   const values = ids.map((pid) => numeric(products.get(pid), key));
   const known = values.filter((value): value is number => value !== undefined);
   if (!better || known.length < 2) return new Set();
@@ -519,6 +528,7 @@ function bestOf(products: ProductMap, ids: readonly string[], key: string): Set<
 }
 
 function SpecTableView({ props, context }: ViewProps<typeof SpecTableApi>) {
+  const { t, language } = useI18n();
   const id = context.componentModel.id;
   useMountProbe(id);
   const ref = useRef<HTMLDivElement>(null);
@@ -530,31 +540,33 @@ function SpecTableView({ props, context }: ViewProps<typeof SpecTableApi>) {
       ref={ref}
       className="specs-wrap"
       role="table"
-      aria-label="Specs"
+      aria-label={t("page.specs")}
       data-section={id}
       data-part={id}
       style={vars({ "--n": props.productIds.length })}
     >
       <div className="spec-row spec-head" role="row">
         <div className="spec-name" role="columnheader">
-          <span className="visually-hidden">Spec</span>
+          <span className="visually-hidden">{t("page.specColumn")}</span>
         </div>
         {props.productIds.map((pid, i) => {
           const product = products.get(pid);
           return (
             <div key={pid} className="spec-val rise" role="columnheader">
               <i style={{ background: seriesColour(i) }} />
-              {nameOf(product, failed)}
+              {nameOf(product, failed, t)}
             </div>
           );
         })}
       </div>
       {props.specKeys.map((key) => {
-        const best = highlight ? bestOf(products, props.productIds, key) : new Set<number>();
+        const best = highlight
+          ? bestOf(products, props.productIds, key, language)
+          : new Set<number>();
         return (
           <div key={key} className="spec-row" role="row">
             <div className="spec-name rise" role="rowheader">
-              {specInfo(key).label}
+              {specInfo(key, language).label}
             </div>
             {props.productIds.map((pid, i) => {
               const product = products.get(pid);
@@ -593,6 +605,7 @@ function ChartGridView({ props, buildChild, context }: ViewProps<typeof ChartGri
 }
 
 function BarChartView({ props, context }: ViewProps<typeof BarChartApi>) {
+  const { t, language } = useI18n();
   const id = context.componentModel.id;
   useMountProbe(id);
   const ref = useRef<HTMLDivElement>(null);
@@ -600,14 +613,14 @@ function BarChartView({ props, context }: ViewProps<typeof BarChartApi>) {
   const { products, failed } = useProducts(props.productIds);
   const values = props.productIds.map((pid) => numeric(products.get(pid), props.specKey));
   const max = Math.max(0, ...values.filter((value): value is number => value !== undefined));
-  const dim = specInfo(props.specKey).better === "lower";
+  const dim = specInfo(props.specKey, language).better === "lower";
   return (
     <div ref={ref} className="chart-cell" data-part={id}>
       <h3 className="rise">{props.title}</h3>
       {props.productIds.map((pid, i) => {
         const product = products.get(pid);
         const value = values[i];
-        const name = nameOf(product, failed);
+        const name = nameOf(product, failed, t);
         const shown = shownSpec(product, props.specKey, failed);
         const width = value !== undefined && max > 0 ? (value / max) * 100 : 0;
         return (
@@ -636,12 +649,19 @@ function BarChartView({ props, context }: ViewProps<typeof BarChartApi>) {
 
 /* ——— AddToCartButton ——— */
 
-function cartLabel(product: Product | undefined, withName: boolean, withPrice: boolean): string {
-  const name = withName && product ? `Add ${product.name}` : "Add to cart";
-  return withPrice && product ? `${name} · ${formatPrice(product.price_cents)}` : name;
+function cartLabel(
+  product: Product | undefined,
+  withName: boolean,
+  withPrice: boolean,
+  { t, money }: I18n,
+): string {
+  const name = withName && product ? t("buy.addNamed", { name: product.name }) : t("buy.add");
+  return withPrice && product ? `${name} · ${money(product.price_cents)}` : name;
 }
 
 function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButtonApi>) {
+  const i18n = useI18n();
+  const { t } = i18n;
   const id = context.componentModel.id;
   useMountProbe(id);
   const { products, failed } = useProducts([props.productId]);
@@ -655,7 +675,7 @@ function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButto
         type="button"
         className={`btn btn-${variant} buy is-in`}
         data-part={id}
-        aria-label={product ? `In cart · View ${product.name}` : undefined}
+        aria-label={product ? t("buy.inCartAria", { name: product.name }) : undefined}
         onClick={() => {
           cart.open();
         }}
@@ -667,12 +687,13 @@ function AddToCartButtonView({ props, context }: ViewProps<typeof AddToCartButto
   if (product === null || (product === undefined && failed)) {
     return (
       <button type="button" className={`btn btn-${variant} buy`} data-part={id} disabled>
-        {nameOf(product, failed)}
+        {nameOf(product, failed, t)}
       </button>
     );
   }
-  const label = cartLabel(product, props.withName ?? false, props.withPrice ?? false);
-  const named = product && !(props.withName ?? false) ? `Add ${product.name} to cart` : undefined;
+  const label = cartLabel(product, props.withName ?? false, props.withPrice ?? false, i18n);
+  const named =
+    product && !(props.withName ?? false) ? t("buy.addAria", { name: product.name }) : undefined;
   return (
     <button
       type="button"

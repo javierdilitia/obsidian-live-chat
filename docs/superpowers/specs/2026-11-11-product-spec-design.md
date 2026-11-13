@@ -19,7 +19,7 @@ The mockup's visuals and motion are kept and extended, not redesigned. `DESIGN.m
 | Saved tabs | No Save button. Every tab persists automatically when it is created. Closing a tab moves it to the shopper's **history**, where it can be reopened. |
 | Tab tools | `create` builds a new tab; `open` restores one from history (no model call); plus `edit`, `switch`, `close`, and a no-page `suggest`. |
 | Identity | Seeded demo shoppers, no login. A signed session cookie names one. Real login comes with milestone 5. |
-| Language | EN + ES. Fixed UI strings switch at once; the agent builds new pages and edits in the chosen language; existing tabs keep their language until edited. |
+| Language | EN + ES. Fixed UI strings switch at once; the agent builds new pages in the chosen language; a tab keeps the language it was written in, edits included. |
 | Data flow | The router writes a structured brief; the backend pre-fetches the data; the UI model gets the rows and writes Express, with read-only data tools for **at most one** extra round. |
 | Store | Postgres with JSONB, behind a `Store` protocol with an in-memory fake, like `CatalogSource`. |
 | Home page | A code-built surface (instant) plus an agent-built **For you** surface (cached, streams in). |
@@ -487,7 +487,7 @@ Questions to answer from their dataset. "Our default" is what we build if the an
 - Spanish is Spain's Spanish (es-ES), addressing the shopper as *tú*; "cart" is *cesta* (decided by the user, 2026-11-12). The same rule is in the page prompt.
 - The router and UI model get the shopper's language; the router's `reason` and chips, and the UI model's prose, are written in it.
 - Templates use the bundle. Money and dates format with `Intl` for the language: `1.899 €` and `18,50 €` in ES (Spain's order, with grouping forced on: plain `es-ES` would print `1899 €`), `€1,899` and `€18.50` in EN; dates `12 nov` / `12 Nov` (decided 2026-11-12, replacing `€1.899`).
-- A tab keeps its `language` until it is edited; an edit rewrites the page in the current language: when the language changed, the edit must redefine every section (the page agent rejects one that does not). For you is cached per language.
+- A tab keeps its `language` for good: an edit writes in the tab's language, and only a new page takes the shopper's current one (decided by the user, 2026-11-14). A switch makes no model call and never translates a page: rewriting a page on its next edit roughly doubled that edit's output and could not be fully checked. An old tab shows its prose in its own language, with the shopper's buttons, stock lines and prices around it. A "Translate this page" button, pressed on purpose, is a later feature ([#30](https://github.com/javierdilitia/obsidian-live-chat/issues/30)). For you is cached per language.
 
 ## 13. Errors
 

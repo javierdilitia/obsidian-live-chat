@@ -7,7 +7,8 @@
    Esc, the scrim and the close button close it. While open, Tab stays inside it; when it closes,
    focus goes back to whatever opened it (the cart cell, or a buy button's "In cart · View"). */
 import { useEffect, useRef } from "react";
-import { ProductRender, formatPrice } from "../a2ui/catalog";
+import { ProductRender } from "../a2ui/catalog";
+import { useI18n } from "../i18n/I18nProvider";
 import { cart, changeCart, useCart } from "../lib/cart";
 import { useProducts } from "../lib/products";
 import "../styles/overlays.css";
@@ -34,6 +35,7 @@ function GlyphIcon({ size, d, width }: { size: number; d: string; width: number 
 }
 
 export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
+  const { t, money } = useI18n();
   const { lines, open } = useCart();
   const panel = useRef<HTMLElement>(null);
   const invoker = useRef<Element | null>(null);
@@ -100,7 +102,7 @@ export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
       qty === null
         ? await changeCart("cart.remove", { productId })
         : await changeCart("cart.set_qty", { productId, qty });
-    if (refusal) onNotice(refusal);
+    if (refusal) onNotice(t(refusal.key, refusal.params));
   }
 
   return (
@@ -117,17 +119,17 @@ export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
         className={open ? "drawer on" : "drawer"}
         role="dialog"
         aria-modal="true"
-        aria-label="Shopping cart"
+        aria-label={t("drawer.label")}
         aria-hidden={open ? undefined : true}
         inert={!open}
       >
         <div className="drawer-head">
-          <h2>Cart</h2>
+          <h2>{t("cart.label")}</h2>
           <button
             type="button"
             className="ctl close"
             data-close
-            aria-label="Close"
+            aria-label={t("drawer.close")}
             onClick={() => {
               cart.close();
             }}
@@ -138,9 +140,9 @@ export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
         <div className="drawer-body">
           {lines.length === 0 ? (
             <div className="cart-empty">
-              Your cart is empty.
+              {t("drawer.emptyTitle")}
               <br />
-              Ask for a comparison, then add the one you want.
+              {t("drawer.emptyHint")}
             </div>
           ) : (
             lines.map((line) => {
@@ -153,26 +155,26 @@ export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
                   <span className="info">
                     <b>{line.name}</b>
                     <span>
-                      {formatPrice(line.price_cents)}
+                      {money(line.price_cents)}
                       {line.qty > 1 &&
-                        ` · ${formatPrice(line.price_cents * line.qty)} for ${String(line.qty)}`}
+                        ` · ${t("drawer.lineTotal", { total: money(line.price_cents * line.qty), count: line.qty })}`}
                     </span>
                   </span>
                   <span className="qty">
                     <button
                       type="button"
-                      aria-label={`One fewer ${line.name}`}
+                      aria-label={t("drawer.fewer", { name: line.name })}
                       onClick={() => void edit(line.productId, line.qty - 1)}
                     >
                       <GlyphIcon size={13} width={1.6} d="M5 12h14" />
                     </button>
                     <b>
-                      <span className="visually-hidden">Quantity </span>
+                      <span className="visually-hidden">{t("drawer.quantity")} </span>
                       {line.qty}
                     </b>
                     <button
                       type="button"
-                      aria-label={`One more ${line.name}`}
+                      aria-label={t("drawer.more", { name: line.name })}
                       onClick={() => void edit(line.productId, line.qty + 1)}
                     >
                       <GlyphIcon size={13} width={1.6} d="M12 5v14M5 12h14" />
@@ -181,7 +183,7 @@ export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
                   <button
                     type="button"
                     className="ctl rm"
-                    aria-label={`Remove ${line.name}`}
+                    aria-label={t("drawer.remove", { name: line.name })}
                     onClick={() => void edit(line.productId, null)}
                   >
                     <GlyphIcon size={14} width={1.8} d="M6 6l12 12M18 6 6 18" />
@@ -195,8 +197,8 @@ export function CartDrawer({ onNotice }: { onNotice: (text: string) => void }) {
           <div className="drawer-foot">
             <div className="sum">
               <div className="grand">
-                <span>Total</span>
-                <b>{formatPrice(total)}</b>
+                <span>{t("drawer.total")}</span>
+                <b>{money(total)}</b>
               </div>
             </div>
           </div>

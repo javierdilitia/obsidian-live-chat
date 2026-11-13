@@ -5,7 +5,8 @@
    On mount the app shows what the server holds (`readWorkspace`), so a reload keeps the page,
    with no build motion; a streamed message the processor rejects re-syncs the page the same way.
    Each run plays the mockup's motion grammar (`motion/run.ts`): the dot globe thinks, its dots land
-   on the page, and an edit moves only the parts it names. */
+   on the page, and an edit moves only the parts it names. Every fixed string comes from the EN/ES
+   bundle (`useI18n`); the server's errors are codes, worded here. */
 import { A2uiSurface, type ReactCatalogComponent } from "@a2ui/react";
 import { MessageProcessor, type ActionPayload, type SurfaceModel } from "@a2ui/web_core/v1_0";
 import {
@@ -17,17 +18,21 @@ import {
   type ReactNode,
   type SubmitEvent,
 } from "react";
-import { formatPrice, shopCatalog } from "./a2ui/catalog";
+import { shopCatalog } from "./a2ui/catalog";
 import { cartridge } from "./cartridge";
+import { useI18n } from "./i18n/I18nProvider";
+import { actionErrorMessage, runErrorMessage, type Message } from "./i18n/i18n";
 import { dispatchAction, type CartLine } from "./lib/actions";
 import { cart, landFlight, useCart } from "./lib/cart";
 import { streamRun, type RunEnd } from "./lib/sse";
 import { readWorkspace, type Workspace } from "./lib/workspace";
 import type { DotGlobe } from "./motion/globe";
 import { IdleGlobe, ThinkingGlobe } from "./motion/GlobeCanvas";
+import type { RunState } from "./motion/choreography";
 import { playMessages, startThinking, stopThinking, type Stage } from "./motion/run";
 import { Seam } from "./motion/Seam";
 import { CartDrawer } from "./shell/CartDrawer";
+import { LanguageMenu } from "./shell/LanguageMenu";
 import { UserMenu } from "./shell/UserMenu";
 import { prefersReducedMotion } from "./a2ui/motion";
 import "./styles/shell.css";
@@ -39,22 +44,21 @@ interface Page {
   key: number;
 }
 
+/** What the state field says, as bundle keys: it is worded at render, so a language switch
+ *  re-words a field already showing. */
 type Status =
   | { kind: "building" | "updating" }
   /** "Built · just now", "Updated · 1 section added"; `rested`: the field has faded out, keeping
    *  its text while it fades. */
-  | { kind: "done"; lead: string; detail: string; rested?: boolean }
-  | { kind: "error"; message: string };
+  | { kind: "done"; state: RunState; rested?: boolean }
+  | { kind: "error"; message: Message };
 
-const PROMPT = "What are you shopping for?";
 const TAB_ID = "page-tab";
 /** "Built · just now" stays this long, then the state field and the seam fade (the mockup's timing). */
 const BUILT_MS = 2400;
-const BUILT = { lead: "Built", detail: "just now" };
+const BUILT: RunState = { lead: "run.built", detail: { key: "run.justNow" } };
 const TOAST_MS = 2600;
 const TOAST_OUT_MS = 320;
-const UNREACHABLE = "Couldn't reach the assistant. Try again.";
-const NOT_SHOWN = "Couldn't show all of this page.";
 /** The server's limit on a command. */
 const COMMAND_LIMIT = 500;
 
@@ -141,21 +145,23 @@ const CART =
 
 /* ——— the cart, in the shell's ledger ——— */
 
-/** What the cart cell shows: "2 · €1,948", or "empty". */
+/** What the cart cell shows: "2 · €1,948", or "empty". Keyed by the amount, not its words, so a
+ *  language switch re-words it in place instead of rolling it. */
 interface Shown {
   key: string;
   items: number;
-  total: string;
+  totalCents: number;
 }
 
-function CartValue({ items, total }: { items: number; total: string }) {
-  const key = items === 0 ? "empty" : `${String(items)}·${total}`;
-  const [shown, setShown] = useState<Shown>({ key, items, total });
+function CartValue({ items, totalCents }: { items: number; totalCents: number }) {
+  const { t, money } = useI18n();
+  const key = items === 0 ? "empty" : `${String(items)}·${String(totalCents)}`;
+  const [shown, setShown] = useState<Shown>({ key, items, totalCents });
   const [leaving, setLeaving] = useState<Shown | null>(null);
   // The value changed: the old one lifts away while the new one rises in (the mockup's roll).
   if (shown.key !== key) {
     setLeaving(prefersReducedMotion() ? null : shown);
-    setShown({ key, items, total });
+    setShown({ key, items, totalCents });
   }
   useEffect(() => {
     if (!leaving) return;
@@ -168,11 +174,11 @@ function CartValue({ items, total }: { items: number; total: string }) {
   }, [leaving]);
   const content = (value: Shown) =>
     value.items === 0 ? (
-      "empty"
+      t("cart.empty")
     ) : (
       <>
         <b>{value.items}</b>
-        <span className="wide"> · {value.total}</span>
+        <span className="wide"> · {money(value.totalCents)}</span>
       </>
     );
   return (
@@ -191,10 +197,11 @@ function CartValue({ items, total }: { items: number; total: string }) {
 
 /** The cart in the shell's ledger: a button that opens the cart drawer. */
 function CartCell({ lines, open }: { lines: readonly CartLine[]; open: boolean }) {
+  const { t, money } = useI18n();
   const items = lines.reduce((sum, line) => sum + line.qty, 0);
-  const total = formatPrice(lines.reduce((sum, line) => sum + line.qty * line.price_cents, 0));
+  const totalCents = lines.reduce((sum, line) => sum + line.qty * line.price_cents, 0);
   const label =
-    items === 0 ? "Cart, empty" : `Cart, ${String(items)} item${items === 1 ? "" : "s"}, ${total}`;
+    items === 0 ? t("cart.cellEmpty") : t("cart.cell", { count: items, total: money(totalCents) });
   return (
     <button
       type="button"
@@ -211,22 +218,25 @@ function CartCell({ lines, open }: { lines: readonly CartLine[]; open: boolean }
       <span className="ico">
         <Icon size={16} d={CART} />
       </span>
-      <span className="lbl">Cart</span>
-      <CartValue items={items} total={total} />
+      <span className="lbl">{t("cart.label")}</span>
+      <CartValue items={items} totalCents={totalCents} />
     </button>
   );
 }
 
 /* ——— toasts ——— */
 
+/** A toast says a shell notice (already worded) or a page action's answer (worded at render, so
+ *  it follows a language switch like everything else). */
 interface Toast {
   id: number;
-  text: string;
+  text: string | Message;
 }
 
 let nextToastId = 0;
 
 function ToastPill({ toast, onGone }: { toast: Toast; onGone: (id: number) => void }) {
+  const { t } = useI18n();
   const [leaving, setLeaving] = useState(false);
   useEffect(() => {
     const out = setTimeout(() => {
@@ -243,7 +253,9 @@ function ToastPill({ toast, onGone }: { toast: Toast; onGone: (id: number) => vo
   return (
     <div className={leaving ? "toast out" : "toast"}>
       <Shard size={15} />
-      <span>{toast.text}</span>
+      <span>
+        {typeof toast.text === "string" ? toast.text : t(toast.text.key, toast.text.params)}
+      </span>
     </div>
   );
 }
@@ -251,18 +263,23 @@ function ToastPill({ toast, onGone }: { toast: Toast; onGone: (id: number) => vo
 /** What adding to cart says: the server's answer, or why it could not be asked. */
 async function sendAction(
   action: ActionPayload,
-): Promise<{ cart?: CartLine[]; message: string; added: boolean }> {
+): Promise<{ cart?: CartLine[]; message: Message; added: boolean }> {
   try {
     const result = await dispatchAction(action);
-    if (result.error) return { cart: result.cart, message: result.error.message, added: false };
+    if (result.error) {
+      console.warn(`${action.name}: ${result.error.message}`);
+      return { cart: result.cart, message: actionErrorMessage(result.error), added: false };
+    }
     const line = result.cart.find((item) => item.productId === action.context.productId);
     return {
       cart: result.cart,
-      message: line ? `${line.name} added to your cart` : "Added to your cart",
+      message: line
+        ? { key: "cart.added", params: { name: line.name } }
+        : { key: "cart.addedNoName" },
       added: true,
     };
   } catch {
-    return { message: "Couldn't add to cart. Try again.", added: false };
+    return { message: { key: "cart.addFailed" }, added: false };
   }
 }
 
@@ -291,39 +308,49 @@ export class PageBoundary extends Component<
 
   override render() {
     if (!this.state.failed) return this.props.children;
-    return (
-      <p className="page-error" role="alert">
-        {"Couldn't show this page."}
-      </p>
-    );
+    return <PageError />;
   }
+}
+
+function PageError() {
+  const { t } = useI18n();
+  return (
+    <p className="page-error" role="alert">
+      {t("page.error")}
+    </p>
+  );
 }
 
 /* ——— the state field in the command bar ——— */
 
 function StateText({ status }: { status: Status }) {
+  const { t } = useI18n();
   switch (status.kind) {
     case "building":
-      return <b>Building comparison…</b>;
+      return <b>{t("run.building")}</b>;
     case "updating":
-      return <b>Updating this page…</b>;
-    case "done":
+      return <b>{t("run.updating")}</b>;
+    case "done": {
+      const { lead, detail } = status.state;
       return (
         <>
-          <b>{status.lead}</b> · {status.detail}
+          <b>{t(lead)}</b> ·{" "}
+          {t(detail.key, detail.count === undefined ? {} : { count: detail.count })}
         </>
       );
+    }
     case "error":
-      return <span className="err">{status.message}</span>;
+      return <span className="err">{t(status.message.key, status.message.params)}</span>;
   }
 }
 
 /* ——— the app ——— */
 
 export default function App() {
+  const { t, language } = useI18n();
   const { lines, open: cartOpen } = useCart();
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const notify = useCallback((text: string) => {
+  const notify = useCallback((text: string | Message) => {
     const id = (nextToastId += 1);
     setToasts((list) => [...list, { id, text }]);
   }, []);
@@ -459,7 +486,7 @@ export default function App() {
         else messages.push(event.value);
       });
     } catch {
-      end = { type: "RUN_ERROR", code: "unreachable", message: UNREACHABLE };
+      end = { type: "RUN_ERROR", code: "unreachable", message: "Couldn't reach the assistant." };
     }
     let rejected: unknown[] = [];
     let done = BUILT;
@@ -485,12 +512,13 @@ export default function App() {
     // the change (or the server's page) is in the model now: a page that failed to render tries again
     setAttempt((count) => count + 1);
     if (end.type === "RUN_ERROR") {
-      setStatus({ kind: "error", message: end.message });
+      console.warn(`run ${end.code}: ${end.message}`);
+      setStatus({ kind: "error", message: runErrorMessage(end.code) });
     } else if (rejected.length > 0) {
-      setStatus({ kind: "error", message: NOT_SHOWN });
+      setStatus({ kind: "error", message: { key: "page.notShown" } });
     } else {
       setShown(text);
-      setStatus({ kind: "done", ...done });
+      setStatus({ kind: "done", state: done });
     }
   }
 
@@ -517,10 +545,11 @@ export default function App() {
           <b className="store">{cartridge.storeName}</b>
           <span className="by">
             <Shard size={14} />
-            assistant by Obsidian
+            {t("shell.assistantBy")}
           </span>
         </div>
         <div className="ledger">
+          <LanguageMenu onNotice={notify} />
           <CartCell lines={lines} open={cartOpen} />
           <UserMenu onNotice={notify} />
         </div>
@@ -534,7 +563,7 @@ export default function App() {
             <div className="collapse-inner">
               <div className="tabband">
                 <div className="col tabbar">
-                  <div className="tabs" role="tablist" aria-label="Pages the assistant built">
+                  <div className="tabs" role="tablist" aria-label={t("shell.tabs")}>
                     {tabTitle !== null && (
                       <div className={tabSettled ? "tab active settled" : "tab active"}>
                         <button
@@ -568,7 +597,7 @@ export default function App() {
               <div className="collapse-inner">
                 <div className="col hero">
                   <h1>
-                    <span>Tell us what it’s for.</span> We’ll build you the shortlist.
+                    <span>{t("shell.heroLead")}</span> {t("shell.heroRest")}
                   </h1>
                   {/* the agent, waiting */}
                   <IdleGlobe active={tabTitle === null} input={input} seam={seamLine} />
@@ -585,8 +614,8 @@ export default function App() {
                   className="caret"
                   type="text"
                   value={command}
-                  placeholder={PROMPT}
-                  aria-label={PROMPT}
+                  placeholder={t("shell.prompt")}
+                  aria-label={t("shell.prompt")}
                   autoComplete="off"
                   maxLength={COMMAND_LIMIT}
                   disabled={running}
@@ -600,7 +629,7 @@ export default function App() {
                 <span
                   className={fresh ? "cap-state on" : "cap-state"}
                   role="status"
-                  aria-label="Assistant"
+                  aria-label={t("shell.assistant")}
                   aria-hidden={status && !fresh ? true : undefined}
                 >
                   {status && <StateText status={status} />}
@@ -608,7 +637,7 @@ export default function App() {
                 <button
                   className={ready ? "send ready" : "send"}
                   type="submit"
-                  aria-label="Send"
+                  aria-label={t("shell.send")}
                   disabled={running}
                 >
                   <Icon size={17} width={1.8} d={ARROW_UP} />
@@ -623,7 +652,7 @@ export default function App() {
           id="workspace"
           className={restored ? "workspace col restored" : "workspace col"}
           {...(tabTitle === null
-            ? { "aria-label": "AI workspace" }
+            ? { "aria-label": t("shell.workspace") }
             : { role: "tabpanel", "aria-labelledby": TAB_ID })}
         >
           {page && (
@@ -634,7 +663,7 @@ export default function App() {
         </section>
 
         {/* the one disclaimer, where a store keeps its small print */}
-        <footer className="col demo-note">{cartridge.disclaimer.shell}</footer>
+        <footer className="col demo-note">{cartridge.disclaimer[language].shell}</footer>
       </main>
 
       <CartDrawer onNotice={notify} />

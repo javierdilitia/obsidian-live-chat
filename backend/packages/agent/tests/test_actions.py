@@ -24,6 +24,7 @@ ON_THE_PAGE = (
     "kore-zephyr-14",
     "kore-forge-17",
     "lumen-slate-16",
+    "lumen-slate-15",
     "ghost-laptop-99",
 )
 
@@ -85,7 +86,12 @@ class _Shop:
         )
         asyncio.run(
             self.store.save_tab(
-                tab.id, card={}, snapshot=_page(surface_id), product_facts={}, run_id="r"
+                tab.id,
+                card={},
+                snapshot=_page(surface_id),
+                product_facts={},
+                run_id="r",
+                language="en",
             )
         )
         return surface_id
@@ -443,6 +449,29 @@ def test_add_out_of_stock() -> None:
     assert results[-1]["cart"] == [
         {"productId": "lumen-slate-16", "name": "Lumen Slate 16", "qty": 3, "price_cents": 179900}
     ]
+
+
+def test_out_of_stock_says_why() -> None:
+    shop = _Shop()
+
+    # Lumen Slate 15 has one in stock: the second add finds it in the cart already.
+    assert shop.add("lumen-slate-15")["ok"]
+    all_in_cart = shop.add("lumen-slate-15")
+    sold_out = shop.add("kore-forge-17")
+    only = shop.act("cart.set_qty", productId="lumen-slate-16", qty=5)
+
+    assert all_in_cart["error"] == {
+        "code": "out_of_stock",
+        "message": all_in_cart["error"]["message"],
+        "params": {"reason": "all_in_cart", "name": "Lumen Slate 15", "count": 1},
+    }
+    assert all_in_cart["error"]["message"]
+    assert sold_out["error"]["params"] == {
+        "reason": "sold_out",
+        "name": "Kore Forge 17",
+        "count": 0,
+    }
+    assert only["error"]["params"] == {"reason": "only", "name": "Lumen Slate 16", "count": 3}
 
 
 def test_set_qty_checks_stock() -> None:

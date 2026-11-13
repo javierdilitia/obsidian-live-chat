@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { z } from "zod";
 import shopJson from "../../../backend/packages/agent/src/obsidian_agent/catalog/shop.json";
+import { englishLeft } from "../i18n/test-helpers";
 import { dispatchAction } from "../lib/actions";
 import { cart } from "../lib/cart";
 import { RETRY_BASE_MS, resetProductCache } from "../lib/products";
@@ -199,4 +200,19 @@ test("ProductRender without a renderer shows an empty plate", () => {
   } finally {
     noRenderer.on = false;
   }
+});
+
+test("renders the page's fixed strings in Spanish", async () => {
+  mockApi();
+  await showSurface(build, undefined, "es");
+
+  const shelf = await screen.findByRole("list", { name: "Productos" });
+  await within(shelf).findByText(/^1\.899\s€$/);
+  expect(within(shelf).getByText("Nuestra elección")).toBeInTheDocument();
+  expect(within(shelf).getAllByText(/^(En stock|Solo quedan? \d+)$/).length).toBeGreaterThan(0);
+  expect(within(shelf).getAllByText("Añadir a la cesta").length).toBeGreaterThan(0);
+  const table = screen.getByRole("table", { name: "Especificaciones" });
+  expect(within(table).getByRole("row", { name: /Frecuencia de refresco/ })).toBeInTheDocument();
+  expect(screen.getByText("demo conceptual")).toBeInTheDocument();
+  expect(englishLeft(document.body)).toEqual([]);
 });

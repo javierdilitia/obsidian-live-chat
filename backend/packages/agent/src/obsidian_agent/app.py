@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from obsidian_agent.actions import ACTIONS, check_source
 from obsidian_agent.cartridges import cartridge_setting, load_cartridge
+from obsidian_agent.language import is_language
 from obsidian_agent.model import AzureModel, ModelClient, ModelFailed, UsageMeter
 from obsidian_agent.page_agent import build_page, lookup_products, page_tools
 from obsidian_agent.session import (
@@ -314,6 +315,9 @@ def create_app(
             yield {"type": "CUSTOM", "name": "tab_opened", "value": value}
         state.tab_id = tab.id
         current = tab.snapshot
+        # A tab keeps its language: an edit writes in it. A page not yet built takes the language
+        # the shopper reads as the run starts, and saving stamps the tab with it.
+        language = user.language if current is None else tab.language
         failed = ("build_failed", "Couldn't build this page.")
         if current is not None:
             failed = ("edit_failed", "Couldn't change this page.")
@@ -326,6 +330,7 @@ def create_app(
                     surface_id=tab.surface_id,
                     command=command,
                     current=current,
+                    language=language,
                 )
         except ModelFailed as error:
             log.warning("run %s: unusable model response: %s", run_id, error)
@@ -356,7 +361,12 @@ def create_app(
             for product_id, product in result.products.items()
         }
         await the_store.save_tab(
-            tab.id, card=card, snapshot=result.snapshot, product_facts=facts, run_id=run_id
+            tab.id,
+            card=card,
+            snapshot=result.snapshot,
+            product_facts=facts,
+            run_id=run_id,
+            language=language,
         )
         log.info("run %s: saved a page of %d bytes", run_id, page_size_bytes(result.snapshot))
         state.outcome = "ok"
@@ -439,7 +449,7 @@ def create_app(
         if stored is not None:
             if stored.user_id != user.id:
                 return await action_error(user.id, "invalid", "That request ID is not yours.")
-            set_session(response, stored.result)
+            set_session(response, name, stored.result)
             return stored.result
         problem = check_source(
             spec,
@@ -454,11 +464,13 @@ def create_app(
         await the_store.save_action_result(
             ActionRecord(request_id=request_id, user_id=user.id, result=result, at=now)
         )
-        set_session(response, result)
+        set_session(response, name, result)
         return result
 
-    def set_session(response: Response, result: dict[str, Any]) -> None:
+    def set_session(response: Response, name: str, result: dict[str, Any]) -> None:
         """A successful `session.switch_user` answer signs the browser in as its user."""
+        if name != "session.switch_user":
+            return
         switched = result.get("user")
         if result.get("ok") and isinstance(switched, dict):
             user_id = cast(dict[str, Any], switched).get("id")
@@ -472,6 +484,8 @@ def create_app(
         the_store = await ready()
         if name == "session.switch_user":
             return await switch_user(user, context.get("userId"))
+        if name == "prefs.set_language":
+            return await set_language(user, context.get("language"))
         product_id = context.get("productId")
         if not isinstance(product_id, str) or not product_id:
             return await action_error(user.id, "invalid", f"{name} needs a productId.")
@@ -499,6 +513,17 @@ def create_app(
             return await action_error(user.id, "not_found", "That shopper doesn't exist.")
         return {"ok": True, "user": _user_json(chosen), "cart": await cart_lines(chosen.id)}
 
+    async def set_language(user: User, language: object) -> dict[str, Any]:
+        """Stores the shopper's language; the cookie stays as it is."""
+        the_store = await ready()
+        if not is_language(language):
+            message = "prefs.set_language needs a language: en or es."
+            return await action_error(user.id, "invalid", message)
+        updated = await the_store.set_user_language(user.id, language)
+        if updated is None:
+            return await action_error(user.id, "not_found", "That shopper doesn't exist.")
+        return {"ok": True, "user": _user_json(updated), "cart": await cart_lines(user.id)}
+
     async def change_cart(user_id: str, product_id: str, qty: int | None) -> dict[str, Any]:
         """Adds one (`qty` None) or sets `qty`, if the shelf has that many; else the cart is kept.
         The stock check and the write are one atomic store call."""
@@ -513,19 +538,25 @@ def create_app(
             change = await the_store.set_cart_qty(user_id, product_id, qty, stock=product.stock)
         if not change.ok:
             message = f"{product.name} is out of stock."
+            params: dict[str, Any] = {"reason": "sold_out", "name": product.name, "count": 0}
             if change.qty:
                 message = f"No more {product.name} in stock: all {change.qty} are in your cart."
+                params = {"reason": "all_in_cart", "name": product.name, "count": change.qty}
             if qty is not None and product.stock:
                 message = f"Only {product.stock} {product.name} in stock."
-            return await action_error(user_id, "out_of_stock", message)
+                params = {"reason": "only", "name": product.name, "count": product.stock}
+            return await action_error(user_id, "out_of_stock", message, params)
         return {"ok": True, "cart": await cart_lines(user_id)}
 
-    async def action_error(user_id: str, code: str, message: str) -> dict[str, Any]:
-        return {
-            "ok": False,
-            "cart": await cart_lines(user_id),
-            "error": {"code": code, "message": message},
-        }
+    async def action_error(
+        user_id: str, code: str, message: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """A refusal: the code and its `params` are for the web to word; the English `message`
+        is for logs and the console."""
+        error: dict[str, Any] = {"code": code, "message": message}
+        if params is not None:
+            error["params"] = params
+        return {"ok": False, "cart": await cart_lines(user_id), "error": error}
 
     async def cart_lines(user_id: str) -> list[dict[str, Any]]:
         """The cart at today's prices. A product that no longer exists leaves the stored cart."""

@@ -6,6 +6,7 @@
    it (`cart.open()`, spec §7.6's local `openCart`) without props. */
 import { useSyncExternalStore } from "react";
 import { prefersReducedMotion } from "../a2ui/motion";
+import { actionErrorMessage, type Message } from "../i18n/i18n";
 import { dispatchAction, type CartLine } from "./actions";
 
 export interface CartState {
@@ -58,20 +59,23 @@ export function resetCart(): void {
 /** Where the drawer's own actions come from: the shell, not a page. The server accepts
  *  `cart.set_qty` and `cart.remove` only from here (the action registry's `shell:cart-drawer`). */
 const SHELL = { surfaceId: "shell", sourceComponentId: "cart-drawer" };
-const FAILED = "Couldn't change your cart. Try again.";
+const FAILED: Message = { key: "cart.changeFailed" };
 
 /**
  * `cart.set_qty{productId, qty}` (0 removes) or `cart.remove{productId}`: takes the server's cart
- * as the new one. Resolves to the reason it was refused, or null when it worked.
+ * as the new one. Resolves to why it was refused, to be worded in the shopper's language, or null
+ * when it worked.
  */
 export async function changeCart(
   name: "cart.set_qty" | "cart.remove",
   context: { productId: string; qty?: number },
-): Promise<string | null> {
+): Promise<Message | null> {
   try {
     const result = await dispatchAction({ name, ...SHELL, context });
     update({ lines: result.cart });
-    return result.error?.message ?? null;
+    if (!result.error) return null;
+    console.warn(`${name}: ${result.error.message}`);
+    return actionErrorMessage(result.error);
   } catch {
     return FAILED;
   }

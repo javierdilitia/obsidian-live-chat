@@ -2,7 +2,9 @@
    glossary, product renders). Core never imports a cartridge folder; this module finds them with
    `import.meta.glob`, so adding a client means adding `web/src/cartridges/<id>/`, never editing
    core. `VITE_OBSIDIAN_CARTRIDGE` picks one when several are installed. A cartridge's ID equals
-   its folder name and the backend's `OBSIDIAN_CARTRIDGE`. */
+   its folder name and the backend's `OBSIDIAN_CARTRIDGE`. A cartridge's text (the glossary, the
+   disclaimer) comes in every language the shell speaks. */
+import type { Language } from "./i18n/i18n";
 import type { Look } from "./lib/products";
 
 export interface SpecInfo {
@@ -23,9 +25,11 @@ export interface CartridgeUI {
   id: string;
   /** The wordmark and the document title. */
   storeName: string;
-  disclaimer: { shell: string; footer: readonly string[] };
-  /** The spec glossary: a label per spec key, and which way is better. */
-  specs: Readonly<Record<string, SpecInfo>>;
+  disclaimer: Record<Language, { shell: string; footer: readonly string[] }>;
+  /** The spec glossary: a label per spec key, in each language. */
+  specs: Record<Language, Readonly<Record<string, { label: string }>>>;
+  /** Which way is better, for numeric specs (not language: it lives beside the glossary). */
+  better: Readonly<Record<string, "higher" | "lower">>;
   /** Draws product renders; without one, a render is an empty plate. */
   renderer?: ProductRenderer;
 }
@@ -69,11 +73,13 @@ export const cartridge: CartridgeUI = pickCartridge(
   import.meta.env.VITE_OBSIDIAN_CARTRIDGE,
 );
 
-/** The glossary entry for a spec key; a key the glossary lacks gets a readable label. */
-export function specInfo(key: string): SpecInfo {
-  return (
-    cartridge.specs[key] ?? {
-      label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " "),
-    }
-  );
+/** The glossary entry for a spec key in `language`: its label there, else the English one, else
+ *  a readable form of the key; and which way is better, when the cartridge says. */
+export function specInfo(key: string, language: Language): SpecInfo {
+  const label =
+    cartridge.specs[language][key]?.label ??
+    cartridge.specs.en[key]?.label ??
+    key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
+  const better = cartridge.better[key];
+  return better ? { label, better } : { label };
 }

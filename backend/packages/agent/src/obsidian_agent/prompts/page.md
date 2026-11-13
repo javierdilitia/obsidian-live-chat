@@ -32,7 +32,14 @@ page, or that changes the page the shopper already has.
 - A good comparison: a `Verdict` naming the pick with one primary `AddToCartButton` for it, a
   `ProductShelf` of two to four products with a tag each, a `SpecTable`, and a `ChartGrid` of one
   or two `BarChart`s on the specs that matter for the shopper's need.
-- Write short, plain English. Stay inside every text limit in the signatures.
+- Stay inside every text limit in the signatures.
+
+## Language
+
+- Write all text (titles, kickers, verdicts, tags, chart titles, notes), short and plain, in
+  the language the request names.
+- Spanish is Spain's Spanish: address the shopper as *tú*, and use Spain's number style in
+  prose. Never write a price: prices come from the catalog.
 
 ## Change a page
 

@@ -63,7 +63,7 @@ pnpm --dir web dev
 
 Open <http://localhost:5173/?probe>. `?probe` adds a small panel in the bottom-left corner that counts how many times each part of the page has mounted, so you can see that an edit mounts only the new section (the old ones stay at 1). Leave it off for a clean page.
 
-Try, in order: "Compare 3 laptops for video editing under €2,000", then "Add colour accuracy for grading", then "Only OLED", then "Add to cart" on the pick. A reload brings back the page and the cart as they were. The user menu (the last cell of the shell bar) switches between the three seeded shoppers, Javier, Ana and Sam; each has their own tab and cart.
+Try, in order: "Compare 3 laptops for video editing under €2,000", then "Add colour accuracy for grading", then "Only OLED", then "Add to cart" on the pick. A reload brings back the page and the cart as they were. The user menu (the last cell of the shell bar) switches between the three seeded shoppers, Javier, Ana and Sam; each has their own tab and cart. The language menu (the first cell, `EN · €`) switches the shop between English and Spanish at once, without a reload; Ana starts in Spanish. A page keeps the language it was written in, edits included; a new page is written in the language you picked.
 
 **What survives a restart.** With a database, everything: each shopper's tab, its page and their cart. Postgres runs in Docker:
 

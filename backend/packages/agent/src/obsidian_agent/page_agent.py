@@ -26,6 +26,7 @@ from obsidian_agent.a2ui_adapter import (
     decompile,
     prompt_snippet,
 )
+from obsidian_agent.language import LANGUAGES
 from obsidian_agent.model import ModelClient, ModelResult, ToolCall
 from obsidian_agent.validate import (
     issues_for_model,
@@ -153,15 +154,19 @@ async def build_page(
     surface_id: str,
     command: str,
     current: Snapshot | None,
+    language: str,
 ) -> BuildResult:
     """Builds the page for `command`, or edits `current` when there is one.
 
     `tools` is `page_tools(...)`, built once per app so every call offers the same tools.
+    `language` is the one the page is written in: the shopper's for a new page, the tab's own for
+    an edit (a tab keeps its language; an edit never translates the page).
 
     Raises whatever the model client raises (`ModelFailed`, network errors): the caller reports
     those as a run error.
     """
-    history: list[dict[str, Any]] = [{"role": "user", "content": _request(command, current)}]
+    request = _request(command, current, language=language)
+    history: list[dict[str, Any]] = [{"role": "user", "content": request}]
     tool_rounds = MAX_TOOL_ROUNDS
     feedback = ""
     for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -170,7 +175,10 @@ async def build_page(
         reply, tool_rounds = await _reply(model, source, tools, history, tool_rounds)
         try:
             messages, snapshot, products = await _accept(
-                reply, source, surface_id=surface_id, current=current
+                reply,
+                source,
+                surface_id=surface_id,
+                current=current,
             )
         except _Rejected as rejected:
             feedback = rejected.feedback
@@ -180,11 +188,13 @@ async def build_page(
     return BuildResult(False, [], current, MAX_ATTEMPTS, feedback)
 
 
-def _request(command: str, current: Snapshot | None) -> str:
+def _request(command: str, current: Snapshot | None, *, language: str) -> str:
+    write_in = f"Write every text on the page in {LANGUAGES[language]}."
     if current is None:
-        return f"Build a page for this command:\n{command}"
+        return f"Build a page for this command:\n{command}\n\n{write_in}"
     return (
         f"This is the current page:\n{decompile(current)}\n\nChange it for this command:\n{command}"
+        f"\n\n{write_in}"
     )
 
 
@@ -235,7 +245,11 @@ async def _reply(
 
 
 async def _accept(
-    reply: ModelResult, source: CatalogSource, *, surface_id: str, current: Snapshot | None
+    reply: ModelResult,
+    source: CatalogSource,
+    *,
+    surface_id: str,
+    current: Snapshot | None,
 ) -> tuple[list[Message], Snapshot, dict[str, Product]]:
     """The reply's messages, the page after them and its products, or `_Rejected` with what to
     fix."""

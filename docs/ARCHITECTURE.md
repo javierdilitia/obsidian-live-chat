@@ -108,14 +108,13 @@ The rest of the backend imports only `obsidian_data_contract`. Nothing else know
 **How a cartridge plugs in.** Core never imports a cartridge; it finds one by name, on each side.
 
 - **Backend.** A cartridge package registers a `Cartridge` (from `obsidian_data_contract`: `id`, `name`, `make_source`) under the `obsidian.cartridges` entry point; Halden's is `halden = "halden_data_fake.cartridge:CARTRIDGE"`. At start, `obsidian_agent.cartridges.load_cartridge` imports only the chosen entry point: the one `OBSIDIAN_CARTRIDGE` names, or the only one installed. A missing or unknown choice, or a cartridge that fails to import, stops the start with a message naming the installed IDs; a broken cartridge never blocks another one. `GET /health` reports the cartridge's ID. The page agent's search tool lists the cartridge's categories, read from its data on the first run.
-- **Web.** A cartridge is a folder `web/src/cartridges/<id>/` whose `index.ts` exports a `CartridgeUI`: the store name (wordmark and document title), the disclaimer, the spec glossary (`specs.en.json`: label and which way is better) and, optionally, a product renderer. `web/src/cartridge.ts` finds the folders with `import.meta.glob` and picks one by `VITE_OBSIDIAN_CARTRIDGE` (optional while only one exists), with the same errors as the backend. A cartridge without renders shows empty plates.
+- **Web.** A cartridge is a folder `web/src/cartridges/<id>/` whose `index.ts` exports a `CartridgeUI`: the store name (wordmark and document title), the disclaimer in each language, the spec glossary in each language (`specs.en.json`, `specs.es.json`: a label per spec key), which way is better for numeric specs (`better`, in `index.ts`: not language) and, optionally, a product renderer. `web/src/cartridge.ts` finds the folders with `import.meta.glob` and picks one by `VITE_OBSIDIAN_CARTRIDGE` (optional while only one exists), with the same errors as the backend. A cartridge without renders shows empty plates.
 - **One ID.** The cartridge's ID is its entry-point name, its web folder name and the value of both settings.
-- **Guard tests.** `backend/packages/agent/tests/test_cartridges.py`: no module in `obsidian_agent` or `obsidian_data_contract` imports a cartridge package, and `obsidian-agent` does not depend on one. `test_prompt.py`: the page prompt, the catalog's descriptions and the tool descriptions name no Halden product, category or spec key. `web/src/boundary.test.ts`: no core web file imports from `cartridges/` or names the cartridge's store or disclaimer.
+- **Guard tests.** `backend/packages/agent/tests/test_cartridges.py`: no module in `obsidian_agent` or `obsidian_data_contract` imports a cartridge package, and `obsidian-agent` does not depend on one. `test_prompt.py`: the page prompt, the catalog's descriptions and the tool descriptions name no Halden product, category or spec key. `web/src/boundary.test.ts`: no core web file imports from `cartridges/` or names the cartridge's store or disclaimer, in either language.
 
 **Known seams left.**
 
-- In the contract: `RenderLook` (glyph, finish, screen: Halden's drawing vocabulary) and `currency: Literal["EUR"]`. Both wait for the Haier intake (milestone H, intake question G).
-- The fixed strings of the shell and the catalog components are English only; slice 3 adds the language bundles.
+- In the contract: `RenderLook` (glyph, finish, screen: Halden's drawing vocabulary) and `currency: Literal["EUR"]` (the language cell's `· €`, in core `LanguageMenu.tsx`, follows it). Both wait for the Haier intake (milestone H, intake question G).
 
 ```
 backend/packages/
@@ -130,6 +129,16 @@ backend/packages/
 - Models are frozen and reject unknown fields. Search matches every word of the text and is deterministic: rating descending by default, or price ascending/descending, ties by id.
 - `obsidian_data_contract.contract_tests.CatalogSourceContract` is a reusable pytest suite. The fake runs it in CI. The teammate's adapter will run the same suite, which is how we know it's a drop-in replacement.
 - The contract is v0. It gets reviewed with the data-agent teammate during sub-project 1, before anything beyond the fake depends on it.
+
+## Language
+
+The shopper reads English or Spanish (Spain's Spanish, *tú*; the cart is the *cesta*). Slice 3 built it.
+
+- **Core copy in one place.** Every fixed string of the shell and of the catalog components lives in `web/src/i18n/en.json` and `es.json`: flat, one key per message, a plural message as a `.one`/`.other` pair (`Intl.PluralRules` picks the form; Spanish's `many` falls back to `other`), `{name}` placeholders. `i18n.test.ts` fails when a key, a placeholder or a plural form is in one bundle and not the other. A cartridge's own text (its glossary and disclaimer) lives in its folder, in both languages; a test checks every installed cartridge has both.
+- **Formats.** `Intl` per language: English reads as `en-IE`, Spanish as `es-ES`. Money is whole euros without decimals, cents with two, grouping always on (`€1,899` / `1.899 €`, `€18.50` / `18,50 €`); counts and ratings likewise (`1.240`, `4,5`); dates `12 Nov` / `12 nov`.
+- **One provider.** `I18nProvider` holds the language; every component reads `t`, `money`, `count`, `rating` and `date` through `useI18n()`. A switch re-renders in place: nothing mounts again. `main.tsx` reads the session's language before the first render, so a Spanish shopper never sees English first; `<html lang>` follows it.
+- **The server sends codes, the web words them.** A run error is `RUN_ERROR {code, message}` and an action refusal `error {code, message, params?}`; `message` is English, for logs and the console. The web shows the bundle's line for the code (`out_of_stock` says why from `params.reason`: sold out, all in your cart, only N), and a generic line for a code it has no words for, never a key and never the server's English.
+- **The language on users and tabs.** `users.language` is the shopper's, set by `prefs.set_language` (a direct action from `shell:language-menu`; the cookie stays), and seeding never resets it. A tab keeps the language it was written in, for good: a new page is written in the shopper's language as the run starts, and an edit in the tab's own language. The language goes in the run's input, never in the system prompt (prompt caching). Saving the run stamps the tab; a failed run changes nothing. A switch makes no model call and touches no tab, so an English page shows Spanish buttons, stock lines and prices around its English prose: fixed strings follow the shopper, prose follows the tab. Translating a page is a later, on-purpose feature ([#30](https://github.com/javierdilitia/obsidian-live-chat/issues/30)).
 
 ## The store and the session
 
