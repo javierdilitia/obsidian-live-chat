@@ -277,7 +277,16 @@ def test_a_tab_language_obsidian_does_not_speak_edits_in_english() -> None:
     client = _as(TestClient(_app(store, model=model)), "demo-user")
     assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
     tab = _tab(store, "demo-user")
-    store._tabs[tab.id] = tab.model_copy(update={"language": "fr"})
+    assert tab.snapshot is not None
+    stamp = store.save_tab(
+        tab.id,
+        card=tab.card,
+        snapshot=tab.snapshot,
+        product_facts=tab.product_facts,
+        run_id="another-writer",
+        language="fr",
+    )
+    asyncio.run(stamp)
 
     assert '"RUN_FINISHED"' in _run(client, "Add colour accuracy")
 
