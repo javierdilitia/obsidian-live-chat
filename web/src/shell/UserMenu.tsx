@@ -8,6 +8,7 @@
    refusal goes to `onNotice` and the menu stays, unchanged. */
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
+import type { Message } from "../i18n/i18n";
 import { browser, readSession, readUsers, switchUser, type User } from "../lib/session";
 import { LedgerMenu } from "./LedgerMenu";
 
@@ -31,7 +32,7 @@ function Chevron() {
   );
 }
 
-export function UserMenu({ onNotice }: { onNotice: (text: string) => void }) {
+export function UserMenu({ onNotice }: { onNotice: (message: Message) => void }) {
   const { t, language } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -71,7 +72,7 @@ export function UserMenu({ onNotice }: { onNotice: (text: string) => void }) {
       return false;
     }
     setSwitching(null);
-    onNotice(t("user.failed"));
+    onNotice({ key: "user.failed" });
     return false;
   }
 

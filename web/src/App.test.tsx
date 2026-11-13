@@ -728,6 +728,32 @@ test("a failed switch shows the error and keeps the menu", async () => {
   expect(reload).not.toHaveBeenCalled();
 });
 
+test("a failed switch's error follows a language switch (#28)", async () => {
+  const switchError = { code: "invalid", message: "Couldn't switch shopper." };
+  mockApi(undefined, { switchError });
+  stubReload();
+  render(
+    <I18nProvider language="en">
+      <App />
+    </I18nProvider>,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Shopper: Javier" }));
+  const users = await screen.findByRole("menu", { name: "Switch shopper" });
+  fireEvent.click(within(users).getByRole("menuitemradio", { name: /Sam/ }));
+  expect(await screen.findByText("Couldn't switch shopper. Try again.")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
+  const languages = screen.getByRole("menu", { name: "Language" });
+  await act(async () => {
+    fireEvent.click(within(languages).getByRole("menuitemradio", { name: "Español" }));
+    await Promise.resolve();
+  });
+
+  expect(
+    await screen.findByText("No se ha podido cambiar de cliente. Inténtalo de nuevo."),
+  ).toBeInTheDocument();
+});
+
 /* ——— Spanish ——— */
 
 function renderIn(language: "en" | "es") {

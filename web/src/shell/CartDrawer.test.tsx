@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { LAPTOPS, mockApi } from "../a2ui/test-helpers";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { translate, type Message } from "../i18n/i18n";
 import { englishLeft } from "../i18n/test-helpers";
 import type { CartLine } from "../lib/actions";
 import { cart } from "../lib/cart";
@@ -27,7 +28,7 @@ beforeEach(() => {
   resetProductCache();
 });
 
-async function openDrawer(lines: CartLine[], notices: string[] = []) {
+async function openDrawer(lines: CartLine[], notices: Message[] = []) {
   const fetchMock = mockApi(LAPTOPS, {
     cart: Object.fromEntries(lines.map((line) => [line.productId, line.qty])),
   });
@@ -137,8 +138,10 @@ test("remove sends cart.remove", async () => {
   ]);
 });
 
+/* The refusal goes out as a message, worded where it shows: a language switch while the step is
+   out must not leave it in the old language (#28). */
 test("a refused step says why", async () => {
-  const notices: string[] = [];
+  const notices: Message[] = [];
   const { fetchMock, drawer } = await openDrawer([aeris], notices);
   fetchMock.mockImplementationOnce(() =>
     Promise.resolve(
@@ -158,7 +161,9 @@ test("a refused step says why", async () => {
   fireEvent.click(within(drawer).getByRole("button", { name: "One more Aeris Studio 16" }));
 
   await waitFor(() => {
-    expect(notices).toEqual(["Only 1 Aeris Studio 16 in stock."]);
+    expect(notices.map((m) => translate("en", m.key, m.params))).toEqual([
+      "Only 1 Aeris Studio 16 in stock.",
+    ]);
   });
   expect(within(drawer).getByText("Quantity").parentElement).toHaveTextContent("Quantity 1");
 });
