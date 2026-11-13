@@ -69,6 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - A hung server no longer leaves a blank page at start: the first render waits up to a second for the shopper's language, then guesses the one this browser showed last and switches when the session answers (#27).
 - The cart drawer's and the shopper switch's failure toasts are worded where they show, so a language switch re-words them (#28).
+- A page that loads before the agent is up (the dev server, or the agent restarting) gets its shopper menu, saved page and language once the agent answers: these reads try again for about 20 s. `scripts/dev.py` starts the web only once the agent answers `/health`.
 - A stored language Obsidian doesn't speak no longer fails a run as "model unavailable": the run writes in English and logs it (#29).
 
 ## [0.1.0] – 2026-11-10

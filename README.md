@@ -35,7 +35,7 @@ uv run --project backend pre-commit install --install-hooks -t pre-commit -t com
 # 4. Run every check (the same ones CI runs)
 python scripts/check.py all
 
-# 5. Run the apps: both at once (Ctrl+C stops both)
+# 5. Run the apps: both at once (the web starts once the agent answers; Ctrl+C stops both)
 python scripts/dev.py
 
 #    or one per terminal
