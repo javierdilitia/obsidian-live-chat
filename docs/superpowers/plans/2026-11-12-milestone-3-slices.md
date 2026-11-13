@@ -81,7 +81,7 @@ Why this order:
 
 ## Slice 3 — Language: English and Spanish
 
-**Goal.** The shopper picks English or Spanish. Fixed strings switch at once; the agent writes new pages and edits in the chosen language; existing tabs keep theirs until edited.
+**Goal.** The shopper picks English or Spanish. Fixed strings switch at once; the agent writes new pages in the chosen language; a tab keeps the language it was written in, edits included (changed from "until edited" on 2026-11-14, to keep a switch free of model cost).
 
 **Spec sections.** §12 all of it; §7.1 "Fixed strings … come from our EN/ES bundle"; §8.2 `prefs.set_language`; `users.language` (§10.2); the cartridge's own strings in both languages (its spec glossary and disclaimer, §7.1).
 
@@ -90,7 +90,7 @@ Why this order:
 **Exit criteria.**
 - `web/src/i18n/en.json` and `es.json` hold every fixed string in core; each cartridge holds its glossary and disclaimer in both languages. A test fails when a key exists in one language and not the other.
 - The language menu switches the shell and every page's fixed strings without a reload; money and dates format with `Intl` per language (`1.899 €` in ES, `€1,899` in EN; the user's choice, 2026-11-12).
-- A run carries the language and the page prompt asks for prose in it; a tab's stored language changes only when it is edited (tests).
+- A run carries the language and the page prompt asks for prose in it; a new page takes the shopper's language and an edit keeps the tab's (tests).
 - The seeded shopper `ana` starts in Spanish.
 
 ## Slice 4 — The rest of the generated catalog

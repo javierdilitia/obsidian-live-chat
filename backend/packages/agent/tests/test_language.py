@@ -23,8 +23,6 @@ from obsidian_store import MemoryStore, TabRecord
 FIXTURES = Path(__file__).parent / "fixtures"
 BUILD = (FIXTURES / "build.a2ui").read_text(encoding="utf-8")
 EDIT = (FIXTURES / "edit_add_colour.a2ui").read_text(encoding="utf-8")
-# The build block as an edit: it defines every section again.
-REWRITE = BUILD.replace("<a2ui>\n", "<a2ui>\nsurface(update=true)\n", 1)
 KEY = b"test-session-key"
 
 
@@ -186,19 +184,6 @@ def test_switching_language_leaves_the_tab_alone() -> None:
     assert after.snapshot == before.snapshot
 
 
-def test_an_edit_takes_the_current_language() -> None:
-    store = MemoryStore()
-    model = ScriptedModel([_reply(BUILD), _reply(REWRITE)])
-    client = _as(TestClient(_app(store, model=model)), "demo-user")
-    assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
-    assert _set_language(client, "es")["ok"]
-
-    assert '"RUN_FINISHED"' in _run(client, "Añade la precisión de color")
-
-    assert _tab(store, "demo-user").language == "es"
-    assert "Define every section" in _inputs(model)[1]
-
-
 def test_a_failed_edit_keeps_the_tab_language() -> None:
     store = MemoryStore()
     client = _as(TestClient(_app(store, BUILD, "no block", "still no block")), "demo-user")
@@ -238,3 +223,31 @@ def test_a_timed_out_edit_keeps_the_tab_language(monkeypatch: pytest.MonkeyPatch
 
     tab = _tab(store, "demo-user")
     assert tab.language == "en" and tab.snapshot == built
+
+
+def test_an_edit_keeps_the_tab_language() -> None:
+    store = MemoryStore()
+    model = ScriptedModel([_reply(BUILD), _reply(EDIT)])
+    client = _as(TestClient(_app(store, model=model)), "demo-user")
+    assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
+    assert _set_language(client, "es")["ok"]
+
+    assert '"RUN_FINISHED"' in _run(client, "Añade la precisión de color")
+
+    assert _tab(store, "demo-user").language == "en"
+    edit_input = _inputs(model)[1]
+    assert "Write every text on the page in English." in edit_input
+    assert "Define every section" not in edit_input
+
+
+def test_a_page_not_yet_built_takes_the_current_language() -> None:
+    store = MemoryStore()
+    model = ScriptedModel([_reply("no block"), _reply("still no block"), _reply(BUILD)])
+    client = _as(TestClient(_app(store, model=model)), "demo-user")
+    assert '"build_failed"' in _run(client, "Compare laptops")
+    assert _set_language(client, "es")["ok"]
+
+    assert '"RUN_FINISHED"' in _run(client, "Compara portátiles")
+
+    assert _tab(store, "demo-user").language == "es"
+    assert "Write every text on the page in Spanish." in _inputs(model)[2]

@@ -48,7 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - `web/src/i18n/`: the EN and ES bundles (Spain's Spanish, *tú*, "cesta"), plurals, `Intl` money, counts, ratings and dates per language (`1.899 €` in Spanish), and the `I18nProvider`. Every fixed string of the shell and the catalog components comes from them; a test fails when the two bundles disagree.
   - Halden's glossary and disclaimer in Spanish (`specs.es.json`); which way is better moved to the cartridge's `index.ts`.
   - The store keeps each shopper's language (`users.language`; seeding no longer resets it) and stamps each saved tab with the language its run wrote in. `ana` starts in Spanish; the language is read before the first render.
-  - A run writes in the shopper's language; an edit to a page written in another language rewrites every section in the new one (one retry if the model leaves a section out). A switch makes no model call.
+  - A new page is written in the shopper's language; a tab keeps its language for good, so an edit writes in the tab's own. A switch makes no model call and translates nothing (a "Translate this page" button is [#30](https://github.com/javierdilitia/obsidian-live-chat/issues/30)).
   - The server sends codes and the web words them: run errors and action refusals show the bundle's line, in the shopper's language; `out_of_stock` says why (`error.params`: sold out, all in your cart, only N).
 - Guard tests for the cartridge boundary: core Python imports no cartridge and `obsidian-agent` depends on none; the page prompt, catalog and tool descriptions name no Halden data; no core web file imports a cartridge folder or names its store or disclaimer.
 

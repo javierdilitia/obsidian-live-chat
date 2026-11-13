@@ -114,7 +114,7 @@ The rest of the backend imports only `obsidian_data_contract`. Nothing else know
 
 **Known seams left.**
 
-- In the contract: `RenderLook` (glyph, finish, screen: Halden's drawing vocabulary) and `currency: Literal["EUR"]`. Both wait for the Haier intake (milestone H, intake question G).
+- In the contract: `RenderLook` (glyph, finish, screen: Halden's drawing vocabulary) and `currency: Literal["EUR"]` (the language cell's `· €`, in core `LanguageMenu.tsx`, follows it). Both wait for the Haier intake (milestone H, intake question G).
 
 ```
 backend/packages/
@@ -138,7 +138,7 @@ The shopper reads English or Spanish (Spain's Spanish, *tú*; the cart is the *c
 - **Formats.** `Intl` per language: English reads as `en-IE`, Spanish as `es-ES`. Money is whole euros without decimals, cents with two, grouping always on (`€1,899` / `1.899 €`, `€18.50` / `18,50 €`); counts and ratings likewise (`1.240`, `4,5`); dates `12 Nov` / `12 nov`.
 - **One provider.** `I18nProvider` holds the language; every component reads `t`, `money`, `count`, `rating` and `date` through `useI18n()`. A switch re-renders in place: nothing mounts again. `main.tsx` reads the session's language before the first render, so a Spanish shopper never sees English first; `<html lang>` follows it.
 - **The server sends codes, the web words them.** A run error is `RUN_ERROR {code, message}` and an action refusal `error {code, message, params?}`; `message` is English, for logs and the console. The web shows the bundle's line for the code (`out_of_stock` says why from `params.reason`: sold out, all in your cart, only N), and a generic line for a code it has no words for, never a key and never the server's English.
-- **The language on users and tabs.** `users.language` is the shopper's, set by `prefs.set_language` (a direct action from `shell:language-menu`; the cookie stays), and seeding never resets it. A run writes in the shopper's language as it starts: the language goes in the run's input, never in the system prompt (prompt caching). Saving the run stamps the tab with it; a failed run changes nothing. A switch makes no model call and touches no tab: a tab keeps its language until it is edited, and an edit into another language must define every section again (the page agent rejects, with one retry, a reply that leaves one out). Until then an English page shows Spanish buttons, stock lines and prices around its English prose: fixed strings follow the shopper, prose follows the tab.
+- **The language on users and tabs.** `users.language` is the shopper's, set by `prefs.set_language` (a direct action from `shell:language-menu`; the cookie stays), and seeding never resets it. A tab keeps the language it was written in, for good: a new page is written in the shopper's language as the run starts, and an edit in the tab's own language. The language goes in the run's input, never in the system prompt (prompt caching). Saving the run stamps the tab; a failed run changes nothing. A switch makes no model call and touches no tab, so an English page shows Spanish buttons, stock lines and prices around its English prose: fixed strings follow the shopper, prose follows the tab. Translating a page is a later, on-purpose feature ([#30](https://github.com/javierdilitia/obsidian-live-chat/issues/30)).
 
 ## The store and the session
 

@@ -44,5 +44,5 @@ def test_prompt_states_the_language_rules() -> None:
     assert "the language the request names" in PAGE_PROMPT
     assert "Spain" in PAGE_PROMPT
     assert "tú" in PAGE_PROMPT
-    assert "unless the request says the page's language changed" in PAGE_PROMPT
+    assert "language changed" not in PAGE_PROMPT
     assert "plain English" not in PAGE_PROMPT
