@@ -251,3 +251,35 @@ def test_a_page_not_yet_built_takes_the_current_language() -> None:
 
     assert _tab(store, "demo-user").language == "es"
     assert "Write every text on the page in Spanish." in _inputs(model)[2]
+
+
+# A stored language Obsidian doesn't speak (#29): only checked writes set it today, but a third
+# language or another writer could. The run writes in English instead of failing as "model
+# unavailable".
+
+
+def test_a_shopper_language_obsidian_does_not_speak_writes_in_english() -> None:
+    store = MemoryStore()
+    model = ScriptedModel([_reply(BUILD)])
+    client = _as(TestClient(_app(store, model=model)), "ana")
+    assert _language(client) == "es"  # the first request seeds the shoppers
+    asyncio.run(store.set_user_language("ana", "fr"))
+
+    assert '"RUN_FINISHED"' in _run(client, "Compara portátiles")
+
+    assert "Write every text on the page in English." in _inputs(model)[0]
+    assert _tab(store, "ana").language == "en"
+
+
+def test_a_tab_language_obsidian_does_not_speak_edits_in_english() -> None:
+    store = MemoryStore()
+    model = ScriptedModel([_reply(BUILD), _reply(EDIT)])
+    client = _as(TestClient(_app(store, model=model)), "demo-user")
+    assert '"RUN_FINISHED"' in _run(client, "Compare laptops")
+    tab = _tab(store, "demo-user")
+    store._tabs[tab.id] = tab.model_copy(update={"language": "fr"})
+
+    assert '"RUN_FINISHED"' in _run(client, "Add colour accuracy")
+
+    assert "Write every text on the page in English." in _inputs(model)[1]
+    assert _tab(store, "demo-user").language == "en"
