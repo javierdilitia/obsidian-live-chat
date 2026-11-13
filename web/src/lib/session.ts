@@ -4,6 +4,7 @@
    menu stores the shopper's language with `prefs.set_language`; the cookie stays. */
 import { z } from "zod";
 import { asLanguage, type Language } from "../i18n/i18n";
+import { rememberedLanguage } from "../i18n/remembered";
 import { UserSchema, dispatchAction, type ActionResult, type User } from "./actions";
 
 export type { User };
@@ -47,13 +48,31 @@ export function setLanguagePref(language: Language): Promise<ActionResult> {
   });
 }
 
-/** The session's language, read before the app first renders; English when it can't be read. */
-export async function bootLanguage(): Promise<Language> {
-  try {
-    return asLanguage((await readSession()).language);
-  } catch {
-    return "en";
-  }
+/** How long the first render waits for the session before it guesses. */
+export const BOOT_WAIT_MS = 1000;
+
+export interface BootLanguage {
+  /** The first render's language: the session's when it answers within the wait, else the one
+   *  this browser showed last (English on a first visit). */
+  language: Language;
+  /** The session's language whenever it answers, to switch to; null when it can't be read. */
+  later: Promise<Language | null>;
+}
+
+/** The language to render in first. A hung server no longer leaves a blank page, and a slow first
+ *  request no longer leaves a returning shopper in English (#27). */
+export async function bootLanguage(waitMs = BOOT_WAIT_MS): Promise<BootLanguage> {
+  const later = readSession().then(
+    (user) => asLanguage(user.language),
+    () => null,
+  );
+  const wait = new Promise<null>((resolve) => {
+    setTimeout(() => {
+      resolve(null);
+    }, waitMs);
+  });
+  const answered = await Promise.race([later, wait]);
+  return { language: answered ?? rememberedLanguage(), later };
 }
 
 /** Reloads the page (a seam, so tests can watch it: jsdom has no navigation). */

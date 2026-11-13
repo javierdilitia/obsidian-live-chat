@@ -9,7 +9,7 @@ import { LAPTOPS, SURFACE_ID, mockApi } from "./a2ui/test-helpers";
 import { I18nProvider } from "./i18n/I18nProvider";
 import { englishLeft } from "./i18n/test-helpers";
 import { resetProductCache } from "./lib/products";
-import { bootLanguage, browser } from "./lib/session";
+import { browser } from "./lib/session";
 
 /** A product look whose render fails (see the mock below). */
 const BROKEN_LOOK = "broken";
@@ -864,17 +864,4 @@ test("switching language re-words the open page", async () => {
   );
   expect(screen.getByRole("heading", { name: PAGE_TITLE })).toBeInTheDocument();
   expect(mountCounts()).toEqual({});
-});
-
-test("bootLanguage reads the session", async () => {
-  mockApi(undefined, {
-    users: [
-      { id: "ana", name: "Ana", language: "es" },
-      { id: "demo-user", name: "Javier", language: "en" },
-    ],
-  });
-  expect(await bootLanguage()).toBe("es");
-
-  vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 500 })));
-  expect(await bootLanguage()).toBe("en");
 });

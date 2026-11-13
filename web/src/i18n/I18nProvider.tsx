@@ -1,7 +1,15 @@
 /* The shopper's language for the whole app. Every component reads its words and formats through
    `useI18n()`; a switch re-renders them in place, nothing mounts again. Without a provider (most
    tests) the app reads English. */
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   formatCount,
   formatDate,
@@ -12,6 +20,7 @@ import {
   type MessageKey,
   type MessageParams,
 } from "./i18n";
+import { rememberLanguage } from "./remembered";
 
 export interface I18n {
   language: Language;
@@ -37,19 +46,38 @@ function i18nFor(language: Language, setLanguage: (next: Language) => void): I18
 
 const I18nContext = createContext<I18n>(i18nFor("en", () => undefined));
 
-/** Holds the language, starting at `language`; sets `<html lang>` to follow it. */
+/** Holds the language, starting at `language`; sets `<html lang>` to follow it and remembers it
+ *  for the next visit's first guess. `later` is the session's language when it answers after the
+ *  first render: the provider switches to it, unless the shopper has switched already. */
 export function I18nProvider({
   language: initial,
+  later,
   children,
 }: {
   language: Language;
+  later?: Promise<Language | null>;
   children: ReactNode;
 }) {
-  const [language, setLanguage] = useState<Language>(initial);
+  // `chosen`: the shopper has switched, so a late session answer no longer applies
+  const [{ language }, setState] = useState({ language: initial, chosen: false });
+  const setLanguage = useCallback((next: Language) => {
+    setState({ language: next, chosen: true });
+  }, []);
+  useEffect(() => {
+    let live = true;
+    void later?.then((answer) => {
+      if (!live || !answer) return;
+      setState((held) => (held.chosen ? held : { language: answer, chosen: false }));
+    });
+    return () => {
+      live = false;
+    };
+  }, [later]);
   useEffect(() => {
     document.documentElement.lang = language;
+    rememberLanguage(language);
   }, [language]);
-  const value = useMemo(() => i18nFor(language, setLanguage), [language]);
+  const value = useMemo(() => i18nFor(language, setLanguage), [language, setLanguage]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
