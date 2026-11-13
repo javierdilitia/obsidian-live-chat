@@ -239,6 +239,9 @@
    (mockup/css/artifacts.css `.grow-wrap`) */
 .room {
   display: grid;
+  /* the one column may shrink to the screen: with `auto`, the shelf's sideways scroller on a
+     phone (about three products wide) would stretch every section past the edge (#32) */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr;
   transition: grid-template-rows 0.6s var(--ease);
 }

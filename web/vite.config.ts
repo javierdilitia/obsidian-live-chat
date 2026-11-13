@@ -11,5 +11,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test-setup.ts"],
+    // page.test.ts reads the stylesheet (jsdom does no layout); vitest blanks CSS it does not include.
+    css: { include: [/styles\/page\.css/] },
   },
 });
