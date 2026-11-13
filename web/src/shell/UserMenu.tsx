@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
 import type { Message } from "../i18n/i18n";
+import { retrying } from "../lib/retry";
 import { browser, readSession, readUsers, switchUser, type User } from "../lib/session";
 import { LedgerMenu } from "./LedgerMenu";
 
@@ -42,7 +43,11 @@ export function UserMenu({ onNotice }: { onNotice: (message: Message) => void })
   // Who is shopping, and who else could be. Without an answer the cell stays out of the ledger.
   useEffect(() => {
     let live = true;
-    Promise.all([readSession(), readUsers()])
+    // tried again while the agent isn't up yet (the page can load first)
+    retrying(
+      () => Promise.all([readSession(), readUsers()]),
+      () => live,
+    )
       .then(([current, all]) => {
         if (!live) return;
         setUser(current);

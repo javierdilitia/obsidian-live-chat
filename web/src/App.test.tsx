@@ -754,6 +754,45 @@ test("a failed switch's error follows a language switch (#28)", async () => {
   ).toBeInTheDocument();
 });
 
+/* ——— the agent not up yet (the page loaded first: the dev server, or the agent restarting) ——— */
+
+/** Every call fails as the dev proxy's would, until `up()`. */
+function agentDown() {
+  const answer = globalThis.fetch;
+  let down = true;
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+    down ? Promise.resolve(new Response(null, { status: 500 })) : answer(input, init),
+  );
+  return {
+    up: () => {
+      down = false;
+    },
+  };
+}
+
+test("the shopper cell appears once the agent answers", async () => {
+  mockApi();
+  const agent = agentDown();
+  render(<App />);
+  await act(() => Promise.resolve());
+  expect(screen.queryByRole("button", { name: /^Shopper/ })).not.toBeInTheDocument();
+
+  agent.up();
+
+  expect(await screen.findByRole("button", { name: "Shopper: Javier" })).toBeInTheDocument();
+});
+
+test("a saved page comes back once the agent answers", async () => {
+  mockApi(undefined, { workspace: [savedWorkspace(build[0], [aerisLine])] });
+  const agent = agentDown();
+  render(<App />);
+  await act(() => Promise.resolve());
+
+  agent.up();
+
+  expect(await screen.findByRole("tab", { name: BUILD_COMMAND })).toBeInTheDocument();
+});
+
 /* ——— Spanish ——— */
 
 function renderIn(language: "en" | "es") {

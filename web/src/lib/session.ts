@@ -6,6 +6,7 @@ import { z } from "zod";
 import { asLanguage, type Language } from "../i18n/i18n";
 import { rememberedLanguage } from "../i18n/remembered";
 import { UserSchema, dispatchAction, type ActionResult, type User } from "./actions";
+import { retrying } from "./retry";
 
 export type { User };
 
@@ -55,14 +56,15 @@ export interface BootLanguage {
   /** The first render's language: the session's when it answers within the wait, else the one
    *  this browser showed last (English on a first visit). */
   language: Language;
-  /** The session's language whenever it answers, to switch to; null when it can't be read. */
+  /** The session's language whenever it answers (tried again while the agent isn't up), to
+   *  switch to; null when it can't be read. */
   later: Promise<Language | null>;
 }
 
 /** The language to render in first. A hung server no longer leaves a blank page, and a slow first
  *  request no longer leaves a returning shopper in English (#27). */
 export async function bootLanguage(waitMs = BOOT_WAIT_MS): Promise<BootLanguage> {
-  const later = readSession().then(
+  const later = retrying(readSession, () => true).then(
     (user) => asLanguage(user.language),
     () => null,
   );

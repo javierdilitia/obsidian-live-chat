@@ -30,10 +30,22 @@ test("a hung session on a first visit: English", async () => {
   expect((await bootLanguage(10)).language).toBe("en");
 });
 
-test("a session that can't be read: the remembered language, and nothing to switch to", async () => {
-  rememberLanguage("es");
-  vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 500 })));
+test("a session that can't be read yet: the remembered language, then the session's", async () => {
+  rememberLanguage("en");
+  const fetchMock = mockApi(undefined, {
+    users: [
+      { id: "ana", name: "Ana", language: "es" },
+      { id: "demo-user", name: "Javier", language: "en" },
+    ],
+  });
+  let down = true;
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+    down ? Promise.resolve(new Response(null, { status: 500 })) : fetchMock(input, init),
+  );
   const boot = await bootLanguage();
-  expect(boot.language).toBe("es");
-  expect(await boot.later).toBeNull();
+  expect(boot.language).toBe("en");
+
+  down = false;
+
+  expect(await boot.later).toBe("es");
 });

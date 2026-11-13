@@ -25,6 +25,7 @@ import { actionErrorMessage, runErrorMessage, type Message } from "./i18n/i18n";
 import { dispatchAction, type CartLine } from "./lib/actions";
 import { cart, landFlight, useCart } from "./lib/cart";
 import { streamRun, type RunEnd } from "./lib/sse";
+import { retrying } from "./lib/retry";
 import { readWorkspace, type Workspace } from "./lib/workspace";
 import type { DotGlobe } from "./motion/globe";
 import { IdleGlobe, ThinkingGlobe } from "./motion/GlobeCanvas";
@@ -426,11 +427,12 @@ export default function App() {
   // A reload: the server still holds the tab, the page and the cart.
   useEffect(() => {
     let live = true;
-    readWorkspace()
+    // tried again while the agent isn't up yet (the page can load first)
+    retrying(readWorkspace, () => live)
       .then((saved) => {
         if (live && !sent.current && (saved.tab || saved.cart.length > 0)) showSaved(saved);
       })
-      .catch(() => undefined); // no server yet, or nothing it holds can be shown: start empty
+      .catch(() => undefined); // no server after ~20 s, or nothing it holds can be shown: start empty
     return () => {
       live = false;
     };
